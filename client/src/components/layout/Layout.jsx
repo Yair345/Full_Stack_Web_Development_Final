@@ -1,33 +1,69 @@
 import { useState } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
-import MobileMenu from "./MobileMenu";
 
 const Layout = ({ children }) => {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 
 	return (
-		<div className="min-h-screen bg-gray-50">
-			{/* Mobile menu */}
-			<MobileMenu open={sidebarOpen} setOpen={setSidebarOpen} />
+		<>
+			{/* Mobile sidebar overlay */}
+			{sidebarOpen && (
+				<div
+					className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-lg-none"
+					style={{ zIndex: 1039 }}
+					onClick={() => setSidebarOpen(false)}
+				/>
+			)}
 
-			{/* Desktop sidebar */}
-			<div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
+			{/* Mobile sidebar */}
+			<div
+				className={`position-fixed top-0 start-0 h-100 d-lg-none ${
+					sidebarOpen ? "show" : ""
+				}`}
+				style={{
+					width: "280px",
+					zIndex: 1040,
+					transform: sidebarOpen
+						? "translateX(0)"
+						: "translateX(-100%)",
+					transition: "transform 0.3s ease-in-out",
+					backgroundColor: "white",
+					borderRight: "1px solid rgba(0, 0, 0, 0.125)",
+					boxShadow: "0 0.125rem 0.25rem rgba(0, 0, 0, 0.075)",
+				}}
+			>
 				<Sidebar />
 			</div>
 
-			{/* Main content */}
-			<div className="lg:pl-64 flex flex-col flex-1">
-				<Header setSidebarOpen={setSidebarOpen} />
-				<main className="flex-1">
-					<div className="py-6">
-						<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-							{children}
+			<div className="container-fluid p-0 vh-100 overflow-hidden">
+				<div className="row g-0 h-100">
+					{/* Desktop sidebar */}
+					<div className="d-none d-lg-block col-lg-3 col-xl-2">
+						<div className="sidebar">
+							<Sidebar />
 						</div>
 					</div>
-				</main>
+
+					{/* Main content */}
+					<div className="col-12 col-lg-9 col-xl-10 d-flex flex-column h-100 overflow-hidden">
+						{/* Header */}
+						<Header
+							sidebarOpen={sidebarOpen}
+							setSidebarOpen={setSidebarOpen}
+						/>
+
+						{/* Page content */}
+						<main
+							className="flex-grow-1 p-4"
+							style={{ overflowY: "auto", height: "0" }}
+						>
+							<div className="container-fluid">{children}</div>
+						</main>
+					</div>
+				</div>
 			</div>
-		</div>
+		</>
 	);
 };
 

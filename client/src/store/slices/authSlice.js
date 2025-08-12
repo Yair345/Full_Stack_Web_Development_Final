@@ -3,7 +3,7 @@ import { createSlice } from '@reduxjs/toolkit';
 const initialState = {
     user: null,
     token: localStorage.getItem('token'),
-    isAuthenticated: false,
+    isAuthenticated: !!localStorage.getItem('token'),
     loading: false,
     error: null,
 };
@@ -39,11 +39,15 @@ const authSlice = createSlice({
             state.error = null;
             localStorage.removeItem('token');
         },
+        setUser: (state, action) => {
+            state.user = action.payload;
+            state.isAuthenticated = true;
+        },
         clearError: (state) => {
             state.error = null;
         },
     },
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout, clearError } = authSlice.actions;
+export const { loginStart, loginSuccess, loginFailure, logout, setUser, clearError } = authSlice.actions;
 export default authSlice.reducer;

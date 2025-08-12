@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { CreditCard, Plus, MoreVertical } from "lucide-react";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
 
 const Accounts = () => {
 	const [accounts] = useState([
@@ -41,134 +43,159 @@ const Accounts = () => {
 		}).format(amount);
 	};
 
-	const getAccountTypeColor = (type) => {
+	const getAccountTypeBadge = (type) => {
 		switch (type) {
 			case "checking":
-				return "bg-blue-100 text-blue-800";
+				return "badge bg-primary";
 			case "savings":
-				return "bg-green-100 text-green-800";
+				return "badge bg-success";
 			case "credit":
-				return "bg-orange-100 text-orange-800";
+				return "badge bg-warning";
 			default:
-				return "bg-gray-100 text-gray-800";
+				return "badge bg-secondary";
 		}
 	};
 
 	return (
-		<div className="space-y-6">
-			<div className="flex justify-between items-center">
-				<div>
-					<h1 className="text-2xl font-bold text-gray-900">
-						My Accounts
-					</h1>
-					<p className="text-gray-600">
-						Manage your bank accounts and view balances
-					</p>
+		<div className="row g-4">
+			<div className="col-12">
+				<div className="d-flex justify-content-between align-items-center">
+					<div>
+						<h1 className="h2 fw-bold text-dark mb-1">
+							My Accounts
+						</h1>
+						<p className="text-muted mb-0">
+							Manage your bank accounts and view balances
+						</p>
+					</div>
+					<Button
+						variant="primary"
+						className="d-flex align-items-center"
+					>
+						<Plus size={20} className="me-2" />
+						Open New Account
+					</Button>
 				</div>
-				<button className="btn-primary flex items-center">
-					<Plus className="h-5 w-5 mr-2" />
-					Open New Account
-				</button>
 			</div>
 
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{accounts.map((account) => (
-					<div
-						key={account.id}
-						className="card hover:shadow-lg transition-shadow"
-					>
-						<div className="flex justify-between items-start mb-4">
-							<div className="flex items-center">
-								<CreditCard className="h-8 w-8 text-blue-600 mr-3" />
-								<div>
-									<h3 className="text-lg font-semibold text-gray-900">
-										{account.name}
-									</h3>
-									<p className="text-sm text-gray-500">
-										{account.number}
-									</p>
+			<div className="col-12">
+				<div className="row g-4">
+					{accounts.map((account) => (
+						<div key={account.id} className="col-lg-6">
+							<Card className="h-100 hover-bg-light">
+								<div className="d-flex justify-content-between align-items-start mb-4">
+									<div className="d-flex align-items-center">
+										<CreditCard
+											size={32}
+											className="text-primary me-3"
+										/>
+										<div>
+											<h5 className="fw-semibold mb-1">
+												{account.name}
+											</h5>
+											<p className="small text-muted mb-0">
+												{account.number}
+											</p>
+										</div>
+									</div>
+									<div className="dropdown">
+										<button
+											className="btn btn-sm btn-outline-secondary"
+											type="button"
+											data-bs-toggle="dropdown"
+										>
+											<MoreVertical size={16} />
+										</button>
+									</div>
 								</div>
-							</div>
-							<button className="p-2 hover:bg-gray-100 rounded-lg">
-								<MoreVertical className="h-5 w-5 text-gray-400" />
-							</button>
-						</div>
 
-						<div className="space-y-3">
-							<div className="flex justify-between items-center">
-								<span className="text-sm text-gray-500">
-									Balance
-								</span>
-								<span
-									className={`text-xl font-bold ${
-										account.balance >= 0
-											? "text-gray-900"
-											: "text-red-600"
-									}`}
-								>
-									{formatCurrency(account.balance)}
-								</span>
-							</div>
-
-							{account.type === "credit" && (
-								<>
-									<div className="flex justify-between items-center">
-										<span className="text-sm text-gray-500">
-											Credit Limit
+								<div className="mb-4">
+									<div className="d-flex justify-content-between align-items-center mb-3">
+										<span className="text-muted">
+											Balance
 										</span>
-										<span className="text-sm font-medium text-gray-900">
-											{formatCurrency(account.limit)}
+										<span
+											className={`h4 fw-bold mb-0 ${
+												account.balance >= 0
+													? "text-dark"
+													: "text-danger"
+											}`}
+										>
+											{formatCurrency(account.balance)}
 										</span>
 									</div>
-									<div className="flex justify-between items-center">
-										<span className="text-sm text-gray-500">
-											APR
+
+									{account.type === "credit" && (
+										<>
+											<div className="d-flex justify-content-between align-items-center mb-2">
+												<span className="small text-muted">
+													Credit Limit
+												</span>
+												<span className="small fw-medium">
+													{formatCurrency(
+														account.limit
+													)}
+												</span>
+											</div>
+											<div className="d-flex justify-content-between align-items-center mb-2">
+												<span className="small text-muted">
+													APR
+												</span>
+												<span className="small fw-medium">
+													{account.apr}%
+												</span>
+											</div>
+										</>
+									)}
+
+									{account.type === "savings" && (
+										<div className="d-flex justify-content-between align-items-center mb-2">
+											<span className="small text-muted">
+												Interest Rate
+											</span>
+											<span className="small fw-medium text-success">
+												{account.interestRate}% APY
+											</span>
+										</div>
+									)}
+
+									<div className="d-flex justify-content-between align-items-center pt-3 border-top">
+										<span
+											className={getAccountTypeBadge(
+												account.type
+											)}
+										>
+											{account.type}
 										</span>
-										<span className="text-sm font-medium text-gray-900">
-											{account.apr}%
+										<span className="small text-muted">
+											Opened{" "}
+											{new Date(
+												account.openDate
+											).toLocaleDateString()}
 										</span>
 									</div>
-								</>
-							)}
-
-							{account.type === "savings" && (
-								<div className="flex justify-between items-center">
-									<span className="text-sm text-gray-500">
-										Interest Rate
-									</span>
-									<span className="text-sm font-medium text-bank-green-600">
-										{account.interestRate}% APY
-									</span>
 								</div>
-							)}
 
-							<div className="flex justify-between items-center pt-2 border-t border-gray-200">
-								<span
-									className={`inline-flex px-2 py-1 text-xs font-medium rounded-full capitalize ${getAccountTypeColor(
-										account.type
-									)}`}
-								>
-									{account.type}
-								</span>
-								<span className="text-sm text-gray-500">
-									Opened{" "}
-									{new Date(
-										account.openDate
-									).toLocaleDateString()}
-								</span>
-							</div>
+								<div className="d-grid gap-2 d-md-flex">
+									<Button
+										variant="primary"
+										size="sm"
+										className="flex-fill"
+									>
+										View Details
+									</Button>
+									<Button
+										variant="outline"
+										size="sm"
+										className="flex-fill"
+									>
+										Statements
+									</Button>
+								</div>
+							</Card>
 						</div>
-
-						<div className="mt-4 flex space-x-3">
-							<button className="flex-1 btn-primary text-sm">
-								View Details
-							</button>
-							<button className="flex-1 btn-secondary text-sm">
-								Statements
-							</button>
-						</div>
-					</div>
-				))}
+					))}
+				</div>
 			</div>
 		</div>
 	);

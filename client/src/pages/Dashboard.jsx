@@ -6,6 +6,7 @@ import {
 	ArrowDownRight,
 	DollarSign,
 } from "lucide-react";
+import Card from "../components/ui/Card";
 
 const Dashboard = () => {
 	const { user } = useSelector((state) => state.auth);
@@ -77,177 +78,214 @@ const Dashboard = () => {
 	const getAccountIcon = (type) => {
 		switch (type) {
 			case "checking":
-				return <CreditCard className="h-6 w-6 text-blue-600" />;
+				return <CreditCard size={24} className="text-primary" />;
 			case "savings":
-				return <TrendingUp className="h-6 w-6 text-green-600" />;
+				return <TrendingUp size={24} className="text-success" />;
 			case "credit":
-				return <DollarSign className="h-6 w-6 text-orange-600" />;
+				return <DollarSign size={24} className="text-warning" />;
 			default:
-				return <CreditCard className="h-6 w-6 text-gray-600" />;
+				return <CreditCard size={24} className="text-secondary" />;
 		}
 	};
 
 	return (
-		<div className="space-y-6">
+		<div className="row g-4">
 			{/* Welcome Section */}
-			<div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 text-white">
-				<h1 className="text-2xl font-bold mb-2">
-					Welcome back, {user?.firstName}!
-				</h1>
-				<p className="text-blue-100">
-					Here's an overview of your accounts and recent activity.
-				</p>
+			<div className="col-12">
+				<div className="bg-gradient-primary rounded p-4 text-white">
+					<h1 className="h3 fw-bold mb-2">
+						Welcome back, {user?.firstName}!
+					</h1>
+					<p className="mb-0 opacity-75">
+						Here's an overview of your accounts and recent activity.
+					</p>
+				</div>
 			</div>
 
 			{/* Quick Stats */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-				<div className="card">
-					<div className="flex items-center">
-						<div className="flex-shrink-0">
-							<TrendingUp className="h-8 w-8 text-green-600" />
-						</div>
-						<div className="ml-4">
-							<p className="text-sm font-medium text-gray-500">
-								Total Balance
-							</p>
-							<p className="text-2xl font-bold text-gray-900">
-								{formatCurrency(
-									accounts.reduce(
-										(sum, acc) => sum + acc.balance,
-										0
-									)
-								)}
-							</p>
-						</div>
+			<div className="col-12">
+				<div className="row g-3">
+					<div className="col-md-4">
+						<Card>
+							<div className="d-flex align-items-center">
+								<div className="flex-shrink-0">
+									<TrendingUp
+										size={32}
+										className="text-success"
+									/>
+								</div>
+								<div className="ms-3">
+									<p className="small text-muted mb-1">
+										Total Balance
+									</p>
+									<p className="h4 fw-bold mb-0">
+										{formatCurrency(
+											accounts.reduce(
+												(sum, acc) => sum + acc.balance,
+												0
+											)
+										)}
+									</p>
+								</div>
+							</div>
+						</Card>
 					</div>
-				</div>
 
-				<div className="card">
-					<div className="flex items-center">
-						<div className="flex-shrink-0">
-							<CreditCard className="h-8 w-8 text-blue-600" />
-						</div>
-						<div className="ml-4">
-							<p className="text-sm font-medium text-gray-500">
-								Active Accounts
-							</p>
-							<p className="text-2xl font-bold text-gray-900">
-								{accounts.length}
-							</p>
-						</div>
+					<div className="col-md-4">
+						<Card>
+							<div className="d-flex align-items-center">
+								<div className="flex-shrink-0">
+									<CreditCard
+										size={32}
+										className="text-primary"
+									/>
+								</div>
+								<div className="ms-3">
+									<p className="small text-muted mb-1">
+										Active Accounts
+									</p>
+									<p className="h4 fw-bold mb-0">
+										{accounts.length}
+									</p>
+								</div>
+							</div>
+						</Card>
 					</div>
-				</div>
 
-				<div className="card">
-					<div className="flex items-center">
-						<div className="flex-shrink-0">
-							<ArrowUpRight className="h-8 w-8 text-green-600" />
-						</div>
-						<div className="ml-4">
-							<p className="text-sm font-medium text-gray-500">
-								This Month
-							</p>
-							<p className="text-2xl font-bold text-gray-900">
-								+{formatCurrency(3200)}
-							</p>
-						</div>
+					<div className="col-md-4">
+						<Card>
+							<div className="d-flex align-items-center">
+								<div className="flex-shrink-0">
+									<ArrowUpRight
+										size={32}
+										className="text-success"
+									/>
+								</div>
+								<div className="ms-3">
+									<p className="small text-muted mb-1">
+										This Month
+									</p>
+									<p className="h4 fw-bold mb-0">
+										+{formatCurrency(3200)}
+									</p>
+								</div>
+							</div>
+						</Card>
 					</div>
 				</div>
 			</div>
 
 			{/* Accounts Overview */}
-			<div className="card">
-				<h2 className="text-lg font-medium text-gray-900 mb-4">
-					Your Accounts
-				</h2>
-				<div className="space-y-4">
-					{accounts.map((account) => (
-						<div
-							key={account.id}
-							className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-						>
-							<div className="flex items-center">
-								<div className="flex-shrink-0">
-									{getAccountIcon(account.type)}
-								</div>
-								<div className="ml-4">
-									<p className="text-sm font-medium text-gray-900">
-										{account.name}
-									</p>
-									<p className="text-sm text-gray-500">
-										{account.number}
-									</p>
+			<div className="col-12">
+				<Card>
+					<h2 className="h5 fw-medium mb-4">Your Accounts</h2>
+					<div className="row g-3">
+						{accounts.map((account) => (
+							<div key={account.id} className="col-12">
+								<div className="border rounded p-3 hover-bg-light">
+									<div className="d-flex align-items-center justify-content-between">
+										<div className="d-flex align-items-center">
+											<div className="flex-shrink-0">
+												{getAccountIcon(account.type)}
+											</div>
+											<div className="ms-3">
+												<p className="fw-medium mb-1">
+													{account.name}
+												</p>
+												<p className="small text-muted mb-0">
+													{account.number}
+												</p>
+											</div>
+										</div>
+										<div className="text-end">
+											<p
+												className={`h6 fw-semibold mb-0 ${
+													account.balance >= 0
+														? "text-dark"
+														: "text-danger"
+												}`}
+											>
+												{formatCurrency(
+													account.balance
+												)}
+											</p>
+											{account.type === "credit" && (
+												<p className="small text-muted mb-0">
+													Limit:{" "}
+													{formatCurrency(
+														account.limit
+													)}
+												</p>
+											)}
+										</div>
+									</div>
 								</div>
 							</div>
-							<div className="text-right">
-								<p
-									className={`text-lg font-semibold ${
-										account.balance >= 0
-											? "text-gray-900"
-											: "text-red-600"
-									}`}
-								>
-									{formatCurrency(account.balance)}
-								</p>
-								{account.type === "credit" && (
-									<p className="text-sm text-gray-500">
-										Limit: {formatCurrency(account.limit)}
-									</p>
-								)}
-							</div>
-						</div>
-					))}
-				</div>
+						))}
+					</div>
+				</Card>
 			</div>
 
 			{/* Recent Transactions */}
-			<div className="card">
-				<div className="flex items-center justify-between mb-4">
-					<h2 className="text-lg font-medium text-gray-900">
-						Recent Transactions
-					</h2>
-					<button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-						View all
-					</button>
-				</div>
-				<div className="space-y-3">
-					{recentTransactions.map((transaction) => (
-						<div
-							key={transaction.id}
-							className="flex items-center justify-between py-3 border-b border-gray-200 last:border-b-0"
-						>
-							<div className="flex items-center">
-								<div className="flex-shrink-0">
-									{transaction.type === "credit" ? (
-										<ArrowUpRight className="h-5 w-5 text-green-600" />
-									) : (
-										<ArrowDownRight className="h-5 w-5 text-red-600" />
-									)}
+			<div className="col-12">
+				<Card>
+					<div className="d-flex align-items-center justify-content-between mb-4">
+						<h2 className="h5 fw-medium mb-0">
+							Recent Transactions
+						</h2>
+						<button className="btn btn-link text-primary p-0 small">
+							View all
+						</button>
+					</div>
+					<div className="list-group list-group-flush">
+						{recentTransactions.map((transaction, index) => (
+							<div
+								key={transaction.id}
+								className={`list-group-item d-flex align-items-center justify-content-between py-3 ${
+									index === recentTransactions.length - 1
+										? "border-bottom-0"
+										: ""
+								}`}
+							>
+								<div className="d-flex align-items-center">
+									<div className="flex-shrink-0">
+										{transaction.type === "credit" ? (
+											<ArrowUpRight
+												size={20}
+												className="text-success"
+											/>
+										) : (
+											<ArrowDownRight
+												size={20}
+												className="text-danger"
+											/>
+										)}
+									</div>
+									<div className="ms-3">
+										<p className="fw-medium mb-1">
+											{transaction.description}
+										</p>
+										<p className="small text-muted mb-0">
+											{transaction.date}
+										</p>
+									</div>
 								</div>
-								<div className="ml-3">
-									<p className="text-sm font-medium text-gray-900">
-										{transaction.description}
-									</p>
-									<p className="text-sm text-gray-500">
-										{transaction.date}
+								<div className="text-end">
+									<p
+										className={`small fw-semibold mb-0 ${
+											transaction.amount >= 0
+												? "text-success"
+												: "text-danger"
+										}`}
+									>
+										{transaction.amount >= 0 ? "+" : ""}
+										{formatCurrency(transaction.amount)}
 									</p>
 								</div>
 							</div>
-							<div className="text-right">
-								<p
-									className={`text-sm font-semibold ${
-										transaction.amount >= 0
-											? "text-green-600"
-											: "text-red-600"
-									}`}
-								>
-									{transaction.amount >= 0 ? "+" : ""}
-									{formatCurrency(transaction.amount)}
-								</p>
-							</div>
-						</div>
-					))}
-				</div>
+						))}
+					</div>
+				</Card>
 			</div>
 		</div>
 	);

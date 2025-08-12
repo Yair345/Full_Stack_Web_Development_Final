@@ -1,9 +1,9 @@
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { Menu, Bell, User, LogOut } from "lucide-react";
+import { Menu, Bell, User, LogOut, X } from "lucide-react";
 import { logout } from "../../store/slices/authSlice";
 
-const Header = ({ setSidebarOpen }) => {
+const Header = ({ sidebarOpen, setSidebarOpen }) => {
 	const { user } = useSelector((state) => state.auth);
 	const dispatch = useDispatch();
 	const navigate = useNavigate();
@@ -14,68 +14,64 @@ const Header = ({ setSidebarOpen }) => {
 	};
 
 	return (
-		<header className="bg-white shadow-sm lg:static lg:overflow-y-visible">
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="relative flex justify-between xl:grid xl:grid-cols-12 lg:gap-8">
-					<div className="flex md:absolute md:left-0 md:inset-y-0 lg:static xl:col-span-2">
-						<div className="flex-shrink-0 flex items-center">
-							<button
-								type="button"
-								className="lg:hidden -ml-0.5 -mt-0.5 h-12 w-12 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
-								onClick={() => setSidebarOpen(true)}
-							>
-								<span className="sr-only">Open sidebar</span>
-								<Menu className="h-6 w-6" aria-hidden="true" />
-							</button>
-							<div className="lg:hidden ml-4">
-								<h1 className="text-xl font-bold text-blue-600">
-									SecureBank
-								</h1>
-							</div>
-						</div>
-					</div>
-
-					<div className="min-w-0 flex-1 md:px-8 lg:px-0 xl:col-span-6">
-						<div className="flex items-center px-6 py-4 md:max-w-3xl md:mx-auto lg:max-w-none lg:mx-0 xl:px-0">
-							<div className="w-full">
-								<h1 className="text-lg font-medium text-gray-900">
-									Welcome back, {user?.firstName || "User"}
-								</h1>
-							</div>
-						</div>
-					</div>
-
-					<div className="flex items-center md:absolute md:right-0 md:inset-y-0 lg:hidden xl:col-span-4">
-						{/* Mobile menu items */}
-					</div>
-
-					<div className="hidden lg:flex lg:items-center lg:justify-end xl:col-span-4">
+		<header className="navbar navbar-expand-lg navbar-light bg-white header-custom">
+			<div className="container-fluid">
+				<div className="d-flex w-100 justify-content-between align-items-center">
+					<div className="d-flex align-items-center">
 						<button
 							type="button"
-							className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+							className="btn btn-link d-lg-none p-2 text-secondary"
+							onClick={() => setSidebarOpen(!sidebarOpen)}
 						>
-							<span className="sr-only">View notifications</span>
-							<Bell className="h-6 w-6" aria-hidden="true" />
+							<span className="visually-hidden">
+								{sidebarOpen ? "Close sidebar" : "Open sidebar"}
+							</span>
+							{sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+						</button>
+						<div className="d-lg-none ms-3">
+							<h1 className="h4 mb-0 text-bank-blue fw-bold">
+								SecureBank
+							</h1>
+						</div>
+					</div>
+
+					<div className="d-none d-md-block flex-grow-1">
+						<div className="mx-auto" style={{ maxWidth: "768px" }}>
+							<h1 className="h5 mb-0 text-dark">
+								Welcome back, {user?.firstName || "User"}
+							</h1>
+						</div>
+					</div>
+
+					<div className="d-flex align-items-center">
+						<button
+							type="button"
+							className="btn btn-link p-2 text-secondary me-3"
+						>
+							<span className="visually-hidden">
+								View notifications
+							</span>
+							<Bell size={20} />
 						</button>
 
-						{/* Profile dropdown */}
-						<div className="flex-shrink-0 relative ml-5">
-							<div className="flex items-center space-x-4">
-								<div className="flex items-center space-x-2">
-									<div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-										<User className="h-5 w-5 text-blue-600" />
-									</div>
-									<span className="text-sm font-medium text-gray-700">
-										{user?.firstName} {user?.lastName}
-									</span>
-								</div>
-								<button
-									onClick={handleLogout}
-									className="text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+						<div className="d-flex align-items-center">
+							<div className="d-flex align-items-center me-3">
+								<div
+									className="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center me-2"
+									style={{ width: "32px", height: "32px" }}
 								>
-									<LogOut className="h-5 w-5" />
-								</button>
+									<User size={16} className="text-primary" />
+								</div>
+								<span className="small fw-medium text-dark d-none d-sm-inline">
+									{user?.firstName} {user?.lastName}
+								</span>
 							</div>
+							<button
+								onClick={handleLogout}
+								className="btn btn-link p-2 text-secondary"
+							>
+								<LogOut size={16} />
+							</button>
 						</div>
 					</div>
 				</div>

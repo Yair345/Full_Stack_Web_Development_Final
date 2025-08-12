@@ -6,7 +6,6 @@ import {
 	ArrowLeftRight,
 	Send,
 	Banknote,
-	Settings,
 	Shield,
 	Building2,
 	User,
@@ -26,7 +25,6 @@ const Sidebar = () => {
 		{ name: "Profile", href: "/profile", icon: User },
 	];
 
-	// Add admin/manager specific navigation
 	const adminNavigation = [];
 	if (user?.role === "admin") {
 		adminNavigation.push({
@@ -43,116 +41,84 @@ const Sidebar = () => {
 		});
 	}
 
-	function classNames(...classes) {
-		return classes.filter(Boolean).join(" ");
-	}
+	const NavItem = ({ item }) => (
+		<NavLink
+			to={item.href}
+			className={({ isActive }) =>
+				`nav-link nav-link-custom d-flex align-items-center py-2 px-3 mb-1 rounded text-decoration-none
+				${isActive ? "active" : ""}`
+			}
+		>
+			{({ isActive }) => (
+				<>
+					<item.icon
+						size={20}
+						className={`me-3 ${isActive ? "text-bank-blue" : ""}`}
+					/>
+					{item.name}
+				</>
+			)}
+		</NavLink>
+	);
 
 	return (
-		<div className="flex flex-col flex-grow border-r border-gray-200 pt-5 pb-4 bg-white overflow-y-auto">
-			<div className="flex items-center flex-shrink-0 px-4">
-				<div className="flex items-center">
-					<div className="flex-shrink-0">
-						<div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center">
-							<Building2 className="h-5 w-5 text-white" />
-						</div>
+		<div className="sidebar">
+			<div className="sidebar-content">
+				{/* Logo - Fixed at top */}
+				<div className="d-flex align-items-center p-4 border-bottom flex-shrink-0">
+					<div
+						className="rounded bg-bank-blue d-flex align-items-center justify-content-center"
+						style={{ width: "36px", height: "36px" }}
+					>
+						<Building2 size={20} className="text-white" />
 					</div>
-					<div className="ml-3">
-						<h1 className="text-xl font-bold text-gray-900">
-							SecureBank
-						</h1>
-					</div>
-				</div>
-			</div>
-
-			<nav
-				className="mt-5 flex-grow flex flex-col divide-y divide-gray-200"
-				aria-label="Sidebar"
-			>
-				<div className="px-2 space-y-1">
-					{navigation.map((item) => (
-						<NavLink
-							key={item.name}
-							to={item.href}
-							className={({ isActive }) =>
-								classNames(
-									isActive
-										? "bg-blue-100 text-blue-900 border-r-2 border-blue-500"
-										: "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-									"group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-200"
-								)
-							}
-						>
-							{({ isActive }) => (
-								<>
-									<item.icon
-										className={classNames(
-											isActive
-												? "text-blue-500"
-												: "text-gray-400 group-hover:text-gray-500",
-											"mr-3 flex-shrink-0 h-6 w-6"
-										)}
-										aria-hidden="true"
-									/>
-									{item.name}
-								</>
-							)}
-						</NavLink>
-					))}
+					<h1 className="h5 mb-0 ms-3 fw-bold text-dark">
+						SecureBank
+					</h1>
 				</div>
 
-				{adminNavigation.length > 0 && (
-					<div className="mt-6 pt-6">
-						<div className="px-2 space-y-1">
-							<h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+				{/* Navigation - Scrollable middle section */}
+				<div className="sidebar-nav p-3">
+					<div className="nav flex-column">
+						{navigation.map((item) => (
+							<NavItem key={item.name} item={item} />
+						))}
+					</div>
+
+					{adminNavigation.length > 0 && (
+						<div className="mt-4 pt-3 border-top">
+							<h6 className="px-3 text-uppercase text-muted small fw-semibold mb-2">
 								Administration
-							</h3>
-							{adminNavigation.map((item) => (
-								<NavLink
-									key={item.name}
-									to={item.href}
-									className={({ isActive }) =>
-										classNames(
-											isActive
-												? "bg-blue-100 text-blue-900 border-r-2 border-blue-500"
-												: "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-											"group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors duration-200"
-										)
-									}
-								>
-									{({ isActive }) => (
-										<>
-											<item.icon
-												className={classNames(
-													isActive
-														? "text-blue-500"
-														: "text-gray-400 group-hover:text-gray-500",
-													"mr-3 flex-shrink-0 h-6 w-6"
-												)}
-												aria-hidden="true"
-											/>
-											{item.name}
-										</>
-									)}
-								</NavLink>
-							))}
+							</h6>
+							<div className="nav flex-column">
+								{adminNavigation.map((item) => (
+									<NavItem key={item.name} item={item} />
+								))}
+							</div>
 						</div>
-					</div>
-				)}
-			</nav>
+					)}
+				</div>
 
-			{/* User info at bottom */}
-			<div className="flex-shrink-0 border-t border-gray-200 p-4">
-				<div className="flex items-center">
-					<div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-						<User className="h-4 w-4 text-blue-600" />
-					</div>
-					<div className="ml-3">
-						<p className="text-sm font-medium text-gray-700">
-							{user?.firstName} {user?.lastName}
-						</p>
-						<p className="text-xs text-gray-500 capitalize">
-							{user?.role || "User"}
-						</p>
+				{/* User info - Fixed at bottom */}
+				<div className="sidebar-footer border-top p-3 bg-light">
+					<div className="d-flex align-items-center">
+						<div
+							className="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center"
+							style={{ width: "32px", height: "32px" }}
+						>
+							<User size={16} className="text-primary" />
+						</div>
+						<div className="ms-3">
+							<p className="mb-0 small fw-medium text-dark">
+								{user?.firstName} {user?.lastName}
+							</p>
+							<p
+								className="mb-0 text-muted"
+								style={{ fontSize: "0.75rem" }}
+							>
+								{user?.role || "User"}
+							</p>
+						</div>
 					</div>
 				</div>
 			</div>
