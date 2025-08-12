@@ -1,18 +1,16 @@
-import { Fragment } from "react";
-import { Dialog, Transition } from "@headlessui/react";
+import { Dialog, DialogPanel, Transition } from "@headlessui/react";
 import { X } from "lucide-react";
 import Sidebar from "./Sidebar";
 
 const MobileMenu = ({ open, setOpen }) => {
 	return (
-		<Transition.Root show={open} as={Fragment}>
+		<Transition show={open}>
 			<Dialog
 				as="div"
 				className="relative z-50 lg:hidden"
 				onClose={setOpen}
 			>
-				<Transition.Child
-					as={Fragment}
+				<Transition
 					enter="transition-opacity ease-linear duration-300"
 					enterFrom="opacity-0"
 					enterTo="opacity-100"
@@ -21,11 +19,10 @@ const MobileMenu = ({ open, setOpen }) => {
 					leaveTo="opacity-0"
 				>
 					<div className="fixed inset-0 bg-gray-900/80" />
-				</Transition.Child>
+				</Transition>
 
 				<div className="fixed inset-0 flex">
-					<Transition.Child
-						as={Fragment}
+					<Transition
 						enter="transition ease-in-out duration-300 transform"
 						enterFrom="-translate-x-full"
 						enterTo="translate-x-0"
@@ -33,9 +30,8 @@ const MobileMenu = ({ open, setOpen }) => {
 						leaveFrom="translate-x-0"
 						leaveTo="-translate-x-full"
 					>
-						<Dialog.Panel className="relative mr-16 flex w-full max-w-xs flex-1">
-							<Transition.Child
-								as={Fragment}
+						<DialogPanel className="relative mr-16 flex w-full max-w-xs flex-1">
+							<Transition
 								enter="ease-in-out duration-300"
 								enterFrom="opacity-0"
 								enterTo="opacity-100"
@@ -58,13 +54,13 @@ const MobileMenu = ({ open, setOpen }) => {
 										/>
 									</button>
 								</div>
-							</Transition.Child>
+							</Transition>
 							<Sidebar />
-						</Dialog.Panel>
-					</Transition.Child>
+						</DialogPanel>
+					</Transition>
 				</div>
 			</Dialog>
-		</Transition.Root>
+		</Transition>
 	);
 };
 
