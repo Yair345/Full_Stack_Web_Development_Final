@@ -13,7 +13,7 @@ import ProtectedRoute from "./components/layout/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Accounts from "./pages/Accounts";
-import Transactions from "./pages/Transactions";
+import Transactions from "./pages/Transactions/Transactions.jsx";
 import Transfer from "./pages/Transfer";
 import Loans from "./pages/Loans";
 import Cards from "./pages/Cards";
