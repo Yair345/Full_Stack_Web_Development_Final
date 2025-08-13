@@ -7,6 +7,7 @@ import {
 	loginSuccess,
 	loginFailure,
 } from "../store/slices/authSlice";
+import Input from "../components/ui/Input";
 
 const Login = () => {
 	const [formData, setFormData] = useState({
@@ -94,25 +95,17 @@ const Login = () => {
 								</div>
 
 								<form onSubmit={handleSubmit}>
-									<div className="mb-3">
-										<label
-											htmlFor="email"
-											className="form-label"
-										>
-											Email address
-										</label>
-										<input
-											id="email"
-											name="email"
-											type="email"
-											autoComplete="email"
-											required
-											className="form-control"
-											placeholder="Email address"
-											value={formData.email}
-											onChange={handleChange}
-										/>
-									</div>
+									<Input
+										id="email"
+										name="email"
+										type="email"
+										label="Email address"
+										autoComplete="email"
+										required
+										placeholder="Email address"
+										value={formData.email}
+										onChange={handleChange}
+									/>
 									<div className="mb-3">
 										<label
 											htmlFor="password"
