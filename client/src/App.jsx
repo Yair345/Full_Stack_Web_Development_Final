@@ -12,7 +12,7 @@ import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Accounts from "./pages/Accounts";
+import Accounts from "./pages/Accounts/Accounts.jsx";
 import Transactions from "./pages/Transactions/Transactions.jsx";
 import Transfer from "./pages/Transfer";
 import Loans from "./pages/Loans";

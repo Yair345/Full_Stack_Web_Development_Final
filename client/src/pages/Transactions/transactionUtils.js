@@ -132,24 +132,41 @@ export const filterTransactions = (transactions, searchTerm, filters) => {
 
 // Export transactions to CSV
 export const exportTransactions = (transactions) => {
-    const csvContent = [
-        ["Date", "Description", "Amount", "Type", "Category", "Status"],
-        ...transactions.map((t) => [
-            new Date(t.date).toLocaleDateString(),
-            t.description,
-            t.amount,
-            t.type,
-            t.category,
-            t.status,
-        ]),
-    ]
-        .map((row) => row.join(","))
-        .join("\n");
+    // Helper function to escape CSV fields
+    const escapeCSVField = (field) => {
+        if (field == null) return '';
+        const stringField = String(field);
+        // If field contains comma, quote, or newline, wrap in quotes and escape internal quotes
+        if (stringField.includes(',') || stringField.includes('"') || stringField.includes('\n')) {
+            return '"' + stringField.replace(/"/g, '""') + '"';
+        }
+        return stringField;
+    };
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
+    const headers = ["Date", "Description", "Merchant", "Amount", "Type", "Category", "Account", "Status"];
+
+    const csvRows = [
+        headers.join(','),
+        ...transactions.map((t) => [
+            escapeCSVField(new Date(t.date).toLocaleDateString()),
+            escapeCSVField(t.description),
+            escapeCSVField(t.merchant),
+            escapeCSVField(t.amount),
+            escapeCSVField(t.type),
+            escapeCSVField(t.category),
+            escapeCSVField(t.account),
+            escapeCSVField(t.status),
+        ].join(','))
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = `transactions_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a); // Append to body for better browser compatibility
     a.click();
+    document.body.removeChild(a); // Clean up
+    window.URL.revokeObjectURL(url); // Clean up the URL object
 };
