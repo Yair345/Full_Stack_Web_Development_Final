@@ -11,15 +11,15 @@ import { setUser } from "./store/slices/authSlice";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/Dashboard/Dashboard";
 import Accounts from "./pages/Accounts/Accounts.jsx";
 import Transactions from "./pages/Transactions/Transactions.jsx";
-import Transfer from "./pages/Transfer";
-import Loans from "./pages/Loans";
-import Cards from "./pages/Cards";
-import AdminPanel from "./pages/AdminPanel";
-import BranchManagement from "./pages/BranchManagement";
-import Profile from "./pages/Profile";
+import Transfer from "./pages/Transfer/Transfer";
+import Loans from "./pages/Loans/Loans";
+import Cards from "./pages/Cards/Cards";
+import AdminPanel from "./pages/AdminPanel/AdminPanel";
+import BranchManagement from "./pages/BranchManagement/BranchManagement";
+import Profile from "./pages/Profile/Profile";
 
 function AppContent() {
 	const dispatch = useDispatch();
@@ -33,7 +33,7 @@ function AppContent() {
 				firstName: "John",
 				lastName: "Doe",
 				email: "john.doe@example.com",
-				role: "customer",
+				role: "admin",
 			};
 			dispatch(setUser(mockUser));
 		}
