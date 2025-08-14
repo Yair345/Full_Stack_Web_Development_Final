@@ -2,7 +2,7 @@ const { User } = require('../models');
 const { AuthService } = require('../services');
 const { AppError } = require('../utils/error.utils');
 const { asyncHandler } = require('../middleware/error.middleware');
-const { logger } = require('../utils/logger');
+const { requestLogger: logger } = require('../middleware/logger.middleware');
 const { encryptData } = require('../utils/encryption.utils');
 
 /**
