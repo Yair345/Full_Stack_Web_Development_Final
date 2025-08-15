@@ -1,4 +1,5 @@
 const { Transaction, Account, User } = require('../models');
+const AuditService = require('../services/audit.service');
 const { AppError } = require('../utils/error.utils');
 const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
@@ -296,6 +297,23 @@ const createTransfer = catchAsync(async (req, res, next) => {
         await t.commit();
 
         logger.info(`Transfer completed: ${transaction.id}`);
+
+        // Log audit event to MongoDB
+        await AuditService.logTransaction({
+            action: 'transfer_completed',
+            req,
+            transaction,
+            details: {
+                fromAccountNumber: fromAccount.account_number,
+                toAccountNumber: toAccount.account_number,
+                transferType: transactionType,
+                description,
+                previousFromBalance: fromAccount.balance,
+                previousToBalance: toAccount.balance,
+                newFromBalance: fromAccount.balance - transferAmount,
+                newToBalance: toAccount.balance + transferAmount
+            }
+        });
 
         // Emit real-time updates
         emitBalanceUpdate(fromAccount.id, fromAccount.balance - transferAmount);

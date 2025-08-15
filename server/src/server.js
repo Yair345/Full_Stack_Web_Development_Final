@@ -98,10 +98,17 @@ const startServer = async () => {
         await connectDB();
 
         // Initialize MongoDB connection (optional)
+        console.log('🔄 Connecting to MongoDB...');
         try {
-            await connectMongoDB();
+            const mongoConnection = await connectMongoDB();
+            if (mongoConnection) {
+                console.log('✅ MongoDB connected successfully - Audit logging enabled');
+            } else {
+                console.warn('⚠️ MongoDB connection failed - Audit logging disabled');
+            }
         } catch (mongoError) {
-            console.warn('⚠️ MongoDB connection failed, continuing without audit logs');
+            console.error('❌ MongoDB connection error:', mongoError.message);
+            console.warn('⚠️ Continuing without audit logs');
         }
 
         // Start the server

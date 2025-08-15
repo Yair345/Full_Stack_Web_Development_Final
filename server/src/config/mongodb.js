@@ -8,15 +8,28 @@ const connectMongoDB = async () => {
             return null;
         }
 
+        console.log('🔄 Connecting to MongoDB...');
+        console.log('MongoDB URI:', process.env.MONGO_URI);
+
         const conn = await mongoose.connect(process.env.MONGO_URI, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
+            maxPoolSize: 10,
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
         });
 
         console.log(`✅ MongoDB connected: ${conn.connection.host}`);
+        console.log(`📊 Database: ${conn.connection.name}`);
+
+        // Test the connection with a simple operation
+        await conn.connection.db.admin().ping();
+        console.log('🏓 MongoDB ping successful');
+
         return conn;
     } catch (error) {
         console.error('❌ MongoDB connection error:', error.message);
+        console.error('❌ Full error:', error);
         return null;
     }
 };

@@ -1,5 +1,6 @@
 const { User } = require('../models');
 const AuthService = require('../services/auth.service');
+const AuditService = require('../services/audit.service');
 const { AppError } = require('../utils/error.utils');
 const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
@@ -46,20 +47,23 @@ const register = catchAsync(async (req, res, next) => {
 
     logger.info(`User registered successfully: ${user.id}`);
 
+    // Log audit event to MongoDB
+    await AuditService.logAuth({
+        action: 'register',
+        req,
+        user,
+        success: true,
+        details: {
+            registrationMethod: 'email',
+            userRole: user.role
+        }
+    });
+
     res.status(201).json({
         success: true,
         message: 'User registered successfully',
         data: {
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                first_name: user.first_name,
-                last_name: user.last_name,
-                role: user.role,
-                is_active: user.is_active,
-                created_at: user.created_at
-            },
+            user: user.toSafeJSON(),
             tokens
         }
     });
@@ -75,29 +79,52 @@ const login = catchAsync(async (req, res, next) => {
 
     logger.info(`Login attempt for email: ${email}`);
 
-    // Login with AuthService
-    const { user, tokens } = await AuthService.login(email, password);
+    try {
+        // Login with AuthService
+        const { user, tokens } = await AuthService.login({ username: email, password });
 
-    // Update last login
-    await user.update({ last_login_at: new Date() });
+        // Update last login
+        await user.update({ last_login: new Date() });
 
-    logger.info(`User logged in successfully: ${user.id}`);
+        logger.info(`User logged in successfully: ${user.id}`);
 
-    res.json({
-        success: true,
-        message: 'Login successful',
-        data: {
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                role: user.role,
-                is_active: user.is_active,
-                last_login_at: user.last_login_at
-            },
-            tokens
-        }
-    });
+        // Log successful login audit event to MongoDB
+        await AuditService.logAuth({
+            action: 'login',
+            req,
+            user,
+            success: true,
+            details: {
+                loginMethod: 'email_password',
+                previousLoginAt: user.last_login
+            }
+        });
+
+        res.json({
+            success: true,
+            message: 'Login successful',
+            data: {
+                user: user.toSafeJSON(),
+                tokens
+            }
+        });
+    } catch (error) {
+        // Log failed login attempt to MongoDB
+        await AuditService.logAuth({
+            action: 'login_failed',
+            req,
+            user: null,
+            success: false,
+            details: {
+                attemptedEmail: email,
+                errorMessage: error.message,
+                loginMethod: 'email_password'
+            }
+        });
+
+        // Re-throw the error to be handled by error middleware
+        throw error;
+    }
 });
 
 /**
@@ -159,20 +186,7 @@ const getProfile = catchAsync(async (req, res, next) => {
     res.json({
         success: true,
         data: {
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                phone_number: user.phone_number,
-                date_of_birth: user.date_of_birth,
-                address: user.address,
-                role: user.role,
-                is_active: user.is_active,
-                email_verified_at: user.email_verified_at,
-                created_at: user.created_at,
-                updated_at: user.updated_at,
-                last_login_at: user.last_login_at
-            }
+            user: user.toSafeJSON()
         }
     });
 });
@@ -212,14 +226,7 @@ const updateProfile = catchAsync(async (req, res, next) => {
         success: true,
         message: 'Profile updated successfully',
         data: {
-            user: {
-                id: updatedUser.id,
-                username: updatedUser.username,
-                email: updatedUser.email,
-                phone_number: updatedUser.phone_number,
-                address: updatedUser.address,
-                updated_at: updatedUser.updated_at
-            }
+            user: updatedUser.toSafeJSON()
         }
     });
 });

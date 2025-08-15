@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const { User } = require('../models');
-const { generateTokenPair } = require('../utils/jwt.utils');
+const { generateTokenPair, verifyRefreshToken } = require('../utils/jwt.utils');
 const { generateResetToken, generateRandomString } = require('../utils/encryption.utils');
 const { AppError } = require('../middleware/error.middleware');
 const { HTTP_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } = require('../utils/constants');
@@ -63,7 +63,7 @@ class AuthService {
             }
 
             return {
-                user: user.toSafeJSON(),
+                user: user, // Return the actual Sequelize instance
                 tokens,
                 message: SUCCESS_MESSAGES.USER_CREATED
             };
@@ -138,7 +138,7 @@ class AuthService {
             const tokens = generateTokenPair(user);
 
             return {
-                user: user.toSafeJSON(),
+                user: user, // Return the actual Sequelize instance
                 tokens,
                 message: SUCCESS_MESSAGES.LOGIN_SUCCESS
             };
@@ -147,6 +147,45 @@ class AuthService {
                 throw error;
             }
             throw new AppError('Login failed', HTTP_STATUS.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Refresh JWT tokens using refresh token
+     * @param {String} refreshToken - Refresh token
+     * @returns {Object} New tokens
+     */
+    static async refreshToken(refreshToken) {
+        try {
+            // Verify the refresh token
+            const decoded = verifyRefreshToken(refreshToken);
+
+            // Get user from database
+            const user = await User.findByPk(decoded.id);
+
+            if (!user) {
+                throw new AppError('User not found', HTTP_STATUS.UNAUTHORIZED);
+            }
+
+            if (!user.is_active) {
+                throw new AppError('User account is inactive', HTTP_STATUS.UNAUTHORIZED);
+            }
+
+            // Generate new token pair
+            const tokens = generateTokenPair(user);
+
+            return {
+                tokens,
+                message: 'Tokens refreshed successfully'
+            };
+        } catch (error) {
+            if (error.message.includes('Invalid or expired')) {
+                throw new AppError('Invalid or expired refresh token', HTTP_STATUS.UNAUTHORIZED);
+            }
+            if (error instanceof AppError) {
+                throw error;
+            }
+            throw new AppError('Token refresh failed', HTTP_STATUS.INTERNAL_SERVER_ERROR);
         }
     }
 

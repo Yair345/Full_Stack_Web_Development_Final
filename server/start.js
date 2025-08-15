@@ -1,15 +1,24 @@
 require('dotenv').config();
 const app = require('./src/app');
 const { connectDB } = require('./src/config/database');
+const { connectMongoDB } = require('./src/config/mongodb');
 const { requestLogger: logger } = require('./src/middleware/logger.middleware');
 
 const PORT = process.env.PORT || 5000;
 
 async function startServer() {
     try {
-        // Connect to database
+        // Connect to MySQL database
         await connectDB();
         logger.info('✅ Database connected successfully');
+
+        // Connect to MongoDB for audit logging
+        const mongoConnection = await connectMongoDB();
+        if (mongoConnection) {
+            logger.info('✅ MongoDB connected successfully - Audit logging enabled');
+        } else {
+            logger.warn('⚠️ MongoDB connection failed - Audit logging disabled');
+        }
 
         // Start the server
         app.listen(PORT, () => {

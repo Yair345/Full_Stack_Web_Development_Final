@@ -69,17 +69,16 @@ const connectDB = async () => {
         await sequelize.authenticate();
         console.log('✅ Database connection established successfully');
 
-        // Sync models (create tables)
+        // Sync models (create tables if they don't exist)
         if (process.env.NODE_ENV === 'development') {
-            // Disable foreign key checks temporarily
-            await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
-
-            // Use force: true to recreate tables cleanly (WARNING: This will drop existing data)
-            await sequelize.sync({ force: true });
-            console.log('✅ Database models synchronized (tables recreated)');
-
-            // Re-enable foreign key checks
-            await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
+            // Use alter: true to update existing tables without dropping data
+            // or use { force: false } to only create tables that don't exist
+            await sequelize.sync({ alter: true });
+            console.log('✅ Database models synchronized');
+        } else {
+            // In production, only create tables that don't exist
+            await sequelize.sync({ force: false });
+            console.log('✅ Database models synchronized');
         }
 
         return sequelize;
