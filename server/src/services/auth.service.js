@@ -4,6 +4,7 @@ const { generateTokenPair } = require('../utils/jwt.utils');
 const { generateResetToken, generateRandomString } = require('../utils/encryption.utils');
 const { AppError } = require('../middleware/error.middleware');
 const { HTTP_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } = require('../utils/constants');
+const { Op } = require('sequelize');
 // const emailService = require('./email.service'); // Temporarily disabled
 
 class AuthService {
@@ -17,7 +18,7 @@ class AuthService {
             // Check if user already exists
             const existingUser = await User.findOne({
                 where: {
-                    $or: [
+                    [Op.or]: [
                         { email: userData.email },
                         { username: userData.username },
                         { national_id: userData.national_id }
@@ -84,7 +85,7 @@ class AuthService {
             // Find user by username or email
             const user = await User.findOne({
                 where: {
-                    $or: [
+                    [Op.or]: [
                         { username: username },
                         { email: username }
                     ]
@@ -227,7 +228,7 @@ class AuthService {
                 where: {
                     reset_token: token,
                     reset_token_expires: {
-                        $gt: new Date()
+                        [Op.gt]: new Date()
                     }
                 }
             });
@@ -267,7 +268,7 @@ class AuthService {
                 where: {
                     email_verification_token: token,
                     email_verification_expires: {
-                        $gt: new Date()
+                        [Op.gt]: new Date()
                     }
                 }
             });

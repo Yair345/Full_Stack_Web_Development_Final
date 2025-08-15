@@ -1,9 +1,10 @@
 const { User } = require('../models');
-const { AuthService } = require('../services/auth.service');
+const AuthService = require('../services/auth.service');
 const { AppError } = require('../utils/error.utils');
 const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
 const { encryptData } = require('../utils/encryption.utils');
+const { Op } = require('sequelize');
 
 /**
  * @desc Register new user
@@ -11,22 +12,23 @@ const { encryptData } = require('../utils/encryption.utils');
  * @access Public
  */
 const register = catchAsync(async (req, res, next) => {
-    const { username, email, password, phone_number, date_of_birth, address } = req.body;
+    const { username, email, password, first_name, last_name, phone, date_of_birth, national_id, address } = req.body;
 
     logger.info(`Registration attempt for email: ${email}`);
 
     // Check if user already exists
     const existingUser = await User.findOne({
         where: {
-            $or: [
+            [Op.or]: [
                 { email },
-                { username }
+                { username },
+                { national_id }
             ]
         }
     });
 
     if (existingUser) {
-        throw new AppError('User with this email or username already exists', 400);
+        throw new AppError('User with this email, username, or national ID already exists', 400);
     }
 
     // Create user with AuthService
@@ -34,8 +36,11 @@ const register = catchAsync(async (req, res, next) => {
         username,
         email,
         password,
-        phone_number,
+        first_name,
+        last_name,
+        phone,
         date_of_birth,
+        national_id,
         address
     });
 
@@ -49,6 +54,8 @@ const register = catchAsync(async (req, res, next) => {
                 id: user.id,
                 username: user.username,
                 email: user.email,
+                first_name: user.first_name,
+                last_name: user.last_name,
                 role: user.role,
                 is_active: user.is_active,
                 created_at: user.created_at

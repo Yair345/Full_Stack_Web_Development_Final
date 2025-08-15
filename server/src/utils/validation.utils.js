@@ -13,7 +13,6 @@ const registerValidation = [
 
     body('email')
         .isEmail()
-        .normalizeEmail()
         .withMessage('Please provide a valid email address'),
 
     body('password')
@@ -22,15 +21,36 @@ const registerValidation = [
         .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
         .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
 
-    body('phone_number')
+    body('first_name')
+        .trim()
+        .isLength({ min: 1, max: 50 })
+        .withMessage('First name must be between 1 and 50 characters')
+        .matches(/^[a-zA-Z\s]+$/)
+        .withMessage('First name can only contain letters and spaces'),
+
+    body('last_name')
+        .trim()
+        .isLength({ min: 1, max: 50 })
+        .withMessage('Last name must be between 1 and 50 characters')
+        .matches(/^[a-zA-Z\s]+$/)
+        .withMessage('Last name can only contain letters and spaces'),
+
+    body('phone')
         .optional()
-        .isMobilePhone()
+        .matches(/^\+?[\d\s\-\(\)]+$/)
         .withMessage('Please provide a valid phone number'),
 
     body('date_of_birth')
         .optional()
         .isISO8601()
         .withMessage('Please provide a valid date of birth'),
+
+    body('national_id')
+        .trim()
+        .isLength({ min: 5, max: 20 })
+        .withMessage('National ID must be between 5 and 20 characters')
+        .matches(/^[a-zA-Z0-9]+$/)
+        .withMessage('National ID can only contain letters and numbers'),
 
     body('address')
         .optional()
@@ -44,7 +64,6 @@ const registerValidation = [
 const loginValidation = [
     body('email')
         .isEmail()
-        .normalizeEmail()
         .withMessage('Please provide a valid email address'),
 
     body('password')
@@ -73,7 +92,6 @@ const changePasswordValidation = [
 const forgotPasswordValidation = [
     body('email')
         .isEmail()
-        .normalizeEmail()
         .withMessage('Please provide a valid email address')
 ];
 

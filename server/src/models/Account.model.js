@@ -9,7 +9,7 @@ class Account extends Model {
      * @returns {Boolean} Is active
      */
     isActive() {
-        return this.status === ACCOUNT_STATUS.ACTIVE;
+        return this.is_active;
     }
 
     /**
@@ -17,7 +17,7 @@ class Account extends Model {
      * @returns {Boolean} Is frozen
      */
     isFrozen() {
-        return this.status === ACCOUNT_STATUS.FROZEN;
+        return !this.is_active; // Assuming inactive means frozen/closed
     }
 
     /**
@@ -25,7 +25,7 @@ class Account extends Model {
      * @returns {Boolean} Is closed
      */
     isClosed() {
-        return this.status === ACCOUNT_STATUS.CLOSED;
+        return !this.is_active; // Assuming inactive means frozen/closed
     }
 
     /**
@@ -175,14 +175,13 @@ Account.init({
             }
         }
     },
-    status: {
-        type: DataTypes.ENUM(ACCOUNT_STATUS.ACTIVE, ACCOUNT_STATUS.FROZEN, ACCOUNT_STATUS.CLOSED),
+    is_active: {
+        type: DataTypes.BOOLEAN,
         allowNull: false,
-        defaultValue: ACCOUNT_STATUS.ACTIVE,
+        defaultValue: true,
         validate: {
-            isIn: {
-                args: [[ACCOUNT_STATUS.ACTIVE, ACCOUNT_STATUS.FROZEN, ACCOUNT_STATUS.CLOSED]],
-                msg: 'Account status must be active, frozen, or closed'
+            isBoolean: {
+                msg: 'is_active must be a boolean value'
             }
         }
     },
@@ -301,9 +300,9 @@ Account.init({
         },
         beforeUpdate: (account) => {
             // Prevent certain updates on closed accounts
-            if (account.status === ACCOUNT_STATUS.CLOSED) {
+            if (!account.is_active) {
                 if (account.changed('balance') && account.balance !== 0) {
-                    throw new Error('Cannot modify balance of closed account unless setting to zero');
+                    throw new Error('Cannot modify balance of inactive account unless setting to zero');
                 }
             }
         }
@@ -320,7 +319,7 @@ Account.init({
             fields: ['account_type']
         },
         {
-            fields: ['status']
+            fields: ['is_active']
         },
         {
             fields: ['currency']
