@@ -8,7 +8,7 @@ const {
     getTransactionSummary,
     cancelTransaction
 } = require('../controllers/transaction.controller');
-const { authenticateUser } = require('../middleware/auth.middleware');
+const { authenticate } = require('../middleware/auth.middleware');
 const { handleValidationErrors } = require('../middleware/validation.middleware');
 const {
     transferValidation,
@@ -20,7 +20,7 @@ const {
 const router = express.Router();
 
 // All routes require authentication
-router.use(authenticateUser);
+router.use(authenticate);
 
 // Transaction routes
 router.get('/', getTransactions);

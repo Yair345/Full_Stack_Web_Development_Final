@@ -1,6 +1,6 @@
 const { Account, Transaction, User } = require('../models');
 const { AppError } = require('../utils/error.utils');
-const { asyncHandler } = require('../middleware/error.middleware');
+const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
 const { generateAccountNumber } = require('../utils/helpers');
 const { emitBalanceUpdate } = require('../websocket/socket');
@@ -11,7 +11,7 @@ const { Op } = require('sequelize');
  * @route GET /api/accounts
  * @access Private
  */
-const getAccounts = asyncHandler(async (req, res, next) => {
+const getAccounts = catchAsync(async (req, res, next) => {
     const userId = req.user.id;
 
     const accounts = await Account.findAll({
@@ -40,7 +40,7 @@ const getAccounts = asyncHandler(async (req, res, next) => {
  * @route GET /api/accounts/:id
  * @access Private
  */
-const getAccount = asyncHandler(async (req, res, next) => {
+const getAccount = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
 
@@ -76,7 +76,7 @@ const getAccount = asyncHandler(async (req, res, next) => {
  * @route POST /api/accounts
  * @access Private
  */
-const createAccount = asyncHandler(async (req, res, next) => {
+const createAccount = catchAsync(async (req, res, next) => {
     const { account_type, currency = 'USD' } = req.body;
     const userId = req.user.id;
 
@@ -164,7 +164,7 @@ const createAccount = asyncHandler(async (req, res, next) => {
  * @route PUT /api/accounts/:id
  * @access Private
  */
-const updateAccount = asyncHandler(async (req, res, next) => {
+const updateAccount = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     const { account_type } = req.body;
     const userId = req.user.id;
@@ -223,7 +223,7 @@ const updateAccount = asyncHandler(async (req, res, next) => {
  * @route DELETE /api/accounts/:id
  * @access Private
  */
-const deactivateAccount = asyncHandler(async (req, res, next) => {
+const deactivateAccount = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
 
@@ -281,7 +281,7 @@ const deactivateAccount = asyncHandler(async (req, res, next) => {
  * @route GET /api/accounts/:id/balance
  * @access Private
  */
-const getBalance = asyncHandler(async (req, res, next) => {
+const getBalance = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
 
@@ -315,7 +315,7 @@ const getBalance = asyncHandler(async (req, res, next) => {
  * @route GET /api/accounts/:id/transactions
  * @access Private
  */
-const getAccountTransactions = asyncHandler(async (req, res, next) => {
+const getAccountTransactions = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
     const {
@@ -419,7 +419,7 @@ const getAccountTransactions = asyncHandler(async (req, res, next) => {
  * @route GET /api/accounts/:id/statement
  * @access Private
  */
-const getAccountStatement = asyncHandler(async (req, res, next) => {
+const getAccountStatement = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
     const { start_date, end_date } = req.query;

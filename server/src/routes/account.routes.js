@@ -9,7 +9,7 @@ const {
     getAccountTransactions,
     getAccountStatement
 } = require('../controllers/account.controller');
-const { authenticateUser } = require('../middleware/auth.middleware');
+const { authenticate } = require('../middleware/auth.middleware');
 const { handleValidationErrors } = require('../middleware/validation.middleware');
 const {
     createAccountValidation,
@@ -20,7 +20,7 @@ const {
 const router = express.Router();
 
 // All routes require authentication
-router.use(authenticateUser);
+router.use(authenticate);
 
 // Account routes
 router.get('/', getAccounts);

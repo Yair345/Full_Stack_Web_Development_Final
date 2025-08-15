@@ -1,6 +1,6 @@
 const { Transaction, Account, User } = require('../models');
 const { AppError } = require('../utils/error.utils');
-const { asyncHandler } = require('../middleware/error.middleware');
+const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
 const { emitBalanceUpdate, emitNewTransaction, emitTransactionUpdate } = require('../websocket/socket');
 const { Op, sequelize } = require('sequelize');
@@ -10,7 +10,7 @@ const { Op, sequelize } = require('sequelize');
  * @route GET /api/transactions
  * @access Private
  */
-const getTransactions = asyncHandler(async (req, res, next) => {
+const getTransactions = catchAsync(async (req, res, next) => {
     const userId = req.user.id;
     const {
         page = 1,
@@ -132,7 +132,7 @@ const getTransactions = asyncHandler(async (req, res, next) => {
  * @route GET /api/transactions/:id
  * @access Private
  */
-const getTransaction = asyncHandler(async (req, res, next) => {
+const getTransaction = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
 
@@ -193,7 +193,7 @@ const getTransaction = asyncHandler(async (req, res, next) => {
  * @route POST /api/transactions/transfer
  * @access Private
  */
-const createTransfer = asyncHandler(async (req, res, next) => {
+const createTransfer = catchAsync(async (req, res, next) => {
     const {
         from_account_id,
         to_account_number,
@@ -338,7 +338,7 @@ const createTransfer = asyncHandler(async (req, res, next) => {
  * @route POST /api/transactions/deposit
  * @access Private
  */
-const createDeposit = asyncHandler(async (req, res, next) => {
+const createDeposit = catchAsync(async (req, res, next) => {
     const { account_id, amount, description = '' } = req.body;
     const userId = req.user.id;
 
@@ -415,7 +415,7 @@ const createDeposit = asyncHandler(async (req, res, next) => {
  * @route POST /api/transactions/withdrawal
  * @access Private
  */
-const createWithdrawal = asyncHandler(async (req, res, next) => {
+const createWithdrawal = catchAsync(async (req, res, next) => {
     const { account_id, amount, description = '' } = req.body;
     const userId = req.user.id;
 
@@ -497,7 +497,7 @@ const createWithdrawal = asyncHandler(async (req, res, next) => {
  * @route GET /api/transactions/summary
  * @access Private
  */
-const getTransactionSummary = asyncHandler(async (req, res, next) => {
+const getTransactionSummary = catchAsync(async (req, res, next) => {
     const userId = req.user.id;
     const { period = '30' } = req.query; // days
 
@@ -631,7 +631,7 @@ const getTransactionSummary = asyncHandler(async (req, res, next) => {
  * @route PUT /api/transactions/:id/cancel
  * @access Private
  */
-const cancelTransaction = asyncHandler(async (req, res, next) => {
+const cancelTransaction = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
 

@@ -71,8 +71,15 @@ const connectDB = async () => {
 
         // Sync models (create tables)
         if (process.env.NODE_ENV === 'development') {
-            await sequelize.sync({ alter: true });
-            console.log('✅ Database models synchronized');
+            // Disable foreign key checks temporarily
+            await sequelize.query('SET FOREIGN_KEY_CHECKS = 0');
+
+            // Use force: true to recreate tables cleanly (WARNING: This will drop existing data)
+            await sequelize.sync({ force: true });
+            console.log('✅ Database models synchronized (tables recreated)');
+
+            // Re-enable foreign key checks
+            await sequelize.query('SET FOREIGN_KEY_CHECKS = 1');
         }
 
         return sequelize;

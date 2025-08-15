@@ -4,7 +4,7 @@ const { generateTokenPair } = require('../utils/jwt.utils');
 const { generateResetToken, generateRandomString } = require('../utils/encryption.utils');
 const { AppError } = require('../middleware/error.middleware');
 const { HTTP_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } = require('../utils/constants');
-const emailService = require('./email.service');
+// const emailService = require('./email.service'); // Temporarily disabled
 
 class AuthService {
     /**
@@ -53,7 +53,9 @@ class AuthService {
 
             // Send verification email
             try {
-                await emailService.sendVerificationEmail(user, verificationToken);
+                // await emailService.sendVerificationEmail(user, verificationToken); // Temporarily disabled
+                console.log(`📧 Verification email would be sent to: ${user.email}`);
+                console.log(`📧 Verification token: ${verificationToken}`);
             } catch (emailError) {
                 console.error('Failed to send verification email:', emailError.message);
                 // Don't fail registration if email fails
@@ -194,7 +196,9 @@ class AuthService {
 
             // Send reset email
             try {
-                await emailService.sendPasswordResetEmail(user, resetToken);
+                // await emailService.sendPasswordResetEmail(user, resetToken); // Temporarily disabled
+                console.log(`📧 Password reset email would be sent to: ${user.email}`);
+                console.log(`📧 Reset token: ${resetToken}`);
             } catch (emailError) {
                 console.error('Failed to send password reset email:', emailError.message);
                 throw new AppError('Failed to send password reset email', HTTP_STATUS.INTERNAL_SERVER_ERROR);
@@ -351,7 +355,9 @@ class AuthService {
 
             // Send verification email
             try {
-                await emailService.sendVerificationEmail(user, verificationToken);
+                // await emailService.sendVerificationEmail(user, verificationToken); // Temporarily disabled
+                console.log(`📧 Verification email would be sent to: ${user.email}`);
+                console.log(`📧 Verification token: ${verificationToken}`);
             } catch (emailError) {
                 console.error('Failed to send verification email:', emailError.message);
                 throw new AppError('Failed to send verification email', HTTP_STATUS.INTERNAL_SERVER_ERROR);

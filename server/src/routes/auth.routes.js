@@ -12,7 +12,7 @@ const {
     verifyEmail,
     resendVerification
 } = require('../controllers/auth.controller');
-const { authenticateUser } = require('../middleware/auth.middleware');
+const { authenticate } = require('../middleware/auth.middleware');
 const { handleValidationErrors } = require('../middleware/validation.middleware');
 const {
     registerValidation,
@@ -34,7 +34,7 @@ router.post('/reset-password', resetPasswordValidation, handleValidationErrors, 
 router.get('/verify-email/:token', verifyEmail);
 
 // Protected routes
-router.use(authenticateUser);
+router.use(authenticate);
 
 router.get('/profile', getProfile);
 router.put('/profile', updateProfileValidation, handleValidationErrors, updateProfile);

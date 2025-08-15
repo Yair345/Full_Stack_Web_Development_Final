@@ -1,7 +1,7 @@
 const { User } = require('../models');
-const { AuthService } = require('../services');
+const { AuthService } = require('../services/auth.service');
 const { AppError } = require('../utils/error.utils');
-const { asyncHandler } = require('../middleware/error.middleware');
+const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
 const { encryptData } = require('../utils/encryption.utils');
 
@@ -10,7 +10,7 @@ const { encryptData } = require('../utils/encryption.utils');
  * @route POST /api/auth/register
  * @access Public
  */
-const register = asyncHandler(async (req, res, next) => {
+const register = catchAsync(async (req, res, next) => {
     const { username, email, password, phone_number, date_of_birth, address } = req.body;
 
     logger.info(`Registration attempt for email: ${email}`);
@@ -63,7 +63,7 @@ const register = asyncHandler(async (req, res, next) => {
  * @route POST /api/auth/login
  * @access Public
  */
-const login = asyncHandler(async (req, res, next) => {
+const login = catchAsync(async (req, res, next) => {
     const { email, password } = req.body;
 
     logger.info(`Login attempt for email: ${email}`);
@@ -98,7 +98,7 @@ const login = asyncHandler(async (req, res, next) => {
  * @route POST /api/auth/logout
  * @access Private
  */
-const logout = asyncHandler(async (req, res, next) => {
+const logout = catchAsync(async (req, res, next) => {
     const { refreshToken } = req.body;
     const userId = req.user.id;
 
@@ -120,7 +120,7 @@ const logout = asyncHandler(async (req, res, next) => {
  * @route POST /api/auth/refresh
  * @access Public
  */
-const refreshToken = asyncHandler(async (req, res, next) => {
+const refreshToken = catchAsync(async (req, res, next) => {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
@@ -146,7 +146,7 @@ const refreshToken = asyncHandler(async (req, res, next) => {
  * @route GET /api/auth/profile
  * @access Private
  */
-const getProfile = asyncHandler(async (req, res, next) => {
+const getProfile = catchAsync(async (req, res, next) => {
     const user = req.user;
 
     res.json({
@@ -175,7 +175,7 @@ const getProfile = asyncHandler(async (req, res, next) => {
  * @route PUT /api/auth/profile
  * @access Private
  */
-const updateProfile = asyncHandler(async (req, res, next) => {
+const updateProfile = catchAsync(async (req, res, next) => {
     const { username, phone_number, address } = req.body;
     const userId = req.user.id;
 
@@ -222,7 +222,7 @@ const updateProfile = asyncHandler(async (req, res, next) => {
  * @route PUT /api/auth/change-password
  * @access Private
  */
-const changePassword = asyncHandler(async (req, res, next) => {
+const changePassword = catchAsync(async (req, res, next) => {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user.id;
 
@@ -244,7 +244,7 @@ const changePassword = asyncHandler(async (req, res, next) => {
  * @route POST /api/auth/forgot-password
  * @access Public
  */
-const forgotPassword = asyncHandler(async (req, res, next) => {
+const forgotPassword = catchAsync(async (req, res, next) => {
     const { email } = req.body;
 
     logger.info(`Password reset request for email: ${email}`);
@@ -265,7 +265,7 @@ const forgotPassword = asyncHandler(async (req, res, next) => {
  * @route POST /api/auth/reset-password
  * @access Public
  */
-const resetPassword = asyncHandler(async (req, res, next) => {
+const resetPassword = catchAsync(async (req, res, next) => {
     const { token, newPassword } = req.body;
 
     logger.info('Password reset attempt');
@@ -286,7 +286,7 @@ const resetPassword = asyncHandler(async (req, res, next) => {
  * @route GET /api/auth/verify-email/:token
  * @access Public
  */
-const verifyEmail = asyncHandler(async (req, res, next) => {
+const verifyEmail = catchAsync(async (req, res, next) => {
     const { token } = req.params;
 
     logger.info('Email verification attempt');
@@ -314,7 +314,7 @@ const verifyEmail = asyncHandler(async (req, res, next) => {
  * @route POST /api/auth/resend-verification
  * @access Private
  */
-const resendVerification = asyncHandler(async (req, res, next) => {
+const resendVerification = catchAsync(async (req, res, next) => {
     const user = req.user;
 
     if (user.email_verified_at) {

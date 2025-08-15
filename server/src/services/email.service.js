@@ -2,75 +2,75 @@ const nodemailer = require('nodemailer');
 const { config } = require('../config/config');
 
 class EmailService {
-    constructor() {
-        this.transporter = null;
-        this.initializeTransporter();
+  constructor() {
+    this.transporter = null;
+    this.initializeTransporter();
+  }
+
+  /**
+   * Initialize email transporter
+   */
+  initializeTransporter() {
+    if (!config.email.user || !config.email.password) {
+      console.warn('⚠️ Email configuration not found. Email services will be disabled.');
+      return;
     }
 
-    /**
-     * Initialize email transporter
-     */
-    initializeTransporter() {
-        if (!config.email.user || !config.email.password) {
-            console.warn('⚠️ Email configuration not found. Email services will be disabled.');
-            return;
-        }
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: config.email.user,
+        pass: config.email.password
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
 
-        this.transporter = nodemailer.createTransporter({
-            service: 'gmail',
-            auth: {
-                user: config.email.user,
-                pass: config.email.password
-            },
-            tls: {
-                rejectUnauthorized: false
-            }
-        });
+    // Verify transporter configuration
+    this.transporter.verify((error, success) => {
+      if (error) {
+        console.error('❌ Email transporter verification failed:', error.message);
+      } else {
+        console.log('✅ Email transporter verified successfully');
+      }
+    });
+  }
 
-        // Verify transporter configuration
-        this.transporter.verify((error, success) => {
-            if (error) {
-                console.error('❌ Email transporter verification failed:', error.message);
-            } else {
-                console.log('✅ Email transporter verified successfully');
-            }
-        });
+  /**
+   * Send email
+   * @param {Object} mailOptions - Email options
+   * @returns {Promise} Send result
+   */
+  async sendEmail(mailOptions) {
+    if (!this.transporter) {
+      throw new Error('Email transporter not configured');
     }
 
-    /**
-     * Send email
-     * @param {Object} mailOptions - Email options
-     * @returns {Promise} Send result
-     */
-    async sendEmail(mailOptions) {
-        if (!this.transporter) {
-            throw new Error('Email transporter not configured');
-        }
+    try {
+      const info = await this.transporter.sendMail({
+        from: `"Bank App" <${config.email.from}>`,
+        ...mailOptions
+      });
 
-        try {
-            const info = await this.transporter.sendMail({
-                from: `"Bank App" <${config.email.from}>`,
-                ...mailOptions
-            });
-
-            console.log('✅ Email sent successfully:', info.messageId);
-            return info;
-        } catch (error) {
-            console.error('❌ Failed to send email:', error.message);
-            throw error;
-        }
+      console.log('✅ Email sent successfully:', info.messageId);
+      return info;
+    } catch (error) {
+      console.error('❌ Failed to send email:', error.message);
+      throw error;
     }
+  }
 
-    /**
-     * Send welcome email to new user
-     * @param {Object} user - User object
-     * @returns {Promise} Send result
-     */
-    async sendWelcomeEmail(user) {
-        const mailOptions = {
-            to: user.email,
-            subject: 'Welcome to Bank App!',
-            html: `
+  /**
+   * Send welcome email to new user
+   * @param {Object} user - User object
+   * @returns {Promise} Send result
+   */
+  async sendWelcomeEmail(user) {
+    const mailOptions = {
+      to: user.email,
+      subject: 'Welcome to Bank App!',
+      html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #2563eb; color: white; padding: 20px; text-align: center;">
             <h1>Welcome to Bank App</h1>
@@ -108,24 +108,24 @@ class EmailService {
           </div>
         </div>
       `
-        };
+    };
 
-        return this.sendEmail(mailOptions);
-    }
+    return this.sendEmail(mailOptions);
+  }
 
-    /**
-     * Send email verification email
-     * @param {Object} user - User object
-     * @param {String} token - Verification token
-     * @returns {Promise} Send result
-     */
-    async sendVerificationEmail(user, token) {
-        const verificationUrl = `${config.cors.origin}/verify-email?token=${token}`;
+  /**
+   * Send email verification email
+   * @param {Object} user - User object
+   * @param {String} token - Verification token
+   * @returns {Promise} Send result
+   */
+  async sendVerificationEmail(user, token) {
+    const verificationUrl = `${config.cors.origin}/verify-email?token=${token}`;
 
-        const mailOptions = {
-            to: user.email,
-            subject: 'Verify Your Email Address',
-            html: `
+    const mailOptions = {
+      to: user.email,
+      subject: 'Verify Your Email Address',
+      html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #2563eb; color: white; padding: 20px; text-align: center;">
             <h1>Email Verification</h1>
@@ -160,24 +160,24 @@ class EmailService {
           </div>
         </div>
       `
-        };
+    };
 
-        return this.sendEmail(mailOptions);
-    }
+    return this.sendEmail(mailOptions);
+  }
 
-    /**
-     * Send password reset email
-     * @param {Object} user - User object
-     * @param {String} token - Reset token
-     * @returns {Promise} Send result
-     */
-    async sendPasswordResetEmail(user, token) {
-        const resetUrl = `${config.cors.origin}/reset-password?token=${token}`;
+  /**
+   * Send password reset email
+   * @param {Object} user - User object
+   * @param {String} token - Reset token
+   * @returns {Promise} Send result
+   */
+  async sendPasswordResetEmail(user, token) {
+    const resetUrl = `${config.cors.origin}/reset-password?token=${token}`;
 
-        const mailOptions = {
-            to: user.email,
-            subject: 'Reset Your Password',
-            html: `
+    const mailOptions = {
+      to: user.email,
+      subject: 'Reset Your Password',
+      html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
             <h1>Password Reset</h1>
@@ -219,25 +219,25 @@ class EmailService {
           </div>
         </div>
       `
-        };
+    };
 
-        return this.sendEmail(mailOptions);
-    }
+    return this.sendEmail(mailOptions);
+  }
 
-    /**
-     * Send transaction notification email
-     * @param {Object} user - User object
-     * @param {Object} transaction - Transaction object
-     * @returns {Promise} Send result
-     */
-    async sendTransactionNotification(user, transaction) {
-        const isCredit = transaction.transaction_type === 'deposit' ||
-            (transaction.transaction_type === 'transfer' && transaction.to_account_id);
+  /**
+   * Send transaction notification email
+   * @param {Object} user - User object
+   * @param {Object} transaction - Transaction object
+   * @returns {Promise} Send result
+   */
+  async sendTransactionNotification(user, transaction) {
+    const isCredit = transaction.transaction_type === 'deposit' ||
+      (transaction.transaction_type === 'transfer' && transaction.to_account_id);
 
-        const mailOptions = {
-            to: user.email,
-            subject: `Transaction ${isCredit ? 'Received' : 'Sent'} - ${transaction.getFormattedAmount()}`,
-            html: `
+    const mailOptions = {
+      to: user.email,
+      subject: `Transaction ${isCredit ? 'Received' : 'Sent'} - ${transaction.getFormattedAmount()}`,
+      html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: ${isCredit ? '#059669' : '#dc2626'}; color: white; padding: 20px; text-align: center;">
             <h1>Transaction ${isCredit ? 'Received' : 'Sent'}</h1>
@@ -290,22 +290,22 @@ class EmailService {
           </div>
         </div>
       `
-        };
+    };
 
-        return this.sendEmail(mailOptions);
-    }
+    return this.sendEmail(mailOptions);
+  }
 
-    /**
-     * Send login alert email
-     * @param {Object} user - User object
-     * @param {Object} loginInfo - Login information
-     * @returns {Promise} Send result
-     */
-    async sendLoginAlert(user, loginInfo) {
-        const mailOptions = {
-            to: user.email,
-            subject: 'New Login to Your Account',
-            html: `
+  /**
+   * Send login alert email
+   * @param {Object} user - User object
+   * @param {Object} loginInfo - Login information
+   * @returns {Promise} Send result
+   */
+  async sendLoginAlert(user, loginInfo) {
+    const mailOptions = {
+      to: user.email,
+      subject: 'New Login to Your Account',
+      html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #2563eb; color: white; padding: 20px; text-align: center;">
             <h1>Login Alert</h1>
@@ -353,22 +353,22 @@ class EmailService {
           </div>
         </div>
       `
-        };
+    };
 
-        return this.sendEmail(mailOptions);
-    }
+    return this.sendEmail(mailOptions);
+  }
 
-    /**
-     * Send monthly statement email
-     * @param {Object} user - User object
-     * @param {Object} statement - Statement data
-     * @returns {Promise} Send result
-     */
-    async sendMonthlyStatement(user, statement) {
-        const mailOptions = {
-            to: user.email,
-            subject: `Monthly Statement - ${statement.month}`,
-            html: `
+  /**
+   * Send monthly statement email
+   * @param {Object} user - User object
+   * @param {Object} statement - Statement data
+   * @returns {Promise} Send result
+   */
+  async sendMonthlyStatement(user, statement) {
+    const mailOptions = {
+      to: user.email,
+      subject: `Monthly Statement - ${statement.month}`,
+      html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background-color: #2563eb; color: white; padding: 20px; text-align: center;">
             <h1>Monthly Statement</h1>
@@ -418,10 +418,10 @@ class EmailService {
           </div>
         </div>
       `
-        };
+    };
 
-        return this.sendEmail(mailOptions);
-    }
+    return this.sendEmail(mailOptions);
+  }
 }
 
 // Create and export singleton instance

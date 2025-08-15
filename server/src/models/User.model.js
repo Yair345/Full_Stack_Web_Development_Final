@@ -220,11 +220,12 @@ User.init({
     },
     branch_id: {
         type: DataTypes.INTEGER,
-        allowNull: true,
-        references: {
-            model: 'branches',
-            key: 'id'
-        }
+        allowNull: true
+        // Temporarily removed foreign key constraint
+        // references: {
+        //     model: 'branches',
+        //     key: 'id'
+        // }
     },
     is_active: {
         type: DataTypes.BOOLEAN,
