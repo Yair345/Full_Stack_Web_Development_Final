@@ -10,7 +10,8 @@ import { store } from "./store";
 import { setUser } from "./store/slices/authSlice";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
-import Login from "./pages/Login";
+import Login from "./pages/Login/Login.jsx";
+import Register from "./pages/Register/Register.jsx";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Accounts from "./pages/Accounts/Accounts.jsx";
 import Transactions from "./pages/Transactions/Transactions.jsx";
@@ -43,6 +44,7 @@ function AppContent() {
 		<div className="App">
 			<Routes>
 				<Route path="/login" element={<Login />} />
+				<Route path="/register" element={<Register />} />
 				<Route
 					path="/*"
 					element={
