@@ -17,6 +17,7 @@ import {
 	simulateRegistrationDelay,
 	checkEmailExists,
 	getInitialFormState,
+	generateUsername,
 } from "./registerUtils";
 
 const Register = () => {
@@ -80,7 +81,10 @@ const Register = () => {
 		try {
 			// Make actual API call to server
 			const response = await register.mutate({
-				username: formData.email, // Using email as username for now
+				username: generateUsername(
+					formData.firstName,
+					formData.lastName
+				),
 				email: formData.email,
 				password: formData.password,
 				first_name: formData.firstName,
@@ -106,6 +110,7 @@ const Register = () => {
 			// Show success message (optional)
 			console.log("Registration successful:", user);
 		} catch (err) {
+			console.error("Registration error:", err);
 			const errorMessage =
 				err.message || "Registration failed. Please try again.";
 			dispatch(loginFailure(errorMessage));

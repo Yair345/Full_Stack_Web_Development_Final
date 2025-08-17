@@ -7,6 +7,8 @@ export const validateRegisterForm = (formData) => {
         errors.firstName = "First name is required";
     } else if (formData.firstName.trim().length < 2) {
         errors.firstName = "First name must be at least 2 characters";
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.firstName.trim())) {
+        errors.firstName = "First name can only contain letters and spaces";
     }
 
     // Last name validation
@@ -14,6 +16,8 @@ export const validateRegisterForm = (formData) => {
         errors.lastName = "Last name is required";
     } else if (formData.lastName.trim().length < 2) {
         errors.lastName = "Last name must be at least 2 characters";
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.lastName.trim())) {
+        errors.lastName = "Last name can only contain letters and spaces";
     }
 
     // Email validation
@@ -33,8 +37,10 @@ export const validateRegisterForm = (formData) => {
     // National ID validation
     if (!formData.nationalId) {
         errors.nationalId = "National ID is required";
-    } else if (formData.nationalId.length < 5) {
-        errors.nationalId = "National ID must be at least 5 characters";
+    } else if (formData.nationalId.length < 5 || formData.nationalId.length > 20) {
+        errors.nationalId = "National ID must be between 5 and 20 characters";
+    } else if (!/^[a-zA-Z0-9]+$/.test(formData.nationalId)) {
+        errors.nationalId = "National ID can only contain letters and numbers";
     }
 
     // Address validation
@@ -69,8 +75,8 @@ export const validateRegisterForm = (formData) => {
         errors.password = "Password is required";
     } else if (formData.password.length < 8) {
         errors.password = "Password must be at least 8 characters";
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-        errors.password = "Password must contain at least one uppercase letter, one lowercase letter, and one number";
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])/.test(formData.password)) {
+        errors.password = "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character";
     }
 
     // Confirm password validation
@@ -89,6 +95,28 @@ export const validateRegisterForm = (formData) => {
         isValid: Object.keys(errors).length === 0,
         errors,
     };
+};
+
+// Generate username from first and last name that meets server requirements
+export const generateUsername = (firstName, lastName) => {
+    // Remove spaces and special characters, keep only letters and numbers
+    const cleanFirst = firstName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanLast = lastName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    // Create base username
+    let username = cleanFirst + cleanLast;
+
+    // If too short, add numbers
+    if (username.length < 3) {
+        username += Math.floor(Math.random() * 1000);
+    }
+
+    // If too long, truncate
+    if (username.length > 30) {
+        username = username.substring(0, 27) + Math.floor(Math.random() * 100);
+    }
+
+    return username;
 };
 
 // Create mock user for registration
