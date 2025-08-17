@@ -19,10 +19,15 @@ const getAccounts = catchAsync(async (req, res, next) => {
         attributes: [
             'id',
             'account_number',
+            'account_name',
             'account_type',
             'balance',
             'currency',
             'is_active',
+            'overdraft_limit',
+            'interest_rate',
+            'monthly_fee',
+            'minimum_balance',
             'created_at',
             'updated_at'
         ],
@@ -77,15 +82,45 @@ const getAccount = catchAsync(async (req, res, next) => {
  * @access Private
  */
 const createAccount = catchAsync(async (req, res, next) => {
-    const { account_type, currency = 'USD' } = req.body;
+    const { 
+        account_type, 
+        currency = 'USD', 
+        account_name,
+        initial_deposit = 0,
+        overdraft_limit = 0
+    } = req.body;
     const userId = req.user.id;
 
-    logger.info(`Account creation request for user: ${userId}, type: ${account_type}`);
+    logger.info(`Account creation request - Raw body: ${JSON.stringify(req.body)}`);
+    logger.info(`Account creation request for user: ${userId}, type: ${account_type}, name: "${account_name}", initial_deposit: ${initial_deposit}, overdraft_limit: ${overdraft_limit}, currency: ${currency}`);
+
+    // Validate required fields
+    if (!account_name || account_name.trim().length < 2 || account_name.trim().length > 100) {
+        throw new AppError('Account name must be between 2 and 100 characters', 400);
+    }
+
+    // Validate initial deposit
+    const depositAmount = parseFloat(initial_deposit) || 0;
+    if (depositAmount < 0) {
+        throw new AppError('Initial deposit cannot be negative', 400);
+    }
+
+    // Validate overdraft limit
+    const overdraftAmount = parseFloat(overdraft_limit) || 0;
+    if (overdraftAmount < 0) {
+        throw new AppError('Overdraft limit cannot be negative', 400);
+    }
 
     // Validate account type
     const validAccountTypes = ['checking', 'savings', 'business'];
     if (!validAccountTypes.includes(account_type)) {
         throw new AppError('Invalid account type', 400);
+    }
+
+    // Validate currency
+    const validCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'ILS'];
+    if (!validCurrencies.includes(currency)) {
+        throw new AppError('Invalid currency', 400);
     }
 
     // Check account limits (e.g., max 5 accounts per user)
@@ -97,17 +132,19 @@ const createAccount = catchAsync(async (req, res, next) => {
         throw new AppError('Maximum number of accounts reached', 400);
     }
 
-    // Check if user already has this type of account
-    const existingAccount = await Account.findOne({
-        where: {
-            user_id: userId,
-            account_type,
-            is_active: true
-        }
-    });
+    // Check if user already has this type of account (only for business accounts)
+    if (account_type === 'business') {
+        const existingBusinessAccount = await Account.findOne({
+            where: {
+                user_id: userId,
+                account_type: 'business',
+                is_active: true
+            }
+        });
 
-    if (existingAccount && account_type === 'business') {
-        throw new AppError('You can only have one business account', 400);
+        if (existingBusinessAccount) {
+            throw new AppError('You can only have one business account', 400);
+        }
     }
 
     // Generate unique account number
@@ -130,17 +167,50 @@ const createAccount = catchAsync(async (req, res, next) => {
         throw new AppError('Unable to generate unique account number', 500);
     }
 
-    // Create account
-    const account = await Account.create({
+    // Prepare account data
+    const accountData = {
         user_id: userId,
         account_number: accountNumber,
+        account_name: account_name.trim(), // Use the exact name from the form
         account_type,
-        balance: 0.00,
+        balance: depositAmount, // Set initial deposit as balance
         currency,
-        is_active: true
-    });
+        is_active: true,
+        overdraft_limit: overdraftAmount,
+        // Set account-type-specific defaults
+        interest_rate: account_type === 'savings' ? 2.5 : (account_type === 'checking' ? 0.1 : 0),
+        monthly_fee: account_type === 'business' ? 15.00 : 0,
+        minimum_balance: account_type === 'savings' ? 500 : 0
+    };
 
-    logger.info(`Account created successfully: ${account.id}`);
+    logger.info(`Creating account with data: ${JSON.stringify(accountData)}`);
+
+    // Create account with all parameters
+    const account = await Account.create(accountData);
+
+    logger.info(`Account created with ID: ${account.id}, Name: "${account.account_name}"`);
+
+    // Create initial deposit transaction if deposit amount > 0
+    if (depositAmount > 0) {
+        const transaction = await Transaction.create({
+            transaction_ref: `DEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            to_account_id: account.id,
+            transaction_type: 'deposit',
+            amount: depositAmount,
+            currency: currency,
+            status: 'completed',
+            description: 'Initial deposit for new account',
+            initiated_by: userId,
+            authorized_by: userId,
+            balance_before: 0,
+            balance_after: depositAmount,
+            completed_at: new Date()
+        });
+        
+        logger.info(`Initial deposit transaction created for account: ${account.id}, amount: ${depositAmount}, transaction ID: ${transaction.id}`);
+    }
+
+    logger.info(`Account created successfully: ${account.id} with name: "${account.account_name}", balance: ${account.balance}, overdraft: ${account.overdraft_limit}, currency: ${account.currency}`);
 
     res.status(201).json({
         success: true,
@@ -149,10 +219,15 @@ const createAccount = catchAsync(async (req, res, next) => {
             account: {
                 id: account.id,
                 account_number: account.account_number,
+                name: account.account_name,
                 account_type: account.account_type,
                 balance: account.balance,
                 currency: account.currency,
                 is_active: account.is_active,
+                overdraft_limit: account.overdraft_limit,
+                interest_rate: account.interest_rate,
+                monthly_fee: account.monthly_fee,
+                minimum_balance: account.minimum_balance,
                 created_at: account.created_at
             }
         }

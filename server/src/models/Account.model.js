@@ -76,7 +76,7 @@ class Account extends Model {
      * @returns {Boolean} Is credit account
      */
     isCreditAccount() {
-        return this.account_type === ACCOUNT_TYPES.CREDIT;
+        return this.account_type === ACCOUNT_TYPES.BUSINESS;
     }
 
     /**
@@ -128,12 +128,27 @@ Account.init({
             }
         }
     },
+    account_name: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+        defaultValue: 'My Account',
+        field: 'name', // This maps to the existing 'name' column in the database
+        validate: {
+            notEmpty: {
+                msg: 'Account name cannot be empty'
+            },
+            len: {
+                args: [2, 100],
+                msg: 'Account name must be between 2 and 100 characters'
+            }
+        }
+    },
     account_type: {
-        type: DataTypes.ENUM(ACCOUNT_TYPES.CHECKING, ACCOUNT_TYPES.SAVINGS, ACCOUNT_TYPES.CREDIT),
+        type: DataTypes.ENUM(ACCOUNT_TYPES.CHECKING, ACCOUNT_TYPES.SAVINGS, ACCOUNT_TYPES.BUSINESS),
         allowNull: false,
         validate: {
             isIn: {
-                args: [[ACCOUNT_TYPES.CHECKING, ACCOUNT_TYPES.SAVINGS, ACCOUNT_TYPES.CREDIT]],
+                args: [[ACCOUNT_TYPES.CHECKING, ACCOUNT_TYPES.SAVINGS, ACCOUNT_TYPES.BUSINESS]],
                 msg: 'Account type must be checking, savings, or credit'
             }
         }
@@ -330,14 +345,14 @@ Account.init({
     ],
     validate: {
         creditAccountValidation() {
-            if (this.account_type === ACCOUNT_TYPES.CREDIT && this.balance > 0) {
-                throw new Error('Credit account balance cannot be positive');
-            }
+            // Business accounts can have positive balances (they're not credit accounts)
+            // Remove this validation as it's incorrect for business accounts
         },
         overdraftValidation() {
-            if (this.account_type === ACCOUNT_TYPES.CREDIT && this.overdraft_limit > 0) {
-                throw new Error('Credit accounts cannot have overdraft limits');
-            }
+            // Business accounts can have overdraft limits, so remove this restriction
+            // if (this.account_type === ACCOUNT_TYPES.BUSINESS && this.overdraft_limit > 0) {
+            //     throw new Error('Business accounts cannot have overdraft limits');
+            // }
         }
     }
 });

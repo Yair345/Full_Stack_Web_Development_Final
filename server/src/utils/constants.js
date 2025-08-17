@@ -11,7 +11,7 @@ const USER_ROLES = {
 const ACCOUNT_TYPES = {
     CHECKING: 'checking',
     SAVINGS: 'savings',
-    CREDIT: 'credit'
+    BUSINESS: 'business'
 };
 
 // Account statuses
@@ -229,7 +229,8 @@ const CURRENCIES = {
     USD: 'USD',
     EUR: 'EUR',
     GBP: 'GBP',
-    JPY: 'JPY'
+    JPY: 'JPY',
+    ILS: 'ILS'
 };
 
 // Date formats

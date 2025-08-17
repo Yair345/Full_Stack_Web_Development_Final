@@ -58,8 +58,13 @@ export const mockAccounts = [
 export const transformServerAccount = (serverAccount) => {
     if (!serverAccount) return null;
 
-    // Generate a friendly account name based on account type
-    const getAccountName = (type, accountNumber) => {
+    // Use the account name from server if available, otherwise generate a friendly name
+    const getAccountName = (name, type, accountNumber) => {
+        if (name && name.trim().length > 0) {
+            return name.trim();
+        }
+        
+        // Fallback to generated name
         const typeNames = {
             checking: 'Checking Account',
             savings: 'Savings Account',
@@ -73,7 +78,7 @@ export const transformServerAccount = (serverAccount) => {
 
     return {
         id: serverAccount.id,
-        name: getAccountName(serverAccount.account_type, serverAccount.account_number),
+        name: getAccountName(serverAccount.name, serverAccount.account_type, serverAccount.account_number),
         type: serverAccount.account_type,
         balance: parseFloat(serverAccount.balance || 0),
         number: serverAccount.account_number || '****0000',

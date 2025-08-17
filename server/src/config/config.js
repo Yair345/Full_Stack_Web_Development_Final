@@ -22,7 +22,7 @@ const validateEnvVars = () => {
 const config = {
     // Server configuration
     server: {
-        port: process.env.PORT || 5000,
+        port: process.env.PORT || 5002,
         env: process.env.NODE_ENV || 'development',
         host: process.env.HOST || 'localhost'
     },
