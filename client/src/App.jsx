@@ -34,7 +34,7 @@ function AppContent() {
 				firstName: "John",
 				lastName: "Doe",
 				email: "john.doe@example.com",
-				role: "admin",
+				role: "customer",
 			};
 			dispatch(setUser(mockUser));
 		}

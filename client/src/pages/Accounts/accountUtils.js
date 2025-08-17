@@ -50,6 +50,53 @@ export const mockAccounts = [
     },
 ];
 
+/**
+ * Transform server account data to frontend format
+ * @param {Object} serverAccount - Account data from server
+ * @returns {Object} - Transformed account data for frontend
+ */
+export const transformServerAccount = (serverAccount) => {
+    if (!serverAccount) return null;
+
+    // Generate a friendly account name based on account type
+    const getAccountName = (type, accountNumber) => {
+        const typeNames = {
+            checking: 'Checking Account',
+            savings: 'Savings Account',
+            credit: 'Credit Account',
+            business: 'Business Account'
+        };
+        const baseName = typeNames[type] || 'Account';
+        const lastFour = accountNumber ? accountNumber.slice(-4) : '****';
+        return `${baseName} ****${lastFour}`;
+    };
+
+    return {
+        id: serverAccount.id,
+        name: getAccountName(serverAccount.account_type, serverAccount.account_number),
+        type: serverAccount.account_type,
+        balance: parseFloat(serverAccount.balance || 0),
+        number: serverAccount.account_number || '****0000',
+        status: serverAccount.is_active ? 'active' : 'inactive',
+        openDate: serverAccount.created_at || new Date().toISOString(),
+        currency: serverAccount.currency || 'USD',
+        interestRate: serverAccount.interest_rate ? (parseFloat(serverAccount.interest_rate) * 100) : undefined,
+        limit: serverAccount.overdraft_limit ? parseFloat(serverAccount.overdraft_limit) : undefined,
+        monthlyFee: serverAccount.monthly_fee ? parseFloat(serverAccount.monthly_fee) : undefined,
+        minimumBalance: serverAccount.minimum_balance ? parseFloat(serverAccount.minimum_balance) : undefined,
+    };
+};
+
+/**
+ * Transform array of server accounts to frontend format
+ * @param {Array} serverAccounts - Array of account data from server
+ * @returns {Array} - Transformed accounts for frontend
+ */
+export const transformServerAccounts = (serverAccounts) => {
+    if (!Array.isArray(serverAccounts)) return [];
+    return serverAccounts.map(transformServerAccount).filter(Boolean);
+};
+
 // Account type configurations
 export const accountTypeConfig = {
     checking: {

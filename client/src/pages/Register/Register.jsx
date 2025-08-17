@@ -12,10 +12,6 @@ import RegisterForm from "./RegisterForm";
 import RegisterActions from "./RegisterActions";
 import {
 	validateRegisterForm,
-	createRegisteredUser,
-	generateMockToken,
-	simulateRegistrationDelay,
-	checkEmailExists,
 	getInitialFormState,
 	generateUsername,
 } from "./registerUtils";

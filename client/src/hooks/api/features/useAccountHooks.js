@@ -1,5 +1,6 @@
 import { useApi, useMutation } from '../core/useApiCore';
 import { accountAPI } from '../../../services/api';
+import { transformServerAccounts, transformServerAccount } from '../../../pages/Accounts/accountUtils';
 
 /**
  * Hook for fetching user accounts
@@ -7,18 +8,28 @@ import { accountAPI } from '../../../services/api';
  * @returns {Object} - { accounts, loading, error, refetch }
  */
 export const useAccounts = (options = {}) => {
-    const { data: accounts, loading, error, refetch, mutate } = useApi('/accounts', {
+    const { data: rawData, loading, error, refetch, mutate } = useApi('/accounts', {
         immediate: true,
         cacheTime: 2 * 60 * 1000, // 2 minutes cache for accounts
         ...options,
     });
 
+    // Transform the raw server data to frontend format
+    const accounts = rawData ? transformServerAccounts(rawData.data || rawData || []) : [];
+
     return {
-        accounts: accounts?.data || accounts || [],
+        accounts,
         loading,
         error,
         refetch,
-        mutate,
+        mutate: (newData, shouldRevalidate) => {
+            // If mutating with new data, transform it first
+            const transformedData = newData ? {
+                ...rawData,
+                data: transformServerAccounts(newData.data || newData || [])
+            } : newData;
+            return mutate(transformedData, shouldRevalidate);
+        },
     };
 };
 
@@ -29,7 +40,7 @@ export const useAccounts = (options = {}) => {
  * @returns {Object} - { account, loading, error, refetch }
  */
 export const useAccount = (accountId, options = {}) => {
-    const { data: account, loading, error, refetch } = useApi(
+    const { data: rawAccount, loading, error, refetch } = useApi(
         accountId ? `/accounts/${accountId}` : null,
         {
             immediate: !!accountId,
@@ -38,8 +49,11 @@ export const useAccount = (accountId, options = {}) => {
         }
     );
 
+    // Transform the raw server data to frontend format
+    const account = rawAccount ? transformServerAccount(rawAccount.data || rawAccount) : null;
+
     return {
-        account: account?.data || account,
+        account,
         loading,
         error,
         refetch,

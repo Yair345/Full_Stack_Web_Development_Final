@@ -2,7 +2,7 @@ const { Account, Transaction, User } = require('../models');
 const { AppError } = require('../utils/error.utils');
 const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
-const { generateAccountNumber } = require('../utils/helpers');
+const { generateAccountNumber } = require('../utils/encryption.utils');
 const { emitBalanceUpdate } = require('../websocket/socket');
 const { Op } = require('sequelize');
 
