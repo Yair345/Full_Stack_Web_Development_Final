@@ -4,7 +4,8 @@ const { AppError } = require('../utils/error.utils');
 const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
 const { emitBalanceUpdate, emitNewTransaction, emitTransactionUpdate } = require('../websocket/socket');
-const { Op, sequelize } = require('sequelize');
+const { Op } = require('sequelize');
+const { sequelize } = require('../config/database');
 
 /**
  * @desc Get all transactions for user
@@ -91,6 +92,7 @@ const getTransactions = catchAsync(async (req, res, next) => {
                 include: [
                     {
                         model: User,
+                        as: 'user',
                         attributes: ['id', 'username']
                     }
                 ]
@@ -102,6 +104,7 @@ const getTransactions = catchAsync(async (req, res, next) => {
                 include: [
                     {
                         model: User,
+                        as: 'user',
                         attributes: ['id', 'username']
                     }
                 ]
@@ -161,6 +164,7 @@ const getTransaction = catchAsync(async (req, res, next) => {
                 include: [
                     {
                         model: User,
+                        as: 'user',
                         attributes: ['id', 'username']
                     }
                 ]
@@ -172,6 +176,7 @@ const getTransaction = catchAsync(async (req, res, next) => {
                 include: [
                     {
                         model: User,
+                        as: 'user',
                         attributes: ['id', 'username']
                     }
                 ]
@@ -244,6 +249,7 @@ const createTransfer = catchAsync(async (req, res, next) => {
             include: [
                 {
                     model: User,
+                    as: 'user',
                     attributes: ['id', 'username']
                 }
             ],
@@ -320,7 +326,7 @@ const createTransfer = catchAsync(async (req, res, next) => {
         emitBalanceUpdate(toAccount.id, toAccount.balance + transferAmount);
         emitNewTransaction(fromAccount.user_id, transaction);
         if (fromAccount.user_id !== toAccount.user_id) {
-            emitNewTransaction(toAccount.User.id, transaction);
+            emitNewTransaction(toAccount.user.id, transaction);
         }
 
         // Get the complete transaction data
