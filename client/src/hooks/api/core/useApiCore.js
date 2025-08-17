@@ -74,7 +74,10 @@ export const useApi = (endpoint, options = {}) => {
                 setError(err.message || 'An error occurred');
                 console.error('API Error:', err);
             }
-            throw err;
+            // Don't throw AbortErrors as they are expected during cleanup
+            if (err.name !== 'AbortError') {
+                throw err;
+            }
         } finally {
             setLoading(false);
             abortControllerRef.current = null;

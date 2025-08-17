@@ -25,7 +25,10 @@ export const apiRequest = async (endpoint, options = {}) => {
 
         return await response.json();
     } catch (error) {
-        console.error('API request failed:', error);
+        // Don't log AbortErrors as they are expected during cleanup
+        if (error.name !== 'AbortError') {
+            console.error('API request failed:', error);
+        }
         throw error;
     }
 };
@@ -73,6 +76,11 @@ export const transactionAPI = {
     getTransactions: (params = {}) => {
         const queryString = new URLSearchParams(params).toString();
         return apiRequest(`/transactions${queryString ? `?${queryString}` : ''}`);
+    },
+
+    getTransactionSummary: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/transactions/summary${queryString ? `?${queryString}` : ''}`);
     },
 
     createTransaction: (transactionData) => apiRequest('/transactions', {

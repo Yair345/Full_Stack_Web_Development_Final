@@ -3,7 +3,7 @@ import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import TransactionItem from "./TransactionItem";
 
-const TransactionList = ({ transactions, loading, error }) => {
+const TransactionList = ({ transactions, loading, error, onRefresh }) => {
 	if (loading) {
 		return (
 			<Card>
@@ -28,7 +28,7 @@ const TransactionList = ({ transactions, loading, error }) => {
 					<p className="text-muted">{error}</p>
 					<Button
 						variant="primary"
-						onClick={() => window.location.reload()}
+						onClick={onRefresh || (() => window.location.reload())}
 					>
 						Retry
 					</Button>

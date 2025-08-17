@@ -1,5 +1,7 @@
 import { useApi, useMutation, useInfiniteApi } from '../core/useApiCore';
-import { transactionAPI } from '../../../services/api';
+import { transactionAPI, accountAPI } from '../../../services/api';
+import { transformServerTransactions } from '../../../pages/Transactions/transactionUtils';
+import { useMemo } from 'react';
 
 /**
  * Hook for fetching transactions with filtering
@@ -8,19 +10,66 @@ import { transactionAPI } from '../../../services/api';
  * @returns {Object} - { transactions, loading, error, refetch }
  */
 export const useTransactions = (filters = {}, options = {}) => {
+    // Get user accounts for transaction transformation
+    const { data: accountsResponse, loading: accountsLoading, error: accountsError } = useApi('/accounts', { immediate: true });
+
     const endpoint = `/transactions${new URLSearchParams(filters).toString() ? `?${new URLSearchParams(filters).toString()}` : ''}`;
 
-    const { data: transactions, loading, error, refetch, mutate } = useApi(endpoint, {
+    const { data: transactionsResponse, loading: transactionsLoading, error, refetch, mutate } = useApi(endpoint, {
         immediate: true,
         dependencies: [JSON.stringify(filters)],
         cacheTime: 1 * 60 * 1000, // 1 minute cache for transactions
         ...options,
     });
 
+    const transformedTransactions = useMemo(() => {
+        try {
+            // If there are errors or no data, return empty array
+            if (error || accountsError || !transactionsResponse) {
+                console.log('API error or no data, returning empty array');
+                return [];
+            }
+
+            // Handle different possible response structures
+            let transactions = [];
+            if (transactionsResponse?.data?.transactions) {
+                transactions = transactionsResponse.data.transactions;
+            } else if (Array.isArray(transactionsResponse?.data)) {
+                transactions = transactionsResponse.data;
+            } else if (Array.isArray(transactionsResponse)) {
+                transactions = transactionsResponse;
+            }
+
+            if (transactions.length === 0) {
+                return [];
+            }
+
+            // If we don't have accounts data yet, return raw transaction data without transformation
+            if (!accountsResponse?.data?.accounts) {
+                console.log('Accounts data not available yet, returning raw transactions');
+                return transactions;
+            }
+
+            // Extract user account IDs from the correct path
+            const userAccountIds = accountsResponse.data.accounts.map(acc => acc.id);
+            console.log('User account IDs:', userAccountIds);
+
+            // Transform server transactions to client format
+            const transformed = transformServerTransactions(transactions, userAccountIds);
+            console.log('Transformed transactions:', transformed.length);
+            return transformed;
+        } catch (error) {
+            console.error('Error in transformedTransactions:', error);
+            // Return raw data as fallback
+            return transactionsResponse?.data?.transactions || [];
+        }
+    }, [transactionsResponse, accountsResponse, error, accountsError]);
+
     return {
-        transactions: transactions?.data || transactions || [],
-        loading,
-        error,
+        transactions: transformedTransactions,
+        pagination: transactionsResponse?.data?.pagination,
+        loading: transactionsLoading || accountsLoading,
+        error: error || accountsError,
         refetch,
         mutate,
     };
@@ -76,4 +125,28 @@ export const useTransaction = (transactionId, options = {}) => {
  */
 export const useCreateTransaction = () => {
     return useMutation(transactionAPI.createTransaction);
+};
+
+/**
+ * Hook for fetching transaction summary data
+ * @param {Object} filters - Transaction filters
+ * @param {Object} options - Configuration options
+ * @returns {Object} - { summary, loading, error, refetch }
+ */
+export const useTransactionSummary = (filters = {}, options = {}) => {
+    const endpoint = `/transactions/summary${new URLSearchParams(filters).toString() ? `?${new URLSearchParams(filters).toString()}` : ''}`;
+
+    const { data: summary, loading, error, refetch } = useApi(endpoint, {
+        immediate: true,
+        dependencies: [JSON.stringify(filters)],
+        cacheTime: 2 * 60 * 1000, // 2 minutes cache for summary
+        ...options,
+    });
+
+    return {
+        summary: summary?.data || summary,
+        loading,
+        error,
+        refetch,
+    };
 };

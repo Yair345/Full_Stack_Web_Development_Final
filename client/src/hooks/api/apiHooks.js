@@ -15,6 +15,7 @@ export {
     useInfiniteTransactions,
     useTransaction,
     useCreateTransaction,
+    useTransactionSummary,
 } from './features/useTransactionHooks';
 
 // Authentication hooks

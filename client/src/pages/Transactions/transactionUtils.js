@@ -1,3 +1,135 @@
+// Transform server transaction data to client format
+export const transformServerTransaction = (serverTransaction, userAccountIds = []) => {
+    if (!serverTransaction) return null;
+
+    try {
+        // Safely access transaction properties with defaults
+        const fromAccountId = serverTransaction.from_account_id || null;
+        const toAccountId = serverTransaction.to_account_id || null;
+        const transactionType = serverTransaction.transaction_type || 'unknown';
+        const transactionAmount = serverTransaction.amount || 0;
+
+        // Determine if this is an incoming or outgoing transaction for the user
+        const isIncoming = toAccountId && userAccountIds.includes(toAccountId) &&
+            (!fromAccountId || !userAccountIds.includes(fromAccountId));
+        const isOutgoing = fromAccountId && userAccountIds.includes(fromAccountId) &&
+            (!toAccountId || !userAccountIds.includes(toAccountId));
+        const isInternal = fromAccountId && toAccountId &&
+            userAccountIds.includes(fromAccountId) && userAccountIds.includes(toAccountId);
+
+        // Determine the transaction type for display
+        let type = transactionType;
+        let amount = transactionAmount;
+
+        // Adjust amount based on transaction direction
+        if (isOutgoing) {
+            amount = -Math.abs(amount);
+            type = 'debit';
+        } else if (isIncoming) {
+            amount = Math.abs(amount);
+            type = 'credit';
+        } else if (isInternal) {
+            type = 'transfer';
+        }
+
+        // Determine merchant/counterparty and account info
+        let merchant = 'Unknown';
+        let account = 'Unknown Account';
+
+        const fromAccount = serverTransaction.fromAccount;
+        const toAccount = serverTransaction.toAccount;
+
+        if (fromAccount && toAccount) {
+            if (isOutgoing) {
+                merchant = toAccount.User?.username ||
+                    `Account ${toAccount.account_number || 'Unknown'}`;
+                account = fromAccount.account_type ?
+                    `${fromAccount.account_type} ****${(fromAccount.account_number || '').slice(-4)}` :
+                    'Unknown Account';
+            } else if (isIncoming) {
+                merchant = fromAccount.User?.username ||
+                    `Account ${fromAccount.account_number || 'Unknown'}`;
+                account = toAccount.account_type ?
+                    `${toAccount.account_type} ****${(toAccount.account_number || '').slice(-4)}` :
+                    'Unknown Account';
+            } else {
+                merchant = 'Internal Transfer';
+                account = fromAccount.account_type ?
+                    `${fromAccount.account_type} ****${(fromAccount.account_number || '').slice(-4)}` :
+                    'Unknown Account';
+            }
+        } else if (fromAccount && !toAccount) {
+            // Withdrawal
+            merchant = 'Cash Withdrawal';
+            account = fromAccount.account_type ?
+                `${fromAccount.account_type} ****${(fromAccount.account_number || '').slice(-4)}` :
+                'Unknown Account';
+        } else if (!fromAccount && toAccount) {
+            // Deposit
+            merchant = 'Cash Deposit';
+            account = toAccount.account_type ?
+                `${toAccount.account_type} ****${(toAccount.account_number || '').slice(-4)}` :
+                'Unknown Account';
+        }
+
+        // Map transaction type to category
+        const categoryMap = {
+            'transfer': 'Transfer',
+            'internal_transfer': 'Transfer',
+            'external_transfer': 'Transfer',
+            'deposit': 'Income',
+            'withdrawal': 'Cash & ATM',
+            'payment': 'Payment',
+            'purchase': 'Shopping'
+        };
+
+        return {
+            id: serverTransaction.id || Math.random().toString(36),
+            type,
+            amount,
+            description: serverTransaction.description || `${transactionType} transaction`,
+            merchant,
+            date: serverTransaction.created_at || serverTransaction.processed_at || new Date().toISOString(),
+            category: categoryMap[transactionType] || 'Other',
+            account,
+            status: serverTransaction.status || 'unknown',
+            reference: serverTransaction.reference_number,
+            rawData: serverTransaction // Keep original data for reference
+        };
+    } catch (error) {
+        console.error('Error transforming transaction:', error, serverTransaction);
+        // Return a basic fallback object
+        return {
+            id: serverTransaction.id || Math.random().toString(36),
+            type: 'unknown',
+            amount: serverTransaction.amount || 0,
+            description: serverTransaction.description || 'Transaction',
+            merchant: 'Unknown',
+            date: serverTransaction.created_at || new Date().toISOString(),
+            category: 'Other',
+            account: 'Unknown Account',
+            status: serverTransaction.status || 'unknown',
+            reference: serverTransaction.reference_number,
+            rawData: serverTransaction
+        };
+    }
+};
+
+// Transform array of server transactions
+export const transformServerTransactions = (serverTransactions, userAccountIds = []) => {
+    if (!Array.isArray(serverTransactions)) {
+        console.warn('transformServerTransactions: Expected array, got:', typeof serverTransactions, serverTransactions);
+        return [];
+    }
+
+    try {
+        return serverTransactions.map(tx => transformServerTransaction(tx, userAccountIds)).filter(Boolean);
+    } catch (error) {
+        console.error('Error transforming transactions array:', error);
+        return [];
+    }
+};
+
 // Mock transaction data for demo
 export const mockTransactions = [
     {
