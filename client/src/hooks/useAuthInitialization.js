@@ -81,7 +81,16 @@ export const useAuthInitialization = () => {
             }
 
             const userData = await response.json();
-            dispatch(setUser(userData.user || userData));
+            const user = userData.user || userData;
+
+            // Transform server field names to match client expectations
+            const transformedUser = {
+                ...user,
+                firstName: user.first_name,
+                lastName: user.last_name
+            };
+
+            dispatch(setUser(transformedUser));
             console.log('User profile loaded successfully');
         } catch (error) {
             console.error('Failed to get user profile:', error);

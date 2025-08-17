@@ -62,9 +62,17 @@ const Login = () => {
 
 			// Extract user and token from server response
 			const { user, tokens } = response.data;
+
+			// Transform server field names to match client expectations
+			const transformedUser = {
+				...user,
+				firstName: user.first_name,
+				lastName: user.last_name,
+			};
+
 			dispatch(
 				loginSuccess({
-					user,
+					user: transformedUser,
 					token: tokens.accessToken,
 					refreshToken: tokens.refreshToken,
 				})
@@ -89,9 +97,17 @@ const Login = () => {
 
 			// Extract user and token from server response
 			const { user, tokens } = response.data;
+
+			// Transform server field names to match client expectations
+			const transformedUser = {
+				...user,
+				firstName: user.first_name,
+				lastName: user.last_name,
+			};
+
 			dispatch(
 				loginSuccess({
-					user,
+					user: transformedUser,
 					token: tokens.accessToken,
 					refreshToken: tokens.refreshToken,
 				})

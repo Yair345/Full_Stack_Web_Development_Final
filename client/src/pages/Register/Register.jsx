@@ -94,10 +94,17 @@ const Register = () => {
 			// Extract user and token from server response
 			const { user, tokens } = response.data;
 
+			// Transform server field names to match client expectations
+			const transformedUser = {
+				...user,
+				firstName: user.first_name,
+				lastName: user.last_name,
+			};
+
 			// Auto-login the user after successful registration
 			dispatch(
 				loginSuccess({
-					user,
+					user: transformedUser,
 					token: tokens.accessToken,
 					refreshToken: tokens.refreshToken,
 				})
