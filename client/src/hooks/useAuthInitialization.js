@@ -112,24 +112,23 @@ export const useAuthInitialization = () => {
                 return;
             }
 
-            // If user already exists, do nothing
-            if (user) {
-                console.log('User already exists');
-                return;
-            }
+            // Always fetch user profile if we have a token but no user
+            if (!user) {
+                console.log('Initializing user authentication - fetching user profile...');
 
-            console.log('Initializing user authentication...');
-
-            // Check if current token is expired
-            if (isTokenExpired(token)) {
-                console.log('Token is expired, attempting refresh...');
-                const newToken = await attemptTokenRefresh();
-                if (newToken) {
-                    await getUserProfile(newToken);
+                // Check if current token is expired
+                if (isTokenExpired(token)) {
+                    console.log('Token is expired, attempting refresh...');
+                    const newToken = await attemptTokenRefresh();
+                    if (newToken) {
+                        await getUserProfile(newToken);
+                    }
+                } else {
+                    console.log('Token is valid, getting user profile...');
+                    await getUserProfile(token);
                 }
             } else {
-                console.log('Token is valid, getting user profile...');
-                await getUserProfile(token);
+                console.log('User already exists');
             }
         };
 

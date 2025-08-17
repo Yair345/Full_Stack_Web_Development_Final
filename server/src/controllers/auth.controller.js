@@ -143,6 +143,18 @@ const logout = catchAsync(async (req, res, next) => {
 
     logger.info(`User logged out successfully: ${userId}`);
 
+    // Log logout audit event to MongoDB
+    await AuditService.logAuth({
+        action: 'logout',
+        req,
+        user: req.user,
+        success: true,
+        details: {
+            logoutMethod: 'manual',
+            sessionDuration: req.user.last_login ? Date.now() - new Date(req.user.last_login).getTime() : null
+        }
+    });
+
     res.json({
         success: true,
         message: 'Logged out successfully'

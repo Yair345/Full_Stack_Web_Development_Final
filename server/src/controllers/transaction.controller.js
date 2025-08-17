@@ -304,20 +304,48 @@ const createTransfer = catchAsync(async (req, res, next) => {
 
         logger.info(`Transfer completed: ${transaction.id}`);
 
-        // Log audit event to MongoDB
+        // Log money transfer to SystemLog (system-level financial operation)
+        await AuditService.logSystem({
+            level: 'info',
+            message: `Money transfer completed: ${transferAmount} ${transaction.currency} from account ${fromAccount.account_number} to account ${toAccount.account_number}`,
+            service: 'financial_transfers',
+            meta: {
+                transactionId: transaction.id,
+                transactionRef: transaction.transaction_ref,
+                amount: transferAmount,
+                currency: transaction.currency,
+                fromAccount: {
+                    id: fromAccount.id,
+                    accountNumber: fromAccount.account_number,
+                    previousBalance: fromAccount.balance,
+                    newBalance: fromAccount.balance - transferAmount,
+                    userId: fromAccount.user_id
+                },
+                toAccount: {
+                    id: toAccount.id,
+                    accountNumber: toAccount.account_number,
+                    previousBalance: toAccount.balance,
+                    newBalance: toAccount.balance + transferAmount,
+                    userId: toAccount.user_id
+                },
+                transferType: transactionType,
+                description: description,
+                processingTime: Date.now() - transaction.created_at.getTime(),
+                ipAddress: req.ip || req.connection.remoteAddress,
+                userAgent: req.get('User-Agent')
+            }
+        });
+
+        // Also log user action to AuditLog (user-initiated action)
         await AuditService.logTransaction({
-            action: 'transfer_completed',
+            action: 'transfer_initiated',
             req,
             transaction,
             details: {
                 fromAccountNumber: fromAccount.account_number,
                 toAccountNumber: toAccount.account_number,
                 transferType: transactionType,
-                description,
-                previousFromBalance: fromAccount.balance,
-                previousToBalance: toAccount.balance,
-                newFromBalance: fromAccount.balance - transferAmount,
-                newToBalance: toAccount.balance + transferAmount
+                description
             }
         });
 
@@ -418,6 +446,42 @@ const createDeposit = catchAsync(async (req, res, next) => {
 
         logger.info(`Deposit completed: ${transaction.id}`);
 
+        // Log deposit to SystemLog (system-level financial operation)
+        await AuditService.logSystem({
+            level: 'info',
+            message: `Deposit transaction completed: ${depositAmount} ${transaction.currency} to account ${account.account_number}`,
+            service: 'financial_deposits',
+            meta: {
+                transactionId: transaction.id,
+                transactionRef: transaction.transaction_ref,
+                amount: depositAmount,
+                currency: transaction.currency,
+                account: {
+                    id: account.id,
+                    accountNumber: account.account_number,
+                    previousBalance: account.balance,
+                    newBalance: account.balance + depositAmount,
+                    userId: userId
+                },
+                description: description,
+                processingTime: Date.now() - transaction.created_at.getTime(),
+                ipAddress: req.ip || req.connection.remoteAddress
+            }
+        });
+
+        // Log deposit audit event to MongoDB
+        await AuditService.logTransaction({
+            action: 'deposit_completed',
+            req,
+            transaction,
+            details: {
+                accountNumber: account.account_number,
+                previousBalance: account.balance,
+                newBalance: account.balance + depositAmount,
+                depositAmount: depositAmount
+            }
+        });
+
         // Emit real-time updates
         emitBalanceUpdate(account.id, account.balance + depositAmount);
         emitNewTransaction(userId, transaction);
@@ -499,6 +563,42 @@ const createWithdrawal = catchAsync(async (req, res, next) => {
         await t.commit();
 
         logger.info(`Withdrawal completed: ${transaction.id}`);
+
+        // Log withdrawal to SystemLog (system-level financial operation)
+        await AuditService.logSystem({
+            level: 'info',
+            message: `Withdrawal transaction completed: ${withdrawalAmount} ${transaction.currency} from account ${account.account_number}`,
+            service: 'financial_withdrawals',
+            meta: {
+                transactionId: transaction.id,
+                transactionRef: transaction.transaction_ref,
+                amount: withdrawalAmount,
+                currency: transaction.currency,
+                account: {
+                    id: account.id,
+                    accountNumber: account.account_number,
+                    previousBalance: account.balance,
+                    newBalance: account.balance - withdrawalAmount,
+                    userId: userId
+                },
+                description: description,
+                processingTime: Date.now() - transaction.created_at.getTime(),
+                ipAddress: req.ip || req.connection.remoteAddress
+            }
+        });
+
+        // Log withdrawal audit event to MongoDB
+        await AuditService.logTransaction({
+            action: 'withdrawal_completed',
+            req,
+            transaction,
+            details: {
+                accountNumber: account.account_number,
+                previousBalance: account.balance,
+                newBalance: account.balance - withdrawalAmount,
+                withdrawalAmount: withdrawalAmount
+            }
+        });
 
         // Emit real-time updates
         emitBalanceUpdate(account.id, account.balance - withdrawalAmount);

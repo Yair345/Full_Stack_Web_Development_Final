@@ -4,6 +4,7 @@ const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
 const { generateAccountNumber } = require('../utils/encryption.utils');
 const { emitBalanceUpdate } = require('../websocket/socket');
+const AuditService = require('../services/audit.service');
 const { Op } = require('sequelize');
 
 /**
@@ -221,6 +222,45 @@ const createAccount = catchAsync(async (req, res, next) => {
 
     logger.info(`Account created successfully: ${account.id} with name: "${account.account_name}", balance: ${account.balance}, overdraft: ${account.overdraft_limit}, currency: ${account.currency}`);
 
+    // Log account creation to SystemLog (system-level operation)
+    await AuditService.logSystem({
+        level: 'info',
+        message: `New bank account created: ${account.account_number} for user ${userId}`,
+        service: 'account_management',
+        meta: {
+            accountId: account.id,
+            accountNumber: account.account_number,
+            accountName: account.account_name,
+            accountType: account.account_type,
+            initialBalance: account.balance,
+            currency: account.currency,
+            userId: userId,
+            overdraftLimit: account.overdraft_limit,
+            features: {
+                interestRate: account.interest_rate,
+                monthlyFee: account.monthly_fee,
+                minimumBalance: account.minimum_balance
+            }
+        }
+    });
+
+    // Log account creation audit event to MongoDB
+    await AuditService.logAccount({
+        action: 'created',
+        req,
+        account,
+        details: {
+            accountName: account.account_name,
+            initialDeposit: depositAmount,
+            overdraftLimit: account.overdraft_limit,
+            accountFeatures: {
+                interestRate: account.interest_rate,
+                monthlyFee: account.monthly_fee,
+                minimumBalance: account.minimum_balance
+            }
+        }
+    });
+
     res.status(201).json({
         success: true,
         message: 'Account created successfully',
@@ -284,6 +324,18 @@ const updateAccount = catchAsync(async (req, res, next) => {
     const updatedAccount = await account.update(updateData);
 
     logger.info(`Account updated successfully: ${id}`);
+
+    // Log account update audit event to MongoDB
+    await AuditService.logAccount({
+        action: 'updated',
+        req,
+        account: updatedAccount,
+        details: {
+            updatedFields: updateData,
+            previousAccountType: account.account_type,
+            newAccountType: updatedAccount.account_type
+        }
+    });
 
     res.json({
         success: true,
@@ -353,6 +405,18 @@ const deactivateAccount = catchAsync(async (req, res, next) => {
     await account.update({ is_active: false });
 
     logger.info(`Account deactivated successfully: ${id}`);
+
+    // Log account deactivation audit event to MongoDB
+    await AuditService.logAccount({
+        action: 'deactivated',
+        req,
+        account,
+        details: {
+            reason: 'user_requested',
+            finalBalance: account.balance,
+            pendingTransactionsChecked: true
+        }
+    });
 
     res.json({
         success: true,
