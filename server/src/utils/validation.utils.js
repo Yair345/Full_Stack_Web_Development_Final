@@ -143,8 +143,24 @@ const createAccountValidation = [
 
     body('currency')
         .optional()
-        .isIn(['USD', 'EUR', 'GBP'])
-        .withMessage('Currency must be USD, EUR, or GBP')
+        .isIn(['USD', 'EUR', 'GBP', 'JPY', 'ILS'])
+        .withMessage('Currency must be USD, EUR, GBP, JPY, or ILS'),
+
+    body('account_name')
+        .notEmpty()
+        .withMessage('Account name is required')
+        .isLength({ min: 2, max: 100 })
+        .withMessage('Account name must be between 2 and 100 characters'),
+
+    body('initial_deposit')
+        .optional()
+        .isFloat({ min: 0 })
+        .withMessage('Initial deposit must be a positive number'),
+
+    body('overdraft_limit')
+        .optional()
+        .isFloat({ min: 0, max: 50000 })
+        .withMessage('Overdraft limit must be between 0 and 50,000')
 ];
 
 /**

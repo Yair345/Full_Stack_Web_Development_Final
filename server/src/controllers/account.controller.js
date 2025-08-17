@@ -14,12 +14,14 @@ const { Op } = require('sequelize');
 const getAccounts = catchAsync(async (req, res, next) => {
     const userId = req.user.id;
 
+    logger.info(`Getting accounts for user: ${userId}`);
+
     const accounts = await Account.findAll({
         where: { user_id: userId },
         attributes: [
             'id',
             'account_number',
-            'account_name',
+            'account_name', // This will map to the 'name' field in the database
             'account_type',
             'balance',
             'currency',
@@ -34,9 +36,16 @@ const getAccounts = catchAsync(async (req, res, next) => {
         order: [['created_at', 'DESC']]
     });
 
+    logger.info(`Found ${accounts.length} accounts for user ${userId}:`, accounts.map(acc => ({
+        id: acc.id,
+        name: acc.account_name,
+        type: acc.account_type,
+        balance: acc.balance
+    })));
+
     res.json({
         success: true,
-        data: { accounts }
+        data: accounts // Return accounts directly instead of { accounts }
     });
 });
 
@@ -82,9 +91,9 @@ const getAccount = catchAsync(async (req, res, next) => {
  * @access Private
  */
 const createAccount = catchAsync(async (req, res, next) => {
-    const { 
-        account_type, 
-        currency = 'USD', 
+    const {
+        account_type,
+        currency = 'USD',
         account_name,
         initial_deposit = 0,
         overdraft_limit = 0
@@ -171,14 +180,14 @@ const createAccount = catchAsync(async (req, res, next) => {
     const accountData = {
         user_id: userId,
         account_number: accountNumber,
-        account_name: account_name.trim(), // Use the exact name from the form
+        account_name: account_name.trim(), // This will map to the 'name' field in database via Sequelize
         account_type,
         balance: depositAmount, // Set initial deposit as balance
         currency,
         is_active: true,
         overdraft_limit: overdraftAmount,
-        // Set account-type-specific defaults
-        interest_rate: account_type === 'savings' ? 2.5 : (account_type === 'checking' ? 0.1 : 0),
+        // Set account-type-specific defaults (interest rates as decimal: 0.025 = 2.5%)
+        interest_rate: account_type === 'savings' ? 0.025 : (account_type === 'checking' ? 0.001 : 0),
         monthly_fee: account_type === 'business' ? 15.00 : 0,
         minimum_balance: account_type === 'savings' ? 500 : 0
     };
@@ -206,7 +215,7 @@ const createAccount = catchAsync(async (req, res, next) => {
             balance_after: depositAmount,
             completed_at: new Date()
         });
-        
+
         logger.info(`Initial deposit transaction created for account: ${account.id}, amount: ${depositAmount}, transaction ID: ${transaction.id}`);
     }
 

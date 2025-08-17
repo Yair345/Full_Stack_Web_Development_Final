@@ -59,11 +59,13 @@ export const transformServerAccount = (serverAccount) => {
     if (!serverAccount) return null;
 
     // Use the account name from server if available, otherwise generate a friendly name
-    const getAccountName = (name, type, accountNumber) => {
-        if (name && name.trim().length > 0) {
-            return name.trim();
+    const getAccountName = (name, account_name, type, accountNumber) => {
+        // Try account_name first, then name, then generate
+        const serverName = account_name || name;
+        if (serverName && serverName.trim().length > 0) {
+            return serverName.trim();
         }
-        
+
         // Fallback to generated name
         const typeNames = {
             checking: 'Checking Account',
@@ -78,7 +80,7 @@ export const transformServerAccount = (serverAccount) => {
 
     return {
         id: serverAccount.id,
-        name: getAccountName(serverAccount.name, serverAccount.account_type, serverAccount.account_number),
+        name: getAccountName(serverAccount.name, serverAccount.account_name, serverAccount.account_type, serverAccount.account_number),
         type: serverAccount.account_type,
         balance: parseFloat(serverAccount.balance || 0),
         number: serverAccount.account_number || '****0000',

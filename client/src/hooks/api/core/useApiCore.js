@@ -27,18 +27,27 @@ export const useApi = (endpoint, options = {}) => {
     const cacheRef = useRef({ data: null, timestamp: null });
 
     const fetchData = useCallback(async (customEndpoint = endpoint, customOptions = {}) => {
-        // Check cache first
-        const now = Date.now();
-        const cachedData = cacheRef.current;
-        if (
-            cachedData.data &&
-            cachedData.timestamp &&
-            (now - cachedData.timestamp) < cacheTime &&
-            customEndpoint === endpoint
-        ) {
-            setData(cachedData.data);
-            setLoading(false);
-            return cachedData.data;
+        // If forceRefresh is requested, clear cache immediately
+        if (customOptions.forceRefresh || customOptions.cache === 'reload') {
+            console.log('Clearing cache due to forceRefresh or reload');
+            cacheRef.current = { data: null, timestamp: null };
+        }
+
+        // Check cache only if not forcing refresh
+        if (!customOptions.forceRefresh && customOptions.cache !== 'reload') {
+            const now = Date.now();
+            const cachedData = cacheRef.current;
+            if (
+                cachedData.data &&
+                cachedData.timestamp &&
+                (now - cachedData.timestamp) < cacheTime &&
+                customEndpoint === endpoint
+            ) {
+                console.log('Using cached data');
+                setData(cachedData.data);
+                setLoading(false);
+                return cachedData.data;
+            }
         }
 
         // Cancel any ongoing request
@@ -53,6 +62,7 @@ export const useApi = (endpoint, options = {}) => {
         setError(null);
 
         try {
+            console.log('Making fresh API request to:', customEndpoint);
             const requestConfig = {
                 ...requestOptions,
                 ...customOptions,
@@ -60,8 +70,10 @@ export const useApi = (endpoint, options = {}) => {
             };
 
             const result = await apiRequest(customEndpoint, requestConfig);
+            console.log('API request result:', result);
 
             // Cache the result
+            const now = Date.now();
             cacheRef.current = {
                 data: result,
                 timestamp: now,
@@ -86,7 +98,10 @@ export const useApi = (endpoint, options = {}) => {
 
     // Refetch function that can be called manually
     const refetch = useCallback((customOptions = {}) => {
-        return fetchData(endpoint, customOptions);
+        console.log('Refetch called with options:', customOptions);
+        // Always force refresh when refetch is called manually
+        const options = { forceRefresh: true, ...customOptions };
+        return fetchData(endpoint, options);
     }, [fetchData, endpoint]);
 
     // Mutate function for optimistic updates

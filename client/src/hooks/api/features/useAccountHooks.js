@@ -10,18 +10,24 @@ import { transformServerAccounts, transformServerAccount } from '../../../pages/
 export const useAccounts = (options = {}) => {
     const { data: rawData, loading, error, refetch, mutate } = useApi('/accounts', {
         immediate: true,
-        cacheTime: 2 * 60 * 1000, // 2 minutes cache for accounts
+        // Reduce cache time for accounts to make refreshing more responsive
+        cacheTime: 30 * 1000, // 30 seconds cache for accounts
         ...options,
     });
 
     // Transform the raw server data to frontend format
     const accounts = rawData ? transformServerAccounts(rawData.data || rawData || []) : [];
 
+    console.log('useAccounts - rawData:', rawData, 'transformed accounts:', accounts);
+
     return {
         accounts,
         loading,
         error,
-        refetch,
+        refetch: (customOptions = {}) => {
+            console.log('useAccounts refetch called with:', customOptions);
+            return refetch(customOptions);
+        },
         mutate: (newData, shouldRevalidate) => {
             // If mutating with new data, transform it first
             const transformedData = newData ? {
