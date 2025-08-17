@@ -16,6 +16,7 @@ export const useTokenRefresh = () => {
     const { token, refreshToken, isAuthenticated } = useSelector((state) => state.auth);
     const refreshIntervalRef = useRef(null);
     const alertShownRef = useRef(false);
+    const isRefreshingRef = useRef(false);
 
     const getTokenExpiry = useCallback((token) => {
         try {
@@ -37,16 +38,38 @@ export const useTokenRefresh = () => {
     }, [getTokenExpiry]);
 
     const refreshTokenAsync = useCallback(async () => {
-        if (!refreshToken || !isAuthenticated) return false;
+        if (!refreshToken || !isAuthenticated || isRefreshingRef.current) {
+            return false;
+        }
 
         try {
+            isRefreshingRef.current = true;
             dispatch(refreshTokenStart());
 
-            const response = await authAPI.refreshToken();
+            // Use the refresh token from localStorage directly to avoid API service conflicts
+            const storedRefreshToken = localStorage.getItem('refreshToken');
+            if (!storedRefreshToken) {
+                throw new Error('No refresh token available');
+            }
+
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'}/auth/refresh`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${storedRefreshToken}`,
+                },
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Token refresh failed');
+            }
+
+            const data = await response.json();
 
             dispatch(refreshTokenSuccess({
-                token: response.accessToken,
-                refreshToken: response.refreshToken
+                token: data.accessToken,
+                refreshToken: data.refreshToken
             }));
 
             alertShownRef.current = false; // Reset alert flag on successful refresh
@@ -55,6 +78,8 @@ export const useTokenRefresh = () => {
             console.error('Token refresh failed:', error);
             dispatch(refreshTokenFailure(error.message));
             return false;
+        } finally {
+            isRefreshingRef.current = false;
         }
     }, [dispatch, refreshToken, isAuthenticated]);
 
@@ -107,20 +132,18 @@ export const useTokenRefresh = () => {
     // Effect to manage refresh interval based on authentication state
     useEffect(() => {
         if (isAuthenticated && token) {
-            // Check immediately on mount/auth change
-            handleTokenRefresh();
-            // Start the interval
             startRefreshInterval();
         } else {
             stopRefreshInterval();
             alertShownRef.current = false;
+            isRefreshingRef.current = false;
         }
 
         // Cleanup on unmount or auth change
         return () => {
             stopRefreshInterval();
         };
-    }, [isAuthenticated, token, handleTokenRefresh, startRefreshInterval, stopRefreshInterval]);
+    }, [isAuthenticated, token, startRefreshInterval, stopRefreshInterval]);
 
     // Cleanup on unmount
     useEffect(() => {

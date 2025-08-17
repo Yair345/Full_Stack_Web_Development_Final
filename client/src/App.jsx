@@ -4,10 +4,9 @@ import {
 	Route,
 	Navigate,
 } from "react-router-dom";
-import { Provider, useDispatch, useSelector } from "react-redux";
-import { useEffect } from "react";
+import { Provider } from "react-redux";
 import { store } from "./store";
-import { setUser } from "./store/slices/authSlice";
+import { useAuthInitialization } from "./hooks/useAuthInitialization";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/layout/ProtectedRoute";
 import Login from "./pages/Login/Login.jsx";
@@ -23,25 +22,20 @@ import BranchManagement from "./pages/BranchManagement/BranchManagement";
 import Profile from "./pages/Profile/Profile";
 
 function AppContent() {
-	const dispatch = useDispatch();
-	const { token, user } = useSelector((state) => state.auth);
-
-	useEffect(() => {
-		// If we have a token but no user, initialize with a mock user for testing
-		if (token && !user) {
-			const mockUser = {
-				id: 1,
-				firstName: "John",
-				lastName: "Doe",
-				email: "john.doe@example.com",
-				role: "customer",
-			};
-			dispatch(setUser(mockUser));
-		}
-	}, [token, user, dispatch]);
+	const { loading } = useAuthInitialization();
 
 	return (
 		<div className="App">
+			{loading && (
+				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+					<div className="bg-white p-6 rounded-lg shadow-lg">
+						<div className="flex items-center space-x-3">
+							<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+							<span>Authenticating...</span>
+						</div>
+					</div>
+				</div>
+			)}
 			<Routes>
 				<Route path="/login" element={<Login />} />
 				<Route path="/register" element={<Register />} />

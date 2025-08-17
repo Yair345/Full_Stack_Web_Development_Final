@@ -39,22 +39,6 @@ const authSlice = createSlice({
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
         },
-        refreshTokenStart: (state) => {
-            state.loading = true;
-        },
-        refreshTokenSuccess: (state, action) => {
-            state.loading = false;
-            state.token = action.payload.token;
-            if (action.payload.refreshToken) {
-                state.refreshToken = action.payload.refreshToken;
-                localStorage.setItem('refreshToken', action.payload.refreshToken);
-            }
-            localStorage.setItem('token', action.payload.token);
-        },
-        refreshTokenFailure: (state, action) => {
-            state.loading = false;
-            state.error = action.payload;
-        },
         logout: (state) => {
             state.isAuthenticated = false;
             state.user = null;
@@ -71,6 +55,24 @@ const authSlice = createSlice({
         clearError: (state) => {
             state.error = null;
         },
+        refreshTokenStart: (state) => {
+            state.loading = true;
+            state.error = null;
+        },
+        refreshTokenSuccess: (state, action) => {
+            state.loading = false;
+            state.token = action.payload.token;
+            state.refreshToken = action.payload.refreshToken;
+            state.error = null;
+            localStorage.setItem('token', action.payload.token);
+            if (action.payload.refreshToken) {
+                localStorage.setItem('refreshToken', action.payload.refreshToken);
+            }
+        },
+        refreshTokenFailure: (state, action) => {
+            state.loading = false;
+            state.error = action.payload;
+        },
     },
 });
 
@@ -78,11 +80,11 @@ export const {
     loginStart,
     loginSuccess,
     loginFailure,
-    refreshTokenStart,
-    refreshTokenSuccess,
-    refreshTokenFailure,
     logout,
     setUser,
-    clearError
+    clearError,
+    refreshTokenStart,
+    refreshTokenSuccess,
+    refreshTokenFailure
 } = authSlice.actions;
 export default authSlice.reducer;

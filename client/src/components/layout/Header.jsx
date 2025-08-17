@@ -2,7 +2,6 @@ import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { Menu, Bell, User, LogOut, X } from "lucide-react";
 import { logout } from "../../store/slices/authSlice";
-import TokenStatusIndicator from "../ui/TokenStatusIndicator";
 
 const Header = ({ sidebarOpen, setSidebarOpen }) => {
 	const { user } = useSelector((state) => state.auth);
@@ -45,13 +44,6 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
 					</div>
 
 					<div className="d-flex align-items-center">
-						<div className="me-3 d-none d-lg-block">
-							<TokenStatusIndicator showDetails={true} />
-						</div>
-						<div className="me-3 d-lg-none">
-							<TokenStatusIndicator showDetails={false} />
-						</div>
-
 						<button
 							type="button"
 							className="btn btn-link p-2 text-secondary me-3"
