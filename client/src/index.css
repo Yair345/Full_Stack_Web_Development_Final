@@ -177,3 +177,44 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
+
+/* Token Status Indicator styles */
+.token-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.token-status.valid {
+  background-color: rgba(22, 163, 74, 0.1);
+  color: var(--bank-green);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+}
+
+.token-status.expiring {
+  background-color: rgba(255, 193, 7, 0.1);
+  color: #b45309;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  animation: pulse 2s infinite;
+}
+
+.token-status .token-indicator {
+  font-size: 1rem;
+}
+
+.token-status .time-left {
+  font-family: 'Courier New', monospace;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}

@@ -3,6 +3,7 @@ import { Eye, EyeOff, Smartphone, Shield } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
+import TokenRefreshDemo from "../../components/ui/TokenRefreshDemo";
 import { getPasswordStrength, validatePassword } from "./profileUtils";
 
 const SecurityTab = ({ securityData, onSecurityChange, onPasswordChange }) => {
@@ -347,6 +348,11 @@ const SecurityTab = ({ securityData, onSecurityChange, onPasswordChange }) => {
 						</Card>
 					</div>
 				)}
+
+				{/* Token Refresh Demo */}
+				<div className="col-12">
+					<TokenRefreshDemo />
+				</div>
 			</div>
 		</div>
 	);
