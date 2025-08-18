@@ -10,6 +10,10 @@ const TransactionItem = ({ transaction }) => {
 				return <ArrowUpCircle className="text-danger" size={20} />;
 			case "transfer":
 				return <ArrowUpCircle className="text-primary" size={20} />;
+			case "deposit":
+				return <ArrowDownCircle className="text-success" size={20} />;
+			case "withdrawal":
+				return <ArrowUpCircle className="text-danger" size={20} />;
 			default:
 				return <CreditCard className="text-muted" size={20} />;
 		}
@@ -23,9 +27,25 @@ const TransactionItem = ({ transaction }) => {
 				return "badge bg-warning";
 			case "failed":
 				return "badge bg-danger";
+			case "cancelled":
+				return "badge bg-secondary";
 			default:
 				return "badge bg-secondary";
 		}
+	};
+
+	// Get the account to display (preferring "to account" for transfers and deposits)
+	const getDisplayAccount = () => {
+		if (transaction.toAccount) {
+			return `${transaction.toAccount.name || "Account"} (${
+				transaction.toAccount.account_number
+			})`;
+		} else if (transaction.fromAccount) {
+			return `${transaction.fromAccount.name || "Account"} (${
+				transaction.fromAccount.account_number
+			})`;
+		}
+		return transaction.account || "Unknown Account";
 	};
 
 	return (
@@ -33,14 +53,14 @@ const TransactionItem = ({ transaction }) => {
 			<td>
 				<div className="d-flex align-items-center">
 					<div className="me-3">
-						{getTransactionIcon(transaction.type)}
+						{getTransactionIcon(transaction.transaction_type)}
 					</div>
 					<div>
 						<div className="fw-medium">
-							{transaction.description}
+							{transaction.description || "No description"}
 						</div>
 						<div className="small text-muted">
-							{transaction.merchant}
+							Ref: {transaction.transaction_ref}
 						</div>
 					</div>
 				</div>
@@ -57,12 +77,12 @@ const TransactionItem = ({ transaction }) => {
 			</td>
 			<td>
 				<span className="badge bg-light text-dark">
-					{transaction.category}
+					{transaction.transaction_type}
 				</span>
 			</td>
-			<td className="text-muted small">{transaction.account}</td>
+			<td className="text-muted small">{getDisplayAccount()}</td>
 			<td className="text-muted small">
-				{formatDate(transaction.date, {
+				{formatDate(transaction.created_at || transaction.createdAt, {
 					year: "numeric",
 					month: "short",
 					day: "numeric",

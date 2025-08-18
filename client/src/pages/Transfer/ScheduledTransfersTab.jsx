@@ -1,14 +1,250 @@
-import { Plus, Clock } from "lucide-react";
+import { useState } from "react";
+import {
+	Plus,
+	Clock,
+	Play,
+	Pause,
+	Edit,
+	Trash2,
+	MoreHorizontal,
+	ArrowLeft,
+} from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
+import ScheduleTransferForm from "./ScheduleTransferForm";
 import { formatCurrency } from "./transferUtils";
+import {
+	useToggleStandingOrder,
+	useCancelStandingOrder,
+	useUpdateStandingOrder,
+} from "../../hooks/api/apiHooks";
 
-const ScheduledTransfersTab = ({ scheduledTransfers, onScheduleTransfer }) => {
+const ScheduledTransfersTab = ({
+	scheduledTransfers,
+	onScheduleTransfer,
+	accounts = [],
+	loading = false,
+	onRefresh,
+}) => {
+	const [showForm, setShowForm] = useState(false);
+	const [editingTransfer, setEditingTransfer] = useState(null);
+
+	// Hooks for managing standing orders
+	const { mutate: toggleStandingOrder, loading: toggleLoading } =
+		useToggleStandingOrder();
+
+	const { mutate: cancelStandingOrder, loading: cancelLoading } =
+		useCancelStandingOrder();
+
+	const { mutate: updateStandingOrder, loading: updateLoading } =
+		useUpdateStandingOrder();
+
+	const handleToggleStatus = async (transferId, currentStatus) => {
+		console.log(
+			`${
+				currentStatus === "active" ? "Pausing" : "Resuming"
+			} transfer ${transferId}`
+		);
+
+		try {
+			await toggleStandingOrder(transferId, {
+				onSuccess: () => {
+					console.log("Standing order status toggled successfully");
+					if (onRefresh) onRefresh();
+				},
+				onError: (error) => {
+					console.error(
+						"Failed to toggle standing order status:",
+						error
+					);
+					alert(
+						`Failed to ${
+							currentStatus === "active" ? "pause" : "resume"
+						} transfer: ${error.message || "Unknown error"}`
+					);
+				},
+			});
+		} catch (error) {
+			console.error("Toggle standing order error:", error);
+		}
+	};
+
+	const handleEditTransfer = (transfer) => {
+		console.log(`Editing transfer ${transfer.id}`);
+		setEditingTransfer(transfer);
+		setShowForm(true);
+	};
+
+	const handleDeleteTransfer = async (transferId) => {
+		if (
+			window.confirm(
+				"Are you sure you want to delete this scheduled transfer?"
+			)
+		) {
+			console.log(`Deleting transfer ${transferId}`);
+
+			try {
+				await cancelStandingOrder(transferId, {
+					onSuccess: () => {
+						console.log("Standing order deleted successfully");
+						if (onRefresh) onRefresh();
+					},
+					onError: (error) => {
+						console.error(
+							"Failed to delete standing order:",
+							error
+						);
+						alert(
+							`Failed to delete transfer: ${
+								error.message || "Unknown error"
+							}`
+						);
+					},
+				});
+			} catch (error) {
+				console.error("Delete standing order error:", error);
+			}
+		}
+	};
+
+	const handleCreateSchedule = () => {
+		setEditingTransfer(null);
+		setShowForm(true);
+	};
+
+	const handleFormSubmit = async (scheduleData) => {
+		try {
+			if (editingTransfer) {
+				// Update existing standing order
+				await updateStandingOrder(
+					{ id: editingTransfer.id, data: scheduleData },
+					{
+						onSuccess: () => {
+							console.log("Standing order updated successfully");
+							setShowForm(false);
+							setEditingTransfer(null);
+							if (onRefresh) onRefresh();
+						},
+						onError: (error) => {
+							console.error(
+								"Failed to update standing order:",
+								error
+							);
+							throw error;
+						},
+					}
+				);
+			} else {
+				// Create new standing order
+				await onScheduleTransfer(scheduleData);
+				setShowForm(false);
+			}
+		} catch (error) {
+			// Error is handled in the form component
+			throw error;
+		}
+	};
+
+	const handleFormCancel = () => {
+		setShowForm(false);
+		setEditingTransfer(null);
+	};
+
+	const getFrequencyColor = (frequency) => {
+		switch (frequency.toLowerCase()) {
+			case "daily":
+				return "text-info";
+			case "weekly":
+				return "text-success";
+			case "monthly":
+				return "text-primary";
+			case "yearly":
+				return "text-warning";
+			default:
+				return "text-muted";
+		}
+	};
+
+	const isUpcoming = (dateString) => {
+		const date = new Date(dateString);
+		const today = new Date();
+		const diffDays = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+		return diffDays <= 7 && diffDays >= 0; // Next 7 days
+	};
+
+	// Show form when creating or editing
+	if (showForm) {
+		return (
+			<div className="col-12">
+				<div className="d-flex align-items-center mb-4">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={handleFormCancel}
+						className="me-3"
+					>
+						<ArrowLeft size={16} className="me-2" />
+						Back
+					</Button>
+					<div>
+						<h5 className="fw-medium mb-1">
+							{editingTransfer
+								? "Edit Scheduled Transfer"
+								: "Schedule New Transfer"}
+						</h5>
+						<p className="text-muted small mb-0">
+							Set up automatic recurring transfers
+						</p>
+					</div>
+				</div>
+
+				<ScheduleTransferForm
+					accounts={accounts}
+					onSubmit={handleFormSubmit}
+					onCancel={handleFormCancel}
+					loading={updateLoading}
+					initialData={editingTransfer}
+				/>
+			</div>
+		);
+	}
+
+	if (!scheduledTransfers || scheduledTransfers.length === 0) {
+		return (
+			<div className="col-12">
+				<Card>
+					<div className="text-center py-5">
+						<Clock size={48} className="text-muted mb-3" />
+						<h5 className="fw-medium mb-2">
+							No Scheduled Transfers
+						</h5>
+						<p className="text-muted mb-4">
+							Set up automatic transfers to save time and never
+							miss a payment
+						</p>
+						<Button
+							variant="primary"
+							onClick={handleCreateSchedule}
+						>
+							<Plus size={16} className="me-2" />
+							Schedule Your First Transfer
+						</Button>
+					</div>
+				</Card>
+			</div>
+		);
+	}
+
 	return (
 		<div className="col-12">
 			<div className="d-flex justify-content-between align-items-center mb-4">
-				<h5 className="fw-medium mb-0">Scheduled Transfers</h5>
-				<Button variant="primary" onClick={onScheduleTransfer}>
+				<div>
+					<h5 className="fw-medium mb-1">Scheduled Transfers</h5>
+					<p className="text-muted small mb-0">
+						Manage your automatic and recurring transfers
+					</p>
+				</div>
+				<Button variant="primary" onClick={handleCreateSchedule}>
 					<Plus size={16} className="me-2" />
 					Schedule Transfer
 				</Button>
@@ -23,25 +259,56 @@ const ScheduledTransfersTab = ({ scheduledTransfers, onScheduleTransfer }) => {
 								index === scheduledTransfers.length - 1
 									? "border-bottom-0"
 									: ""
+							} ${
+								isUpcoming(transfer.nextDate)
+									? "border-start border-primary border-3"
+									: ""
 							}`}
 						>
 							<div className="d-flex align-items-center">
 								<div className="bg-light rounded-circle p-2 me-3">
-									<Clock size={20} className="text-muted" />
+									<Clock
+										size={20}
+										className={
+											transfer.status === "active"
+												? "text-primary"
+												: "text-muted"
+										}
+									/>
 								</div>
 								<div>
 									<h6 className="fw-medium mb-1">
 										{transfer.recipient}
 									</h6>
-									<small className="text-muted">
-										{transfer.frequency} • Next:{" "}
-										{transfer.nextDate}
-									</small>
+									<div className="d-flex align-items-center text-muted small">
+										<span
+											className={getFrequencyColor(
+												transfer.frequency
+											)}
+										>
+											{transfer.frequency}
+										</span>
+										<span className="mx-2">•</span>
+										<span>
+											Next:{" "}
+											{new Date(
+												transfer.nextDate
+											).toLocaleDateString()}
+										</span>
+										{isUpcoming(transfer.nextDate) && (
+											<>
+												<span className="mx-2">•</span>
+												<span className="badge bg-warning text-dark">
+													Upcoming
+												</span>
+											</>
+										)}
+									</div>
 								</div>
 							</div>
 							<div className="d-flex align-items-center">
 								<div className="text-end me-3">
-									<p className="fw-medium mb-0">
+									<p className="fw-medium mb-1">
 										{formatCurrency(transfer.amount)}
 									</p>
 									<span
@@ -51,34 +318,78 @@ const ScheduledTransfersTab = ({ scheduledTransfers, onScheduleTransfer }) => {
 												: "bg-warning"
 										}`}
 									>
-										{transfer.status}
+										{transfer.status.toUpperCase()}
 									</span>
 								</div>
 								<div className="dropdown">
 									<button
 										className="btn btn-outline-secondary btn-sm"
 										data-bs-toggle="dropdown"
+										aria-expanded="false"
 									>
-										•••
+										<MoreHorizontal size={16} />
 									</button>
-									<ul className="dropdown-menu">
+									<ul className="dropdown-menu dropdown-menu-end">
 										<li>
-											<button className="dropdown-item">
+											<button
+												className="dropdown-item"
+												onClick={() =>
+													handleEditTransfer(transfer)
+												}
+											>
+												<Edit
+													size={14}
+													className="me-2"
+												/>
 												Edit
 											</button>
 										</li>
 										<li>
-											<button className="dropdown-item">
-												{transfer.status === "active"
-													? "Pause"
-													: "Resume"}
+											<button
+												className="dropdown-item"
+												onClick={() =>
+													handleToggleStatus(
+														transfer.id,
+														transfer.status
+													)
+												}
+											>
+												{transfer.status ===
+												"active" ? (
+													<>
+														<Pause
+															size={14}
+															className="me-2"
+														/>
+														Pause
+													</>
+												) : (
+													<>
+														<Play
+															size={14}
+															className="me-2"
+														/>
+														Resume
+													</>
+												)}
 											</button>
 										</li>
 										<li>
 											<hr className="dropdown-divider" />
 										</li>
 										<li>
-											<button className="dropdown-item text-danger">
+											<button
+												className="dropdown-item text-danger"
+												onClick={() =>
+													handleDeleteTransfer(
+														transfer.id
+													)
+												}
+											>
+												<Trash2
+													size={14}
+													className="me-2"
+												/>
 												Delete
 											</button>
 										</li>
@@ -89,6 +400,14 @@ const ScheduledTransfersTab = ({ scheduledTransfers, onScheduleTransfer }) => {
 					))}
 				</div>
 			</Card>
+
+			{scheduledTransfers.length > 5 && (
+				<div className="text-center mt-4">
+					<Button variant="outline">
+						Show All Scheduled Transfers
+					</Button>
+				</div>
+			)}
 		</div>
 	);
 };

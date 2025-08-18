@@ -7,16 +7,61 @@ import RecipientsTab from "./RecipientsTab";
 import ScheduledTransfersTab from "./ScheduledTransfersTab";
 import TransferHistoryTab from "./TransferHistoryTab";
 import {
-	mockAccounts,
-	mockRecentRecipients,
-	mockScheduledTransfers,
-} from "./transferUtils";
+	useAccounts,
+	useCreateTransfer,
+	useTransactions,
+	useStandingOrders,
+	useRecentRecipients,
+	useCreateStandingOrder,
+} from "../../hooks/api/apiHooks";
+import { transformServerAccountsForTransfer } from "./transferUtils";
 
 const Transfer = () => {
-	const [accounts, setAccounts] = useState([]);
-	const [recentRecipients, setRecentRecipients] = useState([]);
-	const [scheduledTransfers, setScheduledTransfers] = useState([]);
-	const [loading, setLoading] = useState(true);
+	// Fetch user accounts from server
+	const {
+		accounts: rawAccounts,
+		loading: accountsLoading,
+		error: accountsError,
+		refetch: refetchAccounts,
+	} = useAccounts();
+
+	// Transform accounts for transfer UI
+	const accounts = transformServerAccountsForTransfer(rawAccounts || []);
+
+	// Transfer mutation
+	const {
+		mutate: createTransfer,
+		loading: transferLoading,
+		error: transferError,
+	} = useCreateTransfer();
+
+	// Fetch transaction history for the history tab
+	const {
+		transactions: transferHistory,
+		loading: historyLoading,
+		refetch: refetchHistory,
+	} = useTransactions({
+		type: "transfer",
+	});
+
+	// Fetch standing orders (scheduled transfers)
+	const {
+		standingOrders: scheduledTransfers,
+		loading: scheduledLoading,
+		refetch: refetchScheduled,
+	} = useStandingOrders();
+
+	// Fetch recent recipients from transaction history
+	const { recipients: recentRecipients, loading: recipientsLoading } =
+		useRecentRecipients();
+
+	// Create standing order mutation
+	const {
+		mutate: createStandingOrder,
+		loading: createScheduledLoading,
+		error: createScheduledError,
+	} = useCreateStandingOrder();
+
 	const [activeTab, setActiveTab] = useState("quick");
 	const [transferForm, setTransferForm] = useState({
 		fromAccount: "",
@@ -26,25 +71,6 @@ const Transfer = () => {
 		type: "internal", // internal, external, wire
 	});
 
-	useEffect(() => {
-		const loadData = async () => {
-			try {
-				setLoading(true);
-				// Simulate network delay
-				await new Promise((resolve) => setTimeout(resolve, 1000));
-				setAccounts(mockAccounts);
-				setRecentRecipients(mockRecentRecipients);
-				setScheduledTransfers(mockScheduledTransfers);
-			} catch (err) {
-				console.error("Error loading transfer data:", err);
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		loadData();
-	}, []);
-
 	const handleInputChange = (field, value) => {
 		setTransferForm((prev) => ({
 			...prev,
@@ -52,9 +78,80 @@ const Transfer = () => {
 		}));
 	};
 
-	const handleQuickTransfer = (transferData) => {
-		console.log("Quick transfer:", transferData);
-		alert("Transfer initiated! (Demo mode)");
+	const handleQuickTransfer = async (transferData) => {
+		try {
+			console.log("Submitting transfer:", transferData);
+
+			// Find the from account to get its ID
+			const fromAccount = accounts.find(
+				(acc) => acc.id.toString() === transferData.fromAccount
+			);
+			if (!fromAccount) {
+				throw new Error("Source account not found");
+			}
+
+			// Prepare transfer request based on transfer type
+			let transferRequest;
+
+			if (transferData.type === "internal") {
+				// Internal transfer between user's accounts
+				const toAccount = accounts.find(
+					(acc) => acc.id.toString() === transferData.toAccount
+				);
+				if (!toAccount) {
+					throw new Error("Destination account not found");
+				}
+
+				transferRequest = {
+					from_account_id: parseInt(transferData.fromAccount),
+					to_account_number: toAccount.fullNumber, // Use full account number for consistency
+					amount: parseFloat(transferData.amount),
+					description: transferData.description || "",
+					transfer_type: "internal",
+				};
+			} else {
+				// External transfer to another person/bank
+				transferRequest = {
+					from_account_id: parseInt(transferData.fromAccount),
+					to_account_number: transferData.toAccount, // Already the account number/email for external
+					amount: parseFloat(transferData.amount),
+					description: transferData.description || "",
+					transfer_type:
+						transferData.type === "wire" ? "wire" : "external",
+				};
+			}
+
+			await createTransfer(transferRequest, {
+				onSuccess: (data) => {
+					console.log("Transfer successful:", data);
+					alert("Transfer completed successfully!");
+
+					// Clear the form
+					setTransferForm({
+						fromAccount: "",
+						toAccount: "",
+						amount: "",
+						description: "",
+						type: "internal",
+					});
+
+					// Refresh accounts data to update balances
+					refetchAccounts();
+
+					// Refresh transfer history
+					refetchHistory();
+				},
+				onError: (error) => {
+					console.error("Transfer failed:", error);
+					alert(
+						`Transfer failed: ${error.message || "Unknown error"}`
+					);
+				},
+			});
+		} catch (error) {
+			console.error("Transfer error:", error);
+			alert(`Transfer failed: ${error.message || "Unknown error"}`);
+		}
 	};
 
 	const handleRecipientSelect = (recipient) => {
@@ -71,12 +168,35 @@ const Transfer = () => {
 		alert("Add recipient feature will be implemented soon!");
 	};
 
-	const handleScheduleTransfer = () => {
-		console.log("Scheduling new transfer...");
-		alert("Schedule transfer feature will be implemented soon!");
+	const handleScheduleTransfer = (scheduleData) => {
+		if (scheduleData) {
+			// Handle actual scheduling with provided data
+			createStandingOrder(scheduleData, {
+				onSuccess: (data) => {
+					console.log("Standing order created successfully:", data);
+					alert("Scheduled transfer created successfully!");
+					refetchScheduled();
+				},
+				onError: (error) => {
+					console.error(
+						"Failed to create scheduled transfer:",
+						error
+					);
+					alert(
+						`Failed to create scheduled transfer: ${
+							error.message || "Unknown error"
+						}`
+					);
+				},
+			});
+		} else {
+			// Just show a placeholder for now - in real app, would open a modal/form
+			console.log("Scheduling new transfer...");
+			alert("Schedule transfer form will be implemented soon!");
+		}
 	};
 
-	if (loading) {
+	if (accountsLoading) {
 		return (
 			<div className="row g-4">
 				<div className="col-12">
@@ -93,6 +213,30 @@ const Transfer = () => {
 		);
 	}
 
+	if (accountsError) {
+		return (
+			<div className="row g-4">
+				<div className="col-12">
+					<div className="alert alert-danger" role="alert">
+						<h4 className="alert-heading">
+							Error Loading Accounts
+						</h4>
+						<p>
+							{accountsError.message ||
+								"Failed to load accounts. Please try again."}
+						</p>
+						<button
+							className="btn btn-outline-danger"
+							onClick={refetchAccounts}
+						>
+							Retry
+						</button>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="row g-4">
 			<TransferHeader />
@@ -103,12 +247,20 @@ const Transfer = () => {
 			{activeTab === "quick" && (
 				<>
 					<QuickTransferForm
-						accounts={accounts}
+						accounts={accounts || []}
 						transferForm={transferForm}
 						onInputChange={handleInputChange}
 						onSubmit={handleQuickTransfer}
+						loading={transferLoading}
+						error={transferError}
 					/>
-					<TransferLimits />
+					<TransferLimits
+						selectedAccount={accounts.find(
+							(acc) =>
+								acc.id.toString() === transferForm.fromAccount
+						)}
+						currentAmount={transferForm.amount}
+					/>
 				</>
 			)}
 
@@ -126,11 +278,19 @@ const Transfer = () => {
 				<ScheduledTransfersTab
 					scheduledTransfers={scheduledTransfers}
 					onScheduleTransfer={handleScheduleTransfer}
+					accounts={accounts}
+					loading={scheduledLoading || createScheduledLoading}
+					onRefresh={refetchScheduled}
 				/>
 			)}
 
 			{/* History Tab */}
-			{activeTab === "history" && <TransferHistoryTab />}
+			{activeTab === "history" && (
+				<TransferHistoryTab
+					transactions={transferHistory || []}
+					loading={historyLoading}
+				/>
+			)}
 		</div>
 	);
 };

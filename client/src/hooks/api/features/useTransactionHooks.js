@@ -128,6 +128,45 @@ export const useCreateTransaction = () => {
 };
 
 /**
+ * Hook for creating a new transfer
+ * @returns {Object} - { createTransfer, loading, error, data }
+ */
+export const useCreateTransfer = () => {
+    return useMutation(transactionAPI.createTransfer, {
+        onSuccess: (data) => {
+            console.log('Transfer completed successfully:', data);
+        },
+        onError: (error) => {
+            console.error('Transfer failed:', error);
+        }
+    });
+};
+
+/**
+ * Hook for creating a deposit
+ * @returns {Object} - { createDeposit, loading, error, data }
+ */
+export const useCreateDeposit = () => {
+    return useMutation(transactionAPI.createDeposit);
+};
+
+/**
+ * Hook for creating a withdrawal
+ * @returns {Object} - { createWithdrawal, loading, error, data }
+ */
+export const useCreateWithdrawal = () => {
+    return useMutation(transactionAPI.createWithdrawal);
+};
+
+/**
+ * Hook for canceling a transaction
+ * @returns {Object} - { cancelTransaction, loading, error, data }
+ */
+export const useCancelTransaction = () => {
+    return useMutation(transactionAPI.cancelTransaction);
+};
+
+/**
  * Hook for fetching transaction summary data
  * @param {Object} filters - Transaction filters
  * @param {Object} options - Configuration options

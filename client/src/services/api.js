@@ -93,6 +93,54 @@ export const transactionAPI = {
     }),
 
     getTransaction: (id) => apiRequest(`/transactions/${id}`),
+
+    // Transfer specific endpoints
+    createTransfer: (transferData) => apiRequest('/transactions/transfer', {
+        method: 'POST',
+        body: JSON.stringify(transferData),
+    }),
+
+    createDeposit: (depositData) => apiRequest('/transactions/deposit', {
+        method: 'POST',
+        body: JSON.stringify(depositData),
+    }),
+
+    createWithdrawal: (withdrawalData) => apiRequest('/transactions/withdrawal', {
+        method: 'POST',
+        body: JSON.stringify(withdrawalData),
+    }),
+
+    cancelTransaction: (id) => apiRequest(`/transactions/${id}/cancel`, {
+        method: 'PUT',
+    }),
 };
 
-export default { apiRequest, authAPI, accountAPI, transactionAPI };
+// Standing Order API calls
+export const standingOrderAPI = {
+    getStandingOrders: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/standing-orders${queryString ? `?${queryString}` : ''}`);
+    },
+
+    getStandingOrder: (id) => apiRequest(`/standing-orders/${id}`),
+
+    createStandingOrder: (orderData) => apiRequest('/standing-orders', {
+        method: 'POST',
+        body: JSON.stringify(orderData),
+    }),
+
+    updateStandingOrder: (id, orderData) => apiRequest(`/standing-orders/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(orderData),
+    }),
+
+    toggleStandingOrderStatus: (id) => apiRequest(`/standing-orders/${id}/toggle`, {
+        method: 'PUT',
+    }),
+
+    cancelStandingOrder: (id) => apiRequest(`/standing-orders/${id}`, {
+        method: 'DELETE',
+    }),
+};
+
+export default { apiRequest, authAPI, accountAPI, transactionAPI, standingOrderAPI };

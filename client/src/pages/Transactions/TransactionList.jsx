@@ -61,8 +61,8 @@ const TransactionList = ({ transactions, loading, error, onRefresh }) => {
 						<tr>
 							<th className="border-0">Transaction</th>
 							<th className="border-0">Amount</th>
-							<th className="border-0">Category</th>
-							<th className="border-0">Account</th>
+							<th className="border-0">Type</th>
+							<th className="border-0">To Account</th>
 							<th className="border-0">Date</th>
 							<th className="border-0">Status</th>
 						</tr>

@@ -195,8 +195,24 @@ const transferValidation = [
         .withMessage('Valid source account ID is required'),
 
     body('to_account_number')
-        .isLength({ min: 10, max: 20 })
-        .withMessage('Valid destination account number is required'),
+        .custom((value) => {
+            if (!value || value.trim().length === 0) {
+                throw new Error('Destination account number or email is required');
+            }
+
+            const trimmedValue = value.trim();
+
+            // Allow account numbers (flexible pattern), email addresses, or alphanumeric account identifiers
+            const isAccountNumber = /^\d{4,20}$/.test(trimmedValue); // 4-20 digits for traditional account numbers
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedValue); // Email pattern
+            const isAlphaNumeric = /^[a-zA-Z0-9_-]{3,50}$/.test(trimmedValue); // Alphanumeric account identifiers
+
+            if (!isAccountNumber && !isEmail && !isAlphaNumeric) {
+                throw new Error('Destination must be a valid account number (4-20 digits), alphanumeric identifier (3-50 characters), or email address');
+            }
+
+            return true;
+        }),
 
     body('amount')
         .isFloat({ min: 0.01 })
@@ -209,8 +225,8 @@ const transferValidation = [
 
     body('transfer_type')
         .optional()
-        .isIn(['internal', 'external'])
-        .withMessage('Transfer type must be internal or external')
+        .isIn(['internal', 'external', 'wire'])
+        .withMessage('Transfer type must be internal, external, or wire')
 ];
 
 /**
@@ -259,6 +275,119 @@ const transactionIdValidation = [
 ];
 
 /**
+ * Standing order creation validation rules
+ */
+const createStandingOrderValidation = [
+    body('from_account_id')
+        .isInt({ min: 1 })
+        .withMessage('Valid source account ID is required'),
+
+    body('to_account_number')
+        .custom((value) => {
+            // Allow account numbers (10-20 characters) or email addresses
+            const isAccountNumber = /^\d{10,20}$/.test(value);
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+            if (!isAccountNumber && !isEmail && (value.length < 10 || value.length > 50)) {
+                throw new Error('Valid destination account number (10-20 digits) or email address is required');
+            }
+
+            return true;
+        }),
+
+    body('beneficiary_name')
+        .trim()
+        .isLength({ min: 1, max: 100 })
+        .withMessage('Beneficiary name must be between 1 and 100 characters'),
+
+    body('amount')
+        .isFloat({ min: 0.01 })
+        .withMessage('Amount must be greater than 0'),
+
+    body('frequency')
+        .isIn(['daily', 'weekly', 'monthly', 'quarterly', 'yearly'])
+        .withMessage('Frequency must be daily, weekly, monthly, quarterly, or yearly'),
+
+    body('start_date')
+        .isISO8601()
+        .withMessage('Valid start date is required'),
+
+    body('end_date')
+        .optional()
+        .isISO8601()
+        .withMessage('End date must be a valid date'),
+
+    body('max_executions')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('Max executions must be a positive integer'),
+
+    body('reference')
+        .optional()
+        .isLength({ max: 100 })
+        .withMessage('Reference cannot exceed 100 characters'),
+
+    body('description')
+        .optional()
+        .isLength({ max: 500 })
+        .withMessage('Description cannot exceed 500 characters')
+];
+
+/**
+ * Standing order update validation rules
+ */
+const updateStandingOrderValidation = [
+    param('id')
+        .isInt({ min: 1 })
+        .withMessage('Valid standing order ID is required'),
+
+    body('beneficiary_name')
+        .optional()
+        .trim()
+        .isLength({ min: 1, max: 100 })
+        .withMessage('Beneficiary name must be between 1 and 100 characters'),
+
+    body('amount')
+        .optional()
+        .isFloat({ min: 0.01 })
+        .withMessage('Amount must be greater than 0'),
+
+    body('frequency')
+        .optional()
+        .isIn(['daily', 'weekly', 'monthly', 'quarterly', 'yearly'])
+        .withMessage('Frequency must be daily, weekly, monthly, quarterly, or yearly'),
+
+    body('end_date')
+        .optional()
+        .isISO8601()
+        .withMessage('End date must be a valid date'),
+
+    body('max_executions')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('Max executions must be a positive integer'),
+
+    body('reference')
+        .optional()
+        .isLength({ max: 100 })
+        .withMessage('Reference cannot exceed 100 characters'),
+
+    body('description')
+        .optional()
+        .isLength({ max: 500 })
+        .withMessage('Description cannot exceed 500 characters')
+];
+
+/**
+ * Standing order ID validation rules
+ */
+const standingOrderIdValidation = [
+    param('id')
+        .isInt({ min: 1 })
+        .withMessage('Valid standing order ID is required')
+];
+
+/**
  * Validation result checker
  */
 const checkValidationResult = (req, res, next) => {
@@ -287,5 +416,8 @@ module.exports = {
     depositValidation,
     withdrawalValidation,
     transactionIdValidation,
+    createStandingOrderValidation,
+    updateStandingOrderValidation,
+    standingOrderIdValidation,
     checkValidationResult
 };
