@@ -14,44 +14,46 @@ const Profile = () => {
 	const [tempData, setTempData] = useState({});
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
-	
+
 	// Get user data from Redux store
 	const dispatch = useDispatch();
 	const { user, isAuthenticated } = useSelector((state) => state.auth);
 
 	// Transform user data to match component structure
-	const profileData = user ? {
-		personal: {
-			firstName: user.first_name,
-			lastName: user.last_name,
-			username: user.username,
-			email: user.email,
-			phone: user.phone || "",
-			dateOfBirth: user.date_of_birth,
-			nationalId: user.national_id,
-		},
-		address: {
-			street: user.address
-				? (user.address.split(",")[0] || "").trim()
-				: "",
-			city: user.address
-				? (user.address.split(",")[1] || "").trim()
-				: "",
-			state: user.address
-				? (user.address.split(",")[2] || "").trim()
-				: "",
-			zipCode: user.address
-				? (user.address.split(",")[3] || "").trim()
-				: "",
-			country: user.address
-				? (user.address.split(",")[4] || "").trim() ||
-				  "United States"
-				: "United States",
-		},
-		security: {
-			// Security info is handled separately for safety
-		},
-	} : null;
+	const profileData = user
+		? {
+				personal: {
+					firstName: user.first_name,
+					lastName: user.last_name,
+					username: user.username,
+					email: user.email,
+					phone: user.phone || "",
+					dateOfBirth: user.date_of_birth,
+					nationalId: user.national_id,
+				},
+				address: {
+					street: user.address
+						? (user.address.split(",")[0] || "").trim()
+						: "",
+					city: user.address
+						? (user.address.split(",")[1] || "").trim()
+						: "",
+					state: user.address
+						? (user.address.split(",")[2] || "").trim()
+						: "",
+					zipCode: user.address
+						? (user.address.split(",")[3] || "").trim()
+						: "",
+					country: user.address
+						? (user.address.split(",")[4] || "").trim() ||
+						  "United States"
+						: "United States",
+				},
+				security: {
+					// Security info is handled separately for safety
+				},
+		  }
+		: null;
 
 	// Fetch user profile if not already loaded
 	useEffect(() => {
@@ -160,20 +162,31 @@ const Profile = () => {
 
 			// Update Redux store with the new user data
 			const updatedUser = { ...user };
-			
+
 			// Map frontend fields back to server fields
 			switch (field) {
-				case 'phone':
+				case "phone":
 					updatedUser.phone = value;
 					break;
-				case 'username':
+				case "username":
 					updatedUser.username = value;
 					break;
 				default:
 					// For address fields, reconstruct the full address
-					if (['street', 'city', 'state', 'zipCode', 'country'].includes(field)) {
+					if (
+						[
+							"street",
+							"city",
+							"state",
+							"zipCode",
+							"country",
+						].includes(field)
+					) {
 						const currentAddress = profileData.address;
-						const updatedAddress = { ...currentAddress, [field]: value };
+						const updatedAddress = {
+							...currentAddress,
+							[field]: value,
+						};
 						const addressParts = [
 							updatedAddress.street,
 							updatedAddress.city,
@@ -185,7 +198,7 @@ const Profile = () => {
 					}
 					break;
 			}
-			
+
 			dispatch(setUser(updatedUser));
 
 			setEditMode((prev) => ({ ...prev, [key]: false }));
