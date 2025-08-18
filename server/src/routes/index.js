@@ -2,6 +2,7 @@ const express = require('express');
 const authRoutes = require('./auth.routes');
 const accountRoutes = require('./account.routes');
 const transactionRoutes = require('./transaction.routes');
+const standingOrderRoutes = require('./standingOrder.routes');
 const auditRoutes = require('./audit.routes');
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.get('/health', (req, res) => {
 router.use('/auth', authRoutes);
 router.use('/accounts', accountRoutes);
 router.use('/transactions', transactionRoutes);
+router.use('/standing-orders', standingOrderRoutes);
 router.use('/audit', auditRoutes);
 
 // 404 handler for API routes

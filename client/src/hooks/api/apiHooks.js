@@ -15,11 +15,30 @@ export {
     useInfiniteTransactions,
     useTransaction,
     useCreateTransaction,
+    useCreateTransfer,
+    useCreateDeposit,
+    useCreateWithdrawal,
+    useCancelTransaction,
     useTransactionSummary,
 } from './features/useTransactionHooks';
 
 // Authentication hooks
 export { useAuthMutations } from './features/useAuthHooks';
+
+// Standing Order hooks
+export {
+    useStandingOrders,
+    useStandingOrder,
+    useCreateStandingOrder,
+    useUpdateStandingOrder,
+    useToggleStandingOrder,
+    useCancelStandingOrder,
+} from './features/useStandingOrderHooks';
+
+// Recipients hooks
+export {
+    useRecentRecipients,
+} from './features/useRecipientsHooks';
 
 // Dashboard and utility hooks
 export {

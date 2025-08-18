@@ -6,6 +6,7 @@ import Input from "../../components/ui/Input";
 const AddressTab = ({
 	addressData,
 	editMode,
+	tempData,
 	onEdit,
 	onSave,
 	onCancel,
@@ -36,7 +37,10 @@ const AddressTab = ({
 				<div className="row g-4">
 					{fields.map((field) => {
 						const isEditing = editMode[`address.${field.key}`];
-						const value = addressData[field.key];
+						const key = `address.${field.key}`;
+						const value = isEditing
+							? tempData[key]
+							: addressData[field.key];
 
 						return (
 							<div key={field.key} className={field.colSize}>

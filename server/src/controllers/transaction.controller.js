@@ -2,7 +2,7 @@ const { Transaction, Account, User } = require('../models');
 const AuditService = require('../services/audit.service');
 const { AppError } = require('../utils/error.utils');
 const { catchAsync } = require('../middleware/error.middleware');
-const { requestLogger: logger } = require('../middleware/logger.middleware');
+const { generateTransactionRef } = require('../utils/encryption.utils');
 const { emitBalanceUpdate, emitNewTransaction, emitTransactionUpdate } = require('../websocket/socket');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
@@ -88,24 +88,24 @@ const getTransactions = catchAsync(async (req, res, next) => {
             {
                 model: Account,
                 as: 'fromAccount',
-                attributes: ['id', 'account_number', 'account_type'],
+                attributes: ['id', 'account_number', 'account_type', 'name', 'balance'],
                 include: [
                     {
                         model: User,
                         as: 'user',
-                        attributes: ['id', 'username']
+                        attributes: ['id', 'username', 'first_name', 'last_name']
                     }
                 ]
             },
             {
                 model: Account,
                 as: 'toAccount',
-                attributes: ['id', 'account_number', 'account_type'],
+                attributes: ['id', 'account_number', 'account_type', 'name', 'balance'],
                 include: [
                     {
                         model: User,
                         as: 'user',
-                        attributes: ['id', 'username']
+                        attributes: ['id', 'username', 'first_name', 'last_name']
                     }
                 ]
             }
@@ -160,24 +160,24 @@ const getTransaction = catchAsync(async (req, res, next) => {
             {
                 model: Account,
                 as: 'fromAccount',
-                attributes: ['id', 'account_number', 'account_type'],
+                attributes: ['id', 'account_number', 'account_type', 'name', 'balance'],
                 include: [
                     {
                         model: User,
                         as: 'user',
-                        attributes: ['id', 'username']
+                        attributes: ['id', 'username', 'first_name', 'last_name']
                     }
                 ]
             },
             {
                 model: Account,
                 as: 'toAccount',
-                attributes: ['id', 'account_number', 'account_type'],
+                attributes: ['id', 'account_number', 'account_type', 'name', 'balance'],
                 include: [
                     {
                         model: User,
                         as: 'user',
-                        attributes: ['id', 'username']
+                        attributes: ['id', 'username', 'first_name', 'last_name']
                     }
                 ]
             }
@@ -208,8 +208,6 @@ const createTransfer = catchAsync(async (req, res, next) => {
         transfer_type = 'internal'
     } = req.body;
     const userId = req.user.id;
-
-    logger.info(`Transfer request: ${amount} from account ${from_account_id} to ${to_account_number}`);
 
     // Start transaction
     const t = await sequelize.transaction();
@@ -265,23 +263,18 @@ const createTransfer = catchAsync(async (req, res, next) => {
             throw new AppError('Cannot transfer to the same account', 400);
         }
 
-        // Determine transaction type
-        let transactionType = 'transfer';
-        if (fromAccount.user_id === toAccount.user_id) {
-            transactionType = 'internal_transfer';
-        } else {
-            transactionType = 'external_transfer';
-        }
+        // Determine transaction type - for transfers, always use 'transfer'
+        const transactionType = 'transfer';
 
         // Create transaction record
         const transaction = await Transaction.create({
+            transaction_ref: generateTransactionRef(),
             from_account_id: fromAccount.id,
             to_account_id: toAccount.id,
             amount: transferAmount,
             transaction_type: transactionType,
             description,
-            status: 'pending',
-            reference_number: Transaction.generateReferenceNumber()
+            status: 'pending'
         }, { transaction: t });
 
         // Update account balances
@@ -302,76 +295,80 @@ const createTransfer = catchAsync(async (req, res, next) => {
         // Commit transaction
         await t.commit();
 
-        logger.info(`Transfer completed: ${transaction.id}`);
-
-        // Log money transfer to SystemLog (system-level financial operation)
-        await AuditService.logSystem({
-            level: 'info',
-            message: `Money transfer completed: ${transferAmount} ${transaction.currency} from account ${fromAccount.account_number} to account ${toAccount.account_number}`,
-            service: 'financial_transfers',
-            meta: {
-                transactionId: transaction.id,
-                transactionRef: transaction.transaction_ref,
-                amount: transferAmount,
-                currency: transaction.currency,
-                fromAccount: {
-                    id: fromAccount.id,
-                    accountNumber: fromAccount.account_number,
-                    previousBalance: fromAccount.balance,
-                    newBalance: fromAccount.balance - transferAmount,
-                    userId: fromAccount.user_id
-                },
-                toAccount: {
-                    id: toAccount.id,
-                    accountNumber: toAccount.account_number,
-                    previousBalance: toAccount.balance,
-                    newBalance: toAccount.balance + transferAmount,
-                    userId: toAccount.user_id
-                },
-                transferType: transactionType,
-                description: description,
-                processingTime: Date.now() - transaction.created_at.getTime(),
-                ipAddress: req.ip || req.connection.remoteAddress,
-                userAgent: req.get('User-Agent')
-            }
-        });
-
-        // Also log user action to AuditLog (user-initiated action)
-        await AuditService.logTransaction({
-            action: 'transfer_initiated',
-            req,
-            transaction,
-            details: {
-                fromAccountNumber: fromAccount.account_number,
-                toAccountNumber: toAccount.account_number,
-                transferType: transactionType,
-                description
-            }
-        });
-
-        // Emit real-time updates
-        emitBalanceUpdate(fromAccount.id, fromAccount.balance - transferAmount);
-        emitBalanceUpdate(toAccount.id, toAccount.balance + transferAmount);
-        emitNewTransaction(fromAccount.user_id, transaction);
-        if (fromAccount.user_id !== toAccount.user_id) {
-            emitNewTransaction(toAccount.user.id, transaction);
-        }
-
         // Get the complete transaction data
         const completeTransaction = await Transaction.findByPk(transaction.id, {
             include: [
                 {
                     model: Account,
                     as: 'fromAccount',
-                    attributes: ['id', 'account_number', 'account_type']
+                    attributes: ['id', 'account_number', 'account_type', 'name', 'balance']
                 },
                 {
                     model: Account,
                     as: 'toAccount',
-                    attributes: ['id', 'account_number', 'account_type']
+                    attributes: ['id', 'account_number', 'account_type', 'name', 'balance']
                 }
             ]
         });
+
+        // Log and emit events after successful commit (don't let these fail the transaction)
+        try {
+            // Log money transfer to SystemLog (system-level financial operation)
+            await AuditService.logSystem({
+                level: 'info',
+                message: `Money transfer completed: ${transferAmount} ${transaction.currency} from account ${fromAccount.account_number} to account ${toAccount.account_number}`,
+                service: 'financial_transfers',
+                meta: {
+                    transactionId: transaction.id,
+                    transactionRef: transaction.transaction_ref,
+                    amount: transferAmount,
+                    currency: transaction.currency,
+                    fromAccount: {
+                        id: fromAccount.id,
+                        accountNumber: fromAccount.account_number,
+                        previousBalance: fromAccount.balance,
+                        newBalance: fromAccount.balance - transferAmount,
+                        userId: fromAccount.user_id
+                    },
+                    toAccount: {
+                        id: toAccount.id,
+                        accountNumber: toAccount.account_number,
+                        previousBalance: toAccount.balance,
+                        newBalance: toAccount.balance + transferAmount,
+                        userId: toAccount.user_id
+                    },
+                    transferType: transactionType,
+                    description: description,
+                    processingTime: Date.now() - transaction.created_at.getTime(),
+                    ipAddress: req.ip || req.connection.remoteAddress,
+                    userAgent: req.get('User-Agent')
+                }
+            });
+
+            // Also log user action to AuditLog (user-initiated action)
+            await AuditService.logTransaction({
+                action: 'transfer_initiated',
+                req,
+                transaction,
+                details: {
+                    fromAccountNumber: fromAccount.account_number,
+                    toAccountNumber: toAccount.account_number,
+                    transferType: transactionType,
+                    description
+                }
+            });
+
+            // Emit real-time updates
+            emitBalanceUpdate(fromAccount.id, fromAccount.balance - transferAmount);
+            emitBalanceUpdate(toAccount.id, toAccount.balance + transferAmount);
+            emitNewTransaction(fromAccount.user_id, transaction);
+            if (fromAccount.user_id !== toAccount.user_id) {
+                emitNewTransaction(toAccount.user.id, transaction);
+            }
+        } catch (loggingError) {
+            // Log the error but don't fail the transaction since it's already committed
+            console.error('Error in post-transaction logging:', loggingError);
+        }
 
         res.status(201).json({
             success: true,
@@ -380,7 +377,10 @@ const createTransfer = catchAsync(async (req, res, next) => {
         });
 
     } catch (error) {
-        await t.rollback();
+        // Only rollback if transaction hasn't been committed yet
+        if (!t.finished) {
+            await t.rollback();
+        }
         throw error;
     }
 });
@@ -393,8 +393,6 @@ const createTransfer = catchAsync(async (req, res, next) => {
 const createDeposit = catchAsync(async (req, res, next) => {
     const { account_id, amount, description = '' } = req.body;
     const userId = req.user.id;
-
-    logger.info(`Deposit request: ${amount} to account ${account_id}`);
 
     // Start transaction
     const t = await sequelize.transaction();
@@ -422,12 +420,12 @@ const createDeposit = catchAsync(async (req, res, next) => {
 
         // Create transaction record
         const transaction = await Transaction.create({
+            transaction_ref: generateTransactionRef(),
             to_account_id: account.id,
             amount: depositAmount,
             transaction_type: 'deposit',
             description,
-            status: 'pending',
-            reference_number: Transaction.generateReferenceNumber()
+            status: 'pending'
         }, { transaction: t });
 
         // Update account balance
@@ -444,47 +442,51 @@ const createDeposit = catchAsync(async (req, res, next) => {
         // Commit transaction
         await t.commit();
 
-        logger.info(`Deposit completed: ${transaction.id}`);
+        // Log and emit events after successful commit (don't let these fail the transaction)
+        try {
+            // Log deposit to SystemLog (system-level financial operation)
+            await AuditService.logSystem({
+                level: 'info',
+                message: `Deposit transaction completed: ${depositAmount} ${transaction.currency} to account ${account.account_number}`,
+                service: 'financial_deposits',
+                meta: {
+                    transactionId: transaction.id,
+                    transactionRef: transaction.transaction_ref,
+                    amount: depositAmount,
+                    currency: transaction.currency,
+                    account: {
+                        id: account.id,
+                        accountNumber: account.account_number,
+                        previousBalance: account.balance,
+                        newBalance: account.balance + depositAmount,
+                        userId: userId
+                    },
+                    description: description,
+                    processingTime: Date.now() - transaction.created_at.getTime(),
+                    ipAddress: req.ip || req.connection.remoteAddress
+                }
+            });
 
-        // Log deposit to SystemLog (system-level financial operation)
-        await AuditService.logSystem({
-            level: 'info',
-            message: `Deposit transaction completed: ${depositAmount} ${transaction.currency} to account ${account.account_number}`,
-            service: 'financial_deposits',
-            meta: {
-                transactionId: transaction.id,
-                transactionRef: transaction.transaction_ref,
-                amount: depositAmount,
-                currency: transaction.currency,
-                account: {
-                    id: account.id,
+            // Log deposit audit event to MongoDB
+            await AuditService.logTransaction({
+                action: 'deposit_completed',
+                req,
+                transaction,
+                details: {
                     accountNumber: account.account_number,
                     previousBalance: account.balance,
                     newBalance: account.balance + depositAmount,
-                    userId: userId
-                },
-                description: description,
-                processingTime: Date.now() - transaction.created_at.getTime(),
-                ipAddress: req.ip || req.connection.remoteAddress
-            }
-        });
+                    depositAmount: depositAmount
+                }
+            });
 
-        // Log deposit audit event to MongoDB
-        await AuditService.logTransaction({
-            action: 'deposit_completed',
-            req,
-            transaction,
-            details: {
-                accountNumber: account.account_number,
-                previousBalance: account.balance,
-                newBalance: account.balance + depositAmount,
-                depositAmount: depositAmount
-            }
-        });
-
-        // Emit real-time updates
-        emitBalanceUpdate(account.id, account.balance + depositAmount);
-        emitNewTransaction(userId, transaction);
+            // Emit real-time updates
+            emitBalanceUpdate(account.id, account.balance + depositAmount);
+            emitNewTransaction(userId, transaction);
+        } catch (loggingError) {
+            // Log the error but don't fail the transaction since it's already committed
+            console.error('Error in post-transaction logging:', loggingError);
+        }
 
         res.status(201).json({
             success: true,
@@ -493,7 +495,10 @@ const createDeposit = catchAsync(async (req, res, next) => {
         });
 
     } catch (error) {
-        await t.rollback();
+        // Only rollback if transaction hasn't been committed yet
+        if (!t.finished) {
+            await t.rollback();
+        }
         throw error;
     }
 });
@@ -506,8 +511,6 @@ const createDeposit = catchAsync(async (req, res, next) => {
 const createWithdrawal = catchAsync(async (req, res, next) => {
     const { account_id, amount, description = '' } = req.body;
     const userId = req.user.id;
-
-    logger.info(`Withdrawal request: ${amount} from account ${account_id}`);
 
     // Start transaction
     const t = await sequelize.transaction();
@@ -540,12 +543,12 @@ const createWithdrawal = catchAsync(async (req, res, next) => {
 
         // Create transaction record
         const transaction = await Transaction.create({
+            transaction_ref: generateTransactionRef(),
             from_account_id: account.id,
             amount: withdrawalAmount,
             transaction_type: 'withdrawal',
             description,
-            status: 'pending',
-            reference_number: Transaction.generateReferenceNumber()
+            status: 'pending'
         }, { transaction: t });
 
         // Update account balance
@@ -562,47 +565,51 @@ const createWithdrawal = catchAsync(async (req, res, next) => {
         // Commit transaction
         await t.commit();
 
-        logger.info(`Withdrawal completed: ${transaction.id}`);
+        // Log and emit events after successful commit (don't let these fail the transaction)
+        try {
+            // Log withdrawal to SystemLog (system-level financial operation)
+            await AuditService.logSystem({
+                level: 'info',
+                message: `Withdrawal transaction completed: ${withdrawalAmount} ${transaction.currency} from account ${account.account_number}`,
+                service: 'financial_withdrawals',
+                meta: {
+                    transactionId: transaction.id,
+                    transactionRef: transaction.transaction_ref,
+                    amount: withdrawalAmount,
+                    currency: transaction.currency,
+                    account: {
+                        id: account.id,
+                        accountNumber: account.account_number,
+                        previousBalance: account.balance,
+                        newBalance: account.balance - withdrawalAmount,
+                        userId: userId
+                    },
+                    description: description,
+                    processingTime: Date.now() - transaction.created_at.getTime(),
+                    ipAddress: req.ip || req.connection.remoteAddress
+                }
+            });
 
-        // Log withdrawal to SystemLog (system-level financial operation)
-        await AuditService.logSystem({
-            level: 'info',
-            message: `Withdrawal transaction completed: ${withdrawalAmount} ${transaction.currency} from account ${account.account_number}`,
-            service: 'financial_withdrawals',
-            meta: {
-                transactionId: transaction.id,
-                transactionRef: transaction.transaction_ref,
-                amount: withdrawalAmount,
-                currency: transaction.currency,
-                account: {
-                    id: account.id,
+            // Log withdrawal audit event to MongoDB
+            await AuditService.logTransaction({
+                action: 'withdrawal_completed',
+                req,
+                transaction,
+                details: {
                     accountNumber: account.account_number,
                     previousBalance: account.balance,
                     newBalance: account.balance - withdrawalAmount,
-                    userId: userId
-                },
-                description: description,
-                processingTime: Date.now() - transaction.created_at.getTime(),
-                ipAddress: req.ip || req.connection.remoteAddress
-            }
-        });
+                    withdrawalAmount: withdrawalAmount
+                }
+            });
 
-        // Log withdrawal audit event to MongoDB
-        await AuditService.logTransaction({
-            action: 'withdrawal_completed',
-            req,
-            transaction,
-            details: {
-                accountNumber: account.account_number,
-                previousBalance: account.balance,
-                newBalance: account.balance - withdrawalAmount,
-                withdrawalAmount: withdrawalAmount
-            }
-        });
-
-        // Emit real-time updates
-        emitBalanceUpdate(account.id, account.balance - withdrawalAmount);
-        emitNewTransaction(userId, transaction);
+            // Emit real-time updates
+            emitBalanceUpdate(account.id, account.balance - withdrawalAmount);
+            emitNewTransaction(userId, transaction);
+        } catch (loggingError) {
+            // Log the error but don't fail the transaction since it's already committed
+            console.error('Error in post-transaction logging:', loggingError);
+        }
 
         res.status(201).json({
             success: true,
@@ -611,7 +618,10 @@ const createWithdrawal = catchAsync(async (req, res, next) => {
         });
 
     } catch (error) {
-        await t.rollback();
+        // Only rollback if transaction hasn't been committed yet
+        if (!t.finished) {
+            await t.rollback();
+        }
         throw error;
     }
 });
@@ -694,12 +704,12 @@ const getTransactionSummary = catchAsync(async (req, res, next) => {
                 {
                     model: Account,
                     as: 'fromAccount',
-                    attributes: ['account_number']
+                    attributes: ['account_number', 'name']
                 },
                 {
                     model: Account,
                     as: 'toAccount',
-                    attributes: ['account_number']
+                    attributes: ['account_number', 'name']
                 }
             ],
             order: [['created_at', 'DESC']],
@@ -759,8 +769,6 @@ const cancelTransaction = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    logger.info(`Transaction cancellation request: ${id}`);
-
     // Get user's account IDs
     const userAccounts = await Account.findAll({
         where: { user_id: userId },
@@ -786,8 +794,6 @@ const cancelTransaction = catchAsync(async (req, res, next) => {
         status: 'cancelled',
         processed_at: new Date()
     });
-
-    logger.info(`Transaction cancelled: ${id}`);
 
     // Emit update
     emitTransactionUpdate(id, 'cancelled');

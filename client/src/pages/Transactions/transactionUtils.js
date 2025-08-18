@@ -275,19 +275,46 @@ export const exportTransactions = (transactions) => {
         return stringField;
     };
 
-    const headers = ["Date", "Description", "Merchant", "Amount", "Type", "Category", "Account", "Status"];
+    // Helper function to get account display for CSV (same logic as TransactionItem)
+    const getAccountForCSV = (transaction) => {
+        if (transaction.toAccount) {
+            return `${transaction.toAccount.name || 'Account'} (${transaction.toAccount.account_number})`;
+        } else if (transaction.fromAccount) {
+            return `${transaction.fromAccount.name || 'Account'} (${transaction.fromAccount.account_number})`;
+        }
+        // Fallback to legacy format if available
+        return transaction.account || 'Unknown Account';
+    };
+
+    // Helper function to get transaction type display
+    const getTypeForCSV = (transaction) => {
+        return transaction.transaction_type || transaction.type || 'unknown';
+    };
+
+    // Helper function to get description
+    const getDescriptionForCSV = (transaction) => {
+        return transaction.description || transaction.merchant || 'No description';
+    };
+
+    // Helper function to format date
+    const getDateForCSV = (transaction) => {
+        const date = transaction.created_at || transaction.createdAt || transaction.date;
+        return date ? new Date(date).toLocaleDateString() : 'Unknown Date';
+    };
+
+    const headers = ["Date", "Description", "Reference", "Amount", "Type", "To Account", "From Account", "Status"];
 
     const csvRows = [
         headers.join(','),
         ...transactions.map((t) => [
-            escapeCSVField(new Date(t.date).toLocaleDateString()),
-            escapeCSVField(t.description),
-            escapeCSVField(t.merchant),
-            escapeCSVField(t.amount),
-            escapeCSVField(t.type),
-            escapeCSVField(t.category),
-            escapeCSVField(t.account),
-            escapeCSVField(t.status),
+            escapeCSVField(getDateForCSV(t)),
+            escapeCSVField(getDescriptionForCSV(t)),
+            escapeCSVField(t.transaction_ref || t.reference || ''),
+            escapeCSVField(t.amount || 0),
+            escapeCSVField(getTypeForCSV(t)),
+            escapeCSVField(t.toAccount ? `${t.toAccount.name || 'Account'} (${t.toAccount.account_number})` : ''),
+            escapeCSVField(t.fromAccount ? `${t.fromAccount.name || 'Account'} (${t.fromAccount.account_number})` : ''),
+            escapeCSVField(t.status || 'unknown'),
         ].join(','))
     ];
 
