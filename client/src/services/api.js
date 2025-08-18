@@ -55,6 +55,16 @@ export const authAPI = {
 
     getProfile: () => apiRequest('/auth/profile'),
 
+    updateProfile: (userData) => apiRequest('/auth/profile', {
+        method: 'PUT',
+        body: JSON.stringify(userData),
+    }),
+
+    changePassword: (passwordData) => apiRequest('/auth/change-password', {
+        method: 'PUT',
+        body: JSON.stringify(passwordData),
+    }),
+
     validateToken: () => apiRequest('/auth/validate'),
 };
 

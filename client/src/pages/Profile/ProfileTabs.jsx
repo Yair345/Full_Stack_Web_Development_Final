@@ -1,11 +1,10 @@
-import { User, MapPin, Shield, Bell } from "lucide-react";
+import { User, MapPin, Shield } from "lucide-react";
 
 const ProfileTabs = ({ activeTab, onTabChange }) => {
 	const tabs = [
 		{ id: "personal", label: "Personal Info", icon: User },
 		{ id: "address", label: "Address", icon: MapPin },
 		{ id: "security", label: "Security", icon: Shield },
-		{ id: "preferences", label: "Preferences", icon: Bell },
 	];
 
 	return (

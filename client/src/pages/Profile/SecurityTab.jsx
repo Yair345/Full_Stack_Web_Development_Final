@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Eye, EyeOff, Smartphone, Shield } from "lucide-react";
+import { Eye, EyeOff, Shield } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import { getPasswordStrength, validatePassword } from "./profileUtils";
 
-const SecurityTab = ({ securityData, onSecurityChange, onPasswordChange }) => {
+const SecurityTab = ({ onPasswordChange }) => {
 	const [showPasswordForm, setShowPasswordForm] = useState(false);
 	const [passwordForm, setPasswordForm] = useState({
 		currentPassword: "",
@@ -66,103 +66,10 @@ const SecurityTab = ({ securityData, onSecurityChange, onPasswordChange }) => {
 									Change Password
 								</Button>
 							</div>
-							<Input
-								value={securityData.loginPassword}
-								readOnly
-							/>
-						</div>
-
-						<div className="mb-4">
-							<label className="form-label">
-								Transaction PIN
-							</label>
-							<div className="d-flex align-items-center gap-2">
-								<Input
-									type={
-										showPassword.pin ? "text" : "password"
-									}
-									value={securityData.transactionPin}
-									readOnly
-									className="flex-grow-1"
-								/>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => handleTogglePassword("pin")}
-								>
-									{showPassword.pin ? (
-										<EyeOff size={14} />
-									) : (
-										<Eye size={14} />
-									)}
-								</Button>
-							</div>
-						</div>
-
-						<div className="mb-3">
-							<div className="form-check form-switch">
-								<input
-									className="form-check-input"
-									type="checkbox"
-									checked={securityData.twoFactorEnabled}
-									onChange={(e) =>
-										onSecurityChange(
-											"twoFactorEnabled",
-											e.target.checked
-										)
-									}
-								/>
-								<label className="form-check-label">
-									<Smartphone size={16} className="me-2" />
-									Two-Factor Authentication
-								</label>
-							</div>
+							<Input value="••••••••" readOnly />
 							<small className="text-muted">
-								Add an extra layer of security to your account
-							</small>
-						</div>
-
-						<div className="mb-3">
-							<div className="form-check form-switch">
-								<input
-									className="form-check-input"
-									type="checkbox"
-									checked={securityData.loginNotifications}
-									onChange={(e) =>
-										onSecurityChange(
-											"loginNotifications",
-											e.target.checked
-										)
-									}
-								/>
-								<label className="form-check-label">
-									Login Notifications
-								</label>
-							</div>
-							<small className="text-muted">
-								Get notified when someone logs into your account
-							</small>
-						</div>
-
-						<div className="mb-3">
-							<div className="form-check form-switch">
-								<input
-									className="form-check-input"
-									type="checkbox"
-									checked={securityData.biometricEnabled}
-									onChange={(e) =>
-										onSecurityChange(
-											"biometricEnabled",
-											e.target.checked
-										)
-									}
-								/>
-								<label className="form-check-label">
-									Biometric Login
-								</label>
-							</div>
-							<small className="text-muted">
-								Use fingerprint or face recognition to log in
+								Last updated: Contact support for password
+								history
 							</small>
 						</div>
 					</Card>

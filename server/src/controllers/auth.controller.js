@@ -209,7 +209,7 @@ const getProfile = catchAsync(async (req, res, next) => {
  * @access Private
  */
 const updateProfile = catchAsync(async (req, res, next) => {
-    const { username, phone_number, address } = req.body;
+    const { username, phone, address } = req.body;
     const userId = req.user.id;
 
     logger.info(`Profile update request for user: ${userId}`);
@@ -217,7 +217,7 @@ const updateProfile = catchAsync(async (req, res, next) => {
     // Check if username is taken by another user
     if (username && username !== req.user.username) {
         const existingUser = await User.findOne({
-            where: { username, id: { $ne: userId } }
+            where: { username, id: { [Op.ne]: userId } }
         });
 
         if (existingUser) {
@@ -228,7 +228,7 @@ const updateProfile = catchAsync(async (req, res, next) => {
     // Update user
     const updatedUser = await req.user.update({
         username: username || req.user.username,
-        phone_number: phone_number || req.user.phone_number,
+        phone: phone || req.user.phone,
         address: address || req.user.address
     });
 
