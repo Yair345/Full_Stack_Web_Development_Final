@@ -119,10 +119,54 @@ const Register = () => {
 			dispatch(loginFailure(errorMessage));
 
 			// Handle specific validation errors from server
-			if (err.message && err.message.includes("already exists")) {
-				setErrors({
-					email: "An account with this email already exists. Please try logging in instead.",
+			if (err.response?.data?.errors) {
+				// Handle field-specific validation errors
+				const serverErrors = {};
+				err.response.data.errors.forEach((error) => {
+					// Map server field names to client field names
+					let fieldName = error.field;
+					if (fieldName === "national_id") {
+						fieldName = "nationalId";
+					} else if (fieldName === "first_name") {
+						fieldName = "firstName";
+					} else if (fieldName === "last_name") {
+						fieldName = "lastName";
+					}
+
+					// For username conflicts, show on firstName field since username is auto-generated
+					if (fieldName === "username") {
+						serverErrors.firstName =
+							"There was an issue creating your account. Please try again or modify your name slightly.";
+					} else {
+						serverErrors[fieldName] = error.message;
+					}
 				});
+				setErrors(serverErrors);
+			} else if (err.message && err.message.includes("already exists")) {
+				// Fallback for old-style error messages
+				const message = err.message.toLowerCase();
+				const newErrors = {};
+
+				if (message.includes("email")) {
+					newErrors.email =
+						"An account with this email already exists. Please try logging in instead.";
+				}
+				if (message.includes("username")) {
+					newErrors.firstName =
+						"There was an issue creating your account. Please try again or modify your name slightly.";
+				}
+				if (message.includes("national id")) {
+					newErrors.nationalId =
+						"An account with this National ID already exists. Please contact support if you believe this is an error.";
+				}
+
+				// If we can't determine the specific field, show generic message on email field
+				if (Object.keys(newErrors).length === 0) {
+					newErrors.email =
+						"An account with this information already exists. Please check your email or National ID.";
+				}
+
+				setErrors(newErrors);
 			}
 		}
 	};
