@@ -6,6 +6,8 @@ const { generateAccountNumber } = require('../utils/encryption.utils');
 const { emitBalanceUpdate } = require('../websocket/socket');
 const AuditService = require('../services/audit.service');
 const { Op } = require('sequelize');
+const { sequelize } = require('../config/database');
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * @desc Get all user accounts
@@ -142,18 +144,39 @@ const createAccount = catchAsync(async (req, res, next) => {
         throw new AppError('Maximum number of accounts reached', 400);
     }
 
-    // Check if user already has this type of account (only for business accounts)
-    if (account_type === 'business') {
-        const existingBusinessAccount = await Account.findOne({
+    // Check if user already has a checking account (only checking accounts are limited to one)
+    if (account_type === 'checking') {
+        const existingCheckingAccount = await Account.findOne({
             where: {
                 user_id: userId,
-                account_type: 'business',
+                account_type: 'checking',
                 is_active: true
             }
         });
 
-        if (existingBusinessAccount) {
-            throw new AppError('You can only have one business account', 400);
+        if (existingCheckingAccount) {
+            throw new AppError('You can only have one checking account', 400);
+        }
+    }
+
+    // Get existing checking account for deposit validation (for non-checking accounts)
+    let checkingAccount = null;
+    if (account_type !== 'checking' && depositAmount > 0) {
+        checkingAccount = await Account.findOne({
+            where: {
+                user_id: userId,
+                account_type: 'checking',
+                is_active: true
+            }
+        });
+
+        if (!checkingAccount) {
+            throw new AppError('You must have a checking account to create other account types', 400);
+        }
+
+        // Check if checking account has sufficient funds for the deposit
+        if (!checkingAccount.hasSufficientBalance(depositAmount)) {
+            throw new AppError(`Insufficient funds in checking account. Available: ${checkingAccount.currency} ${checkingAccount.getAvailableBalance()}, Required: ${currency} ${depositAmount}`, 400);
         }
     }
 
@@ -195,29 +218,93 @@ const createAccount = catchAsync(async (req, res, next) => {
 
     logger.info(`Creating account with data: ${JSON.stringify(accountData)}`);
 
-    // Create account with all parameters
-    const account = await Account.create(accountData);
+    // Use database transaction to ensure atomicity
+    const result = await sequelize.transaction(async (t) => {
+        // Create account with all parameters
+        const account = await Account.create(accountData, { transaction: t });
 
-    logger.info(`Account created with ID: ${account.id}, Name: "${account.account_name}"`);
+        logger.info(`Account created with ID: ${account.id}, Name: "${account.account_name}"`);
 
-    // Create initial deposit transaction if deposit amount > 0
-    if (depositAmount > 0) {
-        const transaction = await Transaction.create({
-            transaction_ref: `DEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            to_account_id: account.id,
-            transaction_type: 'deposit',
-            amount: depositAmount,
-            currency: currency,
-            status: 'completed',
-            description: 'Initial deposit for new account',
-            initiated_by: userId,
-            authorized_by: userId,
-            balance_before: 0,
-            balance_after: depositAmount,
-            completed_at: new Date()
-        });
+        // Handle deposit transactions
+        if (depositAmount > 0) {
+            if (account_type === 'checking') {
+                // For checking accounts, create initial deposit transaction
+                const transaction = await Transaction.create({
+                    transaction_ref: `DEP-${uuidv4()}`,
+                    to_account_id: account.id,
+                    transaction_type: 'deposit',
+                    amount: depositAmount,
+                    currency: currency,
+                    status: 'completed',
+                    description: 'Initial deposit for new checking account',
+                    initiated_by: userId,
+                    authorized_by: userId,
+                    balance_before: 0,
+                    balance_after: depositAmount,
+                    completed_at: new Date()
+                }, { transaction: t });
 
-        logger.info(`Initial deposit transaction created for account: ${account.id}, amount: ${depositAmount}, transaction ID: ${transaction.id}`);
+                logger.info(`Initial deposit transaction created for checking account: ${account.id}, amount: ${depositAmount}, transaction ID: ${transaction.id}`);
+            } else {
+                // For non-checking accounts, transfer from checking account
+                const withdrawalRef = `TRF-OUT-${uuidv4()}`;
+                const depositRef = `TRF-IN-${uuidv4()}`;
+                
+                // Deduct from checking account
+                const checkingBalanceBefore = parseFloat(checkingAccount.balance);
+                const checkingBalanceAfter = checkingBalanceBefore - depositAmount;
+                
+                await checkingAccount.update({ balance: checkingBalanceAfter }, { transaction: t });
+
+                // Create withdrawal transaction for checking account
+                const withdrawalTransaction = await Transaction.create({
+                    transaction_ref: withdrawalRef,
+                    from_account_id: checkingAccount.id,
+                    to_account_id: account.id,
+                    transaction_type: 'transfer',
+                    amount: depositAmount,
+                    currency: currency,
+                    status: 'completed',
+                    description: `Transfer to new ${account_type} account: ${account.account_name}`,
+                    initiated_by: userId,
+                    authorized_by: userId,
+                    balance_before: checkingBalanceBefore,
+                    balance_after: checkingBalanceAfter,
+                    completed_at: new Date()
+                }, { transaction: t });
+
+                // Create deposit transaction for new account
+                const depositTransaction = await Transaction.create({
+                    transaction_ref: depositRef,
+                    from_account_id: checkingAccount.id,
+                    to_account_id: account.id,
+                    transaction_type: 'transfer',
+                    amount: depositAmount,
+                    currency: currency,
+                    status: 'completed',
+                    description: `Initial deposit from checking account: ${checkingAccount.account_name}`,
+                    initiated_by: userId,
+                    authorized_by: userId,
+                    balance_before: 0,
+                    balance_after: depositAmount,
+                    completed_at: new Date()
+                }, { transaction: t });
+
+                logger.info(`Transfer transactions created - From checking (${checkingAccount.id}): ${withdrawalTransaction.id}, To new account (${account.id}): ${depositTransaction.id}`);
+            }
+        }
+
+        return account;
+    });
+
+    // Account creation completed successfully - emit WebSocket updates outside transaction
+    const account = result;
+    
+    // Emit balance updates after transaction is committed
+    if (depositAmount > 0 && account_type !== 'checking' && checkingAccount) {
+        const checkingBalanceAfter = parseFloat(checkingAccount.balance) - depositAmount;
+        emitBalanceUpdate(checkingAccount.id, checkingBalanceAfter);
+        emitBalanceUpdate(account.id, depositAmount);
     }
 
     logger.info(`Account created successfully: ${account.id} with name: "${account.account_name}", balance: ${account.balance}, overdraft: ${account.overdraft_limit}, currency: ${account.currency}`);
@@ -658,6 +745,34 @@ const getAccountStatement = catchAsync(async (req, res, next) => {
     });
 });
 
+/**
+ * @desc Check if user has checking account
+ * @route GET /api/accounts/check-existing
+ * @access Private
+ */
+const checkExistingAccounts = catchAsync(async (req, res, next) => {
+    const userId = req.user.id;
+
+    logger.info(`Checking existing accounts for user: ${userId}`);
+
+    // Check for existing checking account
+    const hasCheckingAccount = await Account.findOne({
+        where: {
+            user_id: userId,
+            account_type: 'checking',
+            is_active: true
+        },
+        attributes: ['id'] // Only need to know if it exists
+    });
+
+    res.json({
+        success: true,
+        data: {
+            hasCheckingAccount: !!hasCheckingAccount
+        }
+    });
+});
+
 module.exports = {
     getAccounts,
     getAccount,
@@ -666,5 +781,6 @@ module.exports = {
     deactivateAccount,
     getBalance,
     getAccountTransactions,
-    getAccountStatement
+    getAccountStatement,
+    checkExistingAccounts
 };

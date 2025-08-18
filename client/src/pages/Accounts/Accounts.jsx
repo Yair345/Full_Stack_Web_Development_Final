@@ -8,7 +8,7 @@ import { useAccounts, useCreateAccount } from "../../hooks";
 import { formatCurrency } from "../../utils/helpers";
 
 const Accounts = () => {
-	const { accounts, loading, error, refetch } = useAccounts();
+	const { accounts, rawAccounts, loading, error, refetch } = useAccounts();
 	const {
 		mutate: createAccount,
 		loading: creatingAccount,
@@ -22,6 +22,24 @@ const Accounts = () => {
 
 	// Get user
 	const { user } = useSelector((state) => state.auth);
+
+	// Listen for account creation events and force refresh
+	useEffect(() => {
+		const handleAccountCreated = async () => {
+			console.log('Account created event received, forcing refresh...');
+			try {
+				await refetch({ shouldRevalidate: true });
+				console.log('Auto-refresh after account creation completed');
+			} catch (error) {
+				console.warn('Auto-refresh after account creation failed:', error);
+			}
+		};
+
+		window.addEventListener('account-created', handleAccountCreated);
+		return () => {
+			window.removeEventListener('account-created', handleAccountCreated);
+		};
+	}, [refetch]);
 
 	// Handle manual refresh
 	const handleRefresh = async () => {
@@ -70,27 +88,12 @@ const Accounts = () => {
 			setSuccessMessage("Account created successfully!");
 			setIsCreateModalOpen(false);
 
-			// Refresh accounts list after successful creation
-			console.log("Refreshing accounts after creation...");
-			setIsRefreshing(true);
-			try {
-				const refreshResult = await refetch();
-				console.log("Post-creation refresh result:", refreshResult);
-			} catch (refreshError) {
-				console.error(
-					"Failed to refresh accounts after creation:",
-					refreshError
-				);
-				// Show a message suggesting manual refresh
-				setSuccessMessage(
-					"Account created successfully! Please refresh manually to see the new account."
-				);
-			} finally {
-				setIsRefreshing(false);
-			}
-
 			// Auto-hide success message after 5 seconds
 			setTimeout(() => setSuccessMessage(""), 5000);
+
+			// The refresh will be handled automatically by the account-created event
+			console.log("Account creation completed, waiting for auto-refresh...");
+
 		} catch (error) {
 			console.error("Failed to create account:", error);
 			// Error will be displayed through createError state or modal
@@ -160,6 +163,7 @@ const Accounts = () => {
 				isOpen={isCreateModalOpen}
 				onClose={() => setIsCreateModalOpen(false)}
 				onSubmit={handleCreateAccount}
+				accounts={rawAccounts}
 			/>
 		</div>
 	);

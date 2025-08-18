@@ -17,11 +17,11 @@ export const useAccounts = (options = {}) => {
 
     // Transform the raw server data to frontend format
     const accounts = rawData ? transformServerAccounts(rawData.data || rawData || []) : [];
-
-    console.log('useAccounts - rawData:', rawData, 'transformed accounts:', accounts);
+    const rawAccounts = rawData ? (rawData.data || rawData || []) : [];
 
     return {
         accounts,
+        rawAccounts, // Also return raw accounts for validation purposes
         loading,
         error,
         refetch: (customOptions = {}) => {
@@ -67,11 +67,59 @@ export const useAccount = (accountId, options = {}) => {
 };
 
 /**
+ * Hook for checking if user has existing checking account
+ * @returns {Object} - { hasCheckingAccount, loading, error, checkExistingAccounts }
+ */
+export const useCheckExistingAccounts = () => {
+    const { data, loading, error, refetch } = useApi('/accounts/check-existing', {
+        immediate: false, // Only fetch when called
+        cacheTime: 0, // Don't cache this data
+    });
+
+    const hasCheckingAccount = data?.data?.hasCheckingAccount || false;
+
+    return {
+        hasCheckingAccount,
+        loading,
+        error,
+        checkExistingAccounts: refetch,
+    };
+};
+
+/**
  * Hook for creating a new account
  * @returns {Object} - { createAccount, loading, error, data }
  */
 export const useCreateAccount = () => {
-    return useMutation(accountAPI.createAccount);
+    const mutation = useMutation(accountAPI.createAccount);
+    
+    return {
+        ...mutation,
+        mutate: async (accountData) => {
+            console.log("useCreateAccount: Starting account creation with data:", accountData);
+            try {
+                const result = await mutation.mutate(accountData);
+                console.log("useCreateAccount: Account creation result:", result);
+                
+                // Force a global cache refresh for accounts
+                if (typeof window !== 'undefined' && window.location) {
+                    console.log("useCreateAccount: Dispatching account-created event after 100ms delay");
+                    // Use a small delay to ensure backend has processed everything
+                    setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent('account-created', { 
+                            detail: { accountData: result } 
+                        }));
+                        console.log("useCreateAccount: account-created event dispatched");
+                    }, 100);
+                }
+                
+                return result;
+            } catch (error) {
+                console.error("useCreateAccount: Account creation failed:", error);
+                throw error;
+            }
+        }
+    };
 };
 
 /**

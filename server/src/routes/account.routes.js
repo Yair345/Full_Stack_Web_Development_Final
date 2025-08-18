@@ -7,7 +7,8 @@ const {
     deactivateAccount,
     getBalance,
     getAccountTransactions,
-    getAccountStatement
+    getAccountStatement,
+    checkExistingAccounts
 } = require('../controllers/account.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { handleValidationErrors } = require('../middleware/validation.middleware');
@@ -21,6 +22,9 @@ const router = express.Router();
 
 // All routes require authentication
 router.use(authenticate);
+
+// Check existing accounts endpoint
+router.get('/check-existing', checkExistingAccounts);
 
 // Account routes
 router.get('/', getAccounts);
