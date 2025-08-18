@@ -10,16 +10,32 @@ import {
 
 const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 	// התאמה לנתונים האמיתיים מה-API
-	const originalAmount = loan.amount || loan.originalAmount;
-	const currentBalance = loan.remainingBalance || loan.currentBalance;
-	const monthlyPayment = loan.monthlyPayment || loan.calculateMonthlyPayment;
-	const interestRate = loan.interest_rate ? (loan.interest_rate * 100).toFixed(2) : loan.interestRate;
-	const loanType = loan.loan_type || loan.type;
-	const loanName = loan.purpose ? `${loanType.charAt(0).toUpperCase() + loanType.slice(1)} Loan` : loan.name;
-	const nextPaymentDate = loan.nextPaymentDue ? new Date(loan.nextPaymentDue).toLocaleDateString() : loan.nextPaymentDate;
-	const remainingMonths = loan.term_months - (loan.payments_made || 0);
+	const originalAmount = parseFloat(loan.amount || loan.originalAmount || 0);
+	const currentBalance = parseFloat(
+		loan.remainingBalance || loan.currentBalance || originalAmount
+	);
+	const monthlyPayment = parseFloat(
+		loan.monthlyPayment || loan.calculateMonthlyPayment || 0
+	);
+	const interestRate = loan.interest_rate
+		? (parseFloat(loan.interest_rate) * 100).toFixed(2)
+		: loan.interestRate
+		? parseFloat(loan.interestRate).toFixed(2)
+		: "0.00";
+	const loanType = loan.loan_type || loan.type || "personal";
+	const loanName = loan.purpose
+		? `${loanType.charAt(0).toUpperCase() + loanType.slice(1)} Loan`
+		: loan.name ||
+		  `${loanType.charAt(0).toUpperCase() + loanType.slice(1)} Loan`;
+	const nextPaymentDate = loan.nextPaymentDue
+		? new Date(loan.nextPaymentDue).toLocaleDateString()
+		: loan.nextPaymentDate || null;
+	const remainingMonths = (loan.term_months || 0) - (loan.payments_made || 0);
 
-	const progress = calculateProgress(originalAmount, currentBalance);
+	const progress =
+		originalAmount > 0
+			? calculateProgress(originalAmount, currentBalance)
+			: 0;
 
 	const iconName = getLoanIcon(loanType);
 	const iconMap = {
@@ -32,7 +48,8 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 	const statusInfo = getStatusBadge(loan.status);
 
 	// בדיקה אם הלוואה פעילה לתשלום
-	const canMakePayment = loan.status === 'active' || loan.status === 'current';
+	const canMakePayment =
+		loan.status === "active" || loan.status === "current";
 	const isOverdue = loan.isOverdue;
 
 	return (
@@ -45,8 +62,14 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 					<div>
 						<h6 className="fw-medium mb-1">{loanName}</h6>
 						<small className="text-muted">
-							{nextPaymentDate ? `Next payment: ${nextPaymentDate}` : 'No active payments'}
-							{isOverdue && <span className="text-danger ms-1">(Overdue)</span>}
+							{nextPaymentDate
+								? `Next payment: ${nextPaymentDate}`
+								: "No active payments"}
+							{isOverdue && (
+								<span className="text-danger ms-1">
+									(Overdue)
+								</span>
+							)}
 						</small>
 					</div>
 				</div>
@@ -83,17 +106,20 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 				</div>
 				<div className="col-6 text-end">
 					<span className="fw-medium">
-						{remainingMonths} months
+						{Math.max(0, remainingMonths)} months
 					</span>
 				</div>
-				{loan.progressPercentage && (
+				{(loan.progressPercentage || loan.progressPercentage === 0) && (
 					<>
 						<div className="col-6">
 							<span className="text-muted">Progress:</span>
 						</div>
 						<div className="col-6 text-end">
 							<span className="fw-medium">
-								{loan.progressPercentage}%
+								{parseFloat(
+									loan.progressPercentage || 0
+								).toFixed(1)}
+								%
 							</span>
 						</div>
 					</>
@@ -103,12 +129,17 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 			<div className="mb-3">
 				<div className="d-flex justify-content-between small mb-1">
 					<span>Loan Progress</span>
-					<span>{progress.toFixed(1)}% paid</span>
+					<span>{(progress || 0).toFixed(1)}% paid</span>
 				</div>
 				<div className="progress" style={{ height: "6px" }}>
 					<div
 						className="progress-bar bg-success"
-						style={{ width: `${progress}%` }}
+						style={{
+							width: `${Math.max(
+								0,
+								Math.min(100, progress || 0)
+							)}%`,
+						}}
 					></div>
 				</div>
 			</div>

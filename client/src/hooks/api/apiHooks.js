@@ -35,6 +35,17 @@ export {
     useCancelStandingOrder,
 } from './features/useStandingOrderHooks';
 
+// Card hooks
+export {
+    useCards,
+    useCard,
+    useCreateCard,
+    useUpdateCard,
+    useToggleCardBlock,
+    useCancelCard,
+    useChangeCardPin,
+} from './features/useCardHooks';
+
 // Recipients hooks
 export {
     useRecentRecipients,

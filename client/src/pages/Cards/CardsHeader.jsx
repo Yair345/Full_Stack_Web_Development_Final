@@ -1,7 +1,7 @@
-import { CreditCard, Plus, Settings } from "lucide-react";
+import { CreditCard, Plus } from "lucide-react";
 import Button from "../../components/ui/Button";
 
-const CardsHeader = ({ onRequestCard, onCardSettings }) => {
+const CardsHeader = ({ onRequestCard }) => {
 	return (
 		<div className="col-12">
 			<div className="d-flex justify-content-between align-items-center mb-4">
@@ -13,10 +13,6 @@ const CardsHeader = ({ onRequestCard, onCardSettings }) => {
 					</p>
 				</div>
 				<div className="d-flex gap-2">
-					<Button variant="outline" onClick={onCardSettings}>
-						<Settings size={16} className="me-2" />
-						Card Settings
-					</Button>
 					<Button variant="primary" onClick={onRequestCard}>
 						<Plus size={16} className="me-2" />
 						Request New Card

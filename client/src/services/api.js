@@ -191,4 +191,37 @@ export const loanAPI = {
     }),
 };
 
-export default { apiRequest, authAPI, accountAPI, transactionAPI, standingOrderAPI, loanAPI };
+// Card API calls
+export const cardAPI = {
+    getCards: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/cards${queryString ? `?${queryString}` : ''}`);
+    },
+
+    getCard: (id) => apiRequest(`/cards/${id}`),
+
+    createCard: (cardData) => apiRequest('/cards', {
+        method: 'POST',
+        body: JSON.stringify(cardData),
+    }),
+
+    updateCard: (id, cardData) => apiRequest(`/cards/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(cardData),
+    }),
+
+    toggleCardBlock: (id) => apiRequest(`/cards/${id}/toggle-block`, {
+        method: 'PUT',
+    }),
+
+    cancelCard: (id) => apiRequest(`/cards/${id}`, {
+        method: 'DELETE',
+    }),
+
+    changePin: (id, pinData) => apiRequest(`/cards/${id}/change-pin`, {
+        method: 'PUT',
+        body: JSON.stringify(pinData),
+    }),
+};
+
+export default { apiRequest, authAPI, accountAPI, transactionAPI, standingOrderAPI, loanAPI, cardAPI };

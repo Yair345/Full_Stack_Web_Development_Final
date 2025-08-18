@@ -106,10 +106,11 @@ export const loanTypes = [
 
 // Utility functions
 export const formatCurrency = (amount) => {
+    const numericAmount = parseFloat(amount) || 0;
     return new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
-    }).format(amount);
+    }).format(numericAmount);
 };
 
 export const getLoanIcon = (type) => {
@@ -128,7 +129,7 @@ export const getStatusBadge = (status) => {
         current: { class: "bg-success", text: "Current" },
         late: { class: "bg-warning", text: "Late" },
         overdue: { class: "bg-danger", text: "Overdue" },
-        
+
         // Database statuses (from LOAN_STATUS constants)
         pending: { class: "bg-warning", text: "Pending" },
         approved: { class: "bg-info", text: "Approved" },
@@ -136,7 +137,7 @@ export const getStatusBadge = (status) => {
         active: { class: "bg-success", text: "Active" },
         paid_off: { class: "bg-success", text: "Paid Off" },
         defaulted: { class: "bg-danger", text: "Defaulted" },
-        
+
         // Legacy statuses for compatibility
         under_review: { class: "bg-warning", text: "Under Review" },
         denied: { class: "bg-danger", text: "Denied" }
@@ -145,20 +146,30 @@ export const getStatusBadge = (status) => {
 };
 
 export const calculateLoanPayment = (amount, term, rate) => {
-    if (!amount || !term || !rate) return 0;
+    const principal = parseFloat(amount) || 0;
+    const termMonths = parseInt(term) || 0;
+    const interestRate = parseFloat(rate) || 0;
 
-    const principal = parseFloat(amount);
-    const monthlyRate = parseFloat(rate) / 100 / 12;
-    const numPayments = parseInt(term);
+    if (principal <= 0 || termMonths <= 0) return 0;
 
-    if (monthlyRate === 0) return principal / numPayments;
+    const monthlyRate = interestRate / 100 / 12;
 
-    const payment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) /
-        (Math.pow(1 + monthlyRate, numPayments) - 1);
+    if (monthlyRate === 0) return principal / termMonths;
 
-    return payment;
+    const payment = principal * (monthlyRate * Math.pow(1 + monthlyRate, termMonths)) /
+        (Math.pow(1 + monthlyRate, termMonths) - 1);
+
+    return isNaN(payment) ? 0 : payment;
 };
 
 export const calculateProgress = (original, current) => {
-    return ((original - current) / original) * 100;
+    const originalAmount = parseFloat(original) || 0;
+    const currentAmount = parseFloat(current) || 0;
+
+    if (originalAmount === 0) {
+        return 0;
+    }
+
+    const progress = ((originalAmount - currentAmount) / originalAmount) * 100;
+    return Math.max(0, Math.min(100, progress)); // Ensure progress is between 0-100%
 };

@@ -56,18 +56,22 @@ class Loan extends Model {
      * @returns {Number} Monthly payment
      */
     calculateMonthlyPayment() {
-        const principal = parseFloat(this.amount);
-        const monthlyRate = parseFloat(this.interest_rate) / 12;
-        const numberOfPayments = parseInt(this.term_months);
+        const principal = parseFloat(this.amount) || 0;
+        const monthlyRate = (parseFloat(this.interest_rate) || 0) / 12;
+        const numberOfPayments = parseInt(this.term_months) || 0;
+
+        if (principal <= 0 || numberOfPayments <= 0) {
+            return 0;
+        }
 
         if (monthlyRate === 0) {
-            return principal / numberOfPayments;
+            return Math.round((principal / numberOfPayments) * 100) / 100;
         }
 
         const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments)) /
             (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
 
-        return Math.round(monthlyPayment * 100) / 100;
+        return isNaN(monthlyPayment) ? 0 : Math.round(monthlyPayment * 100) / 100;
     }
 
     /**
@@ -76,8 +80,17 @@ class Loan extends Model {
      */
     calculateTotalInterest() {
         const monthlyPayment = this.calculateMonthlyPayment();
-        const totalPayments = monthlyPayment * parseInt(this.term_months);
-        return Math.round((totalPayments - parseFloat(this.amount)) * 100) / 100;
+        const termMonths = parseInt(this.term_months) || 0;
+        const principal = parseFloat(this.amount) || 0;
+
+        if (monthlyPayment === 0 || termMonths === 0 || principal === 0) {
+            return 0;
+        }
+
+        const totalPayments = monthlyPayment * termMonths;
+        const totalInterest = totalPayments - principal;
+
+        return isNaN(totalInterest) ? 0 : Math.round(totalInterest * 100) / 100;
     }
 
     /**
@@ -89,24 +102,30 @@ class Loan extends Model {
             return 0;
         }
 
-        const principal = parseFloat(this.amount);
-        const monthlyRate = parseFloat(this.interest_rate) / 12;
-        const totalPayments = parseInt(this.term_months);
+        const principal = parseFloat(this.amount) || 0;
+        const monthlyRate = (parseFloat(this.interest_rate) || 0) / 12;
+        const totalPayments = parseInt(this.term_months) || 0;
         const paymentsMade = parseInt(this.payments_made) || 0;
+
+        if (principal <= 0 || totalPayments <= 0) {
+            return 0;
+        }
 
         if (paymentsMade >= totalPayments) {
             return 0;
         }
 
         if (monthlyRate === 0) {
-            return principal - (principal / totalPayments * paymentsMade);
+            const remainingBalance = principal - (principal / totalPayments * paymentsMade);
+            return Math.max(0, Math.round(remainingBalance * 100) / 100);
         }
 
         const monthlyPayment = this.calculateMonthlyPayment();
         const remainingBalance = principal * Math.pow(1 + monthlyRate, paymentsMade) -
             monthlyPayment * ((Math.pow(1 + monthlyRate, paymentsMade) - 1) / monthlyRate);
 
-        return Math.max(0, Math.round(remainingBalance * 100) / 100);
+        const finalBalance = isNaN(remainingBalance) ? principal : Math.max(0, Math.round(remainingBalance * 100) / 100);
+        return finalBalance;
     }
 
     /**
@@ -170,8 +189,14 @@ class Loan extends Model {
         }
 
         const paymentsMade = parseInt(this.payments_made) || 0;
-        const totalPayments = parseInt(this.term_months);
-        return Math.round((paymentsMade / totalPayments) * 100);
+        const totalPayments = parseInt(this.term_months) || 0;
+
+        if (totalPayments === 0) {
+            return 0;
+        }
+
+        const percentage = (paymentsMade / totalPayments) * 100;
+        return isNaN(percentage) ? 0 : Math.round(percentage);
     }
 }
 

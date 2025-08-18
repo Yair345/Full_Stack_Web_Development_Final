@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
-import { getCardIcon, getCardStatusColor } from "./cardUtils";
 
 const CardItem = ({
 	card,
@@ -20,7 +19,7 @@ const CardItem = ({
 		return new Intl.NumberFormat("en-US", {
 			style: "currency",
 			currency: "USD",
-		}).format(amount);
+		}).format(amount || 0);
 	};
 
 	const getStatusBadge = (status) => {
@@ -28,6 +27,7 @@ const CardItem = ({
 			active: { class: "bg-success", text: "Active" },
 			blocked: { class: "bg-danger", text: "Blocked" },
 			expired: { class: "bg-secondary", text: "Expired" },
+			cancelled: { class: "bg-dark", text: "Cancelled" },
 		};
 		const statusInfo = statusMap[status] || {
 			class: "bg-secondary",
@@ -40,12 +40,47 @@ const CardItem = ({
 		);
 	};
 
+	const getCardColor = (cardType, status) => {
+		if (
+			status === "blocked" ||
+			status === "cancelled" ||
+			status === "expired"
+		) {
+			return "bg-secondary";
+		}
+		return cardType === "credit" ? "bg-primary" : "bg-info";
+	};
+
+	const formatCardNumber = (cardNumber, fullNumber, showFull) => {
+		if (!cardNumber && !fullNumber) {
+			return "•••• •••• •••• ••••";
+		}
+
+		if (showFull && fullNumber) {
+			// Format full number with spaces
+			const formatted = fullNumber.replace(/(\d{4})/g, "$1 ").trim();
+			return formatted;
+		} else {
+			// Show masked version (either the pre-masked cardNumber or generate mask from fullNumber)
+			if (cardNumber && cardNumber.includes("•")) {
+				return cardNumber;
+			} else if (fullNumber) {
+				const masked = `•••• •••• •••• ${fullNumber.slice(-4)}`;
+				return masked;
+			}
+			return "•••• •••• •••• ••••";
+		}
+	};
+
 	return (
 		<div className="col-lg-4 col-md-6">
 			<Card className="card-item">
 				{/* Card Visual */}
 				<div
-					className={`${card.color} text-white rounded p-4 mb-3`}
+					className={`${getCardColor(
+						card.card_type,
+						card.status
+					)} text-white rounded p-4 mb-3`}
 					style={{ minHeight: "200px" }}
 				>
 					<div className="d-flex justify-content-between align-items-start mb-4">
@@ -54,6 +89,7 @@ const CardItem = ({
 							<button
 								className="btn btn-link text-white p-0"
 								data-bs-toggle="dropdown"
+								aria-expanded="false"
 							>
 								<MoreVertical size={20} />
 							</button>
@@ -67,7 +103,7 @@ const CardItem = ({
 											size={14}
 											className="me-2"
 										/>
-										View Details
+										Card Settings
 									</button>
 								</li>
 								<li>
@@ -89,34 +125,44 @@ const CardItem = ({
 										Number
 									</button>
 								</li>
-								<li>
-									<button
-										className="dropdown-item"
-										onClick={() => onToggleBlock(card.id)}
-									>
-										{card.status === "blocked" ? (
-											<Unlock
-												size={14}
-												className="me-2"
-											/>
-										) : (
-											<Lock size={14} className="me-2" />
-										)}
-										{card.status === "blocked"
-											? "Unblock"
-											: "Block"}{" "}
-										Card
-									</button>
-								</li>
+								{card.status !== "cancelled" &&
+									card.status !== "expired" && (
+										<li>
+											<button
+												className="dropdown-item"
+												onClick={() =>
+													onToggleBlock(card.id)
+												}
+											>
+												{card.status === "blocked" ? (
+													<Unlock
+														size={14}
+														className="me-2"
+													/>
+												) : (
+													<Lock
+														size={14}
+														className="me-2"
+													/>
+												)}
+												{card.status === "blocked"
+													? "Unblock"
+													: "Block"}{" "}
+												Card
+											</button>
+										</li>
+									)}
 							</ul>
 						</div>
 					</div>
 
 					<div className="mb-4">
 						<div className="h4 fw-bold mb-0 font-monospace">
-							{card.showFullNumber
-								? card.fullNumber
-								: card.cardNumber}
+							{formatCardNumber(
+								card.cardNumber,
+								card.fullNumber,
+								card.showFullNumber
+							)}
 						</div>
 					</div>
 
@@ -125,7 +171,9 @@ const CardItem = ({
 							<div className="small opacity-75 mb-1">
 								CARD HOLDER
 							</div>
-							<div className="fw-medium">{card.holderName}</div>
+							<div className="fw-medium">
+								{card.holderName || card.card_name}
+							</div>
 						</div>
 						<div className="col-4">
 							<div className="small opacity-75 mb-1">EXPIRES</div>
@@ -141,43 +189,104 @@ const CardItem = ({
 						<div>{getStatusBadge(card.status)}</div>
 					</div>
 					<div className="text-end">
-						<span className="text-muted small">Type</span>
+						<span className="text-muted small">Account Type</span>
 						<div className="fw-medium">{card.accountType}</div>
 					</div>
 				</div>
 
-				{/* Balance Info */}
-				{card.accountType === "Credit" ? (
-					<div className="row g-2 mb-3">
-						<div className="col-6">
-							<div className="text-muted small">Balance</div>
-							<div className="fw-bold">
-								{formatCurrency(card.balance)}
+				{/* Limits Info */}
+				<div className="row g-2 mb-3">
+					<div className="col-6">
+						<div className="text-muted small">Daily Limit</div>
+						<div className="fw-bold">
+							{formatCurrency(card.daily_limit)}
+						</div>
+					</div>
+					<div className="col-6">
+						<div className="text-muted small">Monthly Limit</div>
+						<div className="fw-bold">
+							{formatCurrency(card.monthly_limit)}
+						</div>
+					</div>
+				</div>
+
+				{/* Account Balance Info */}
+				<div className="mb-3">
+					<div className="text-muted small">Account Balance</div>
+					<div className="h5 fw-bold text-success mb-0">
+						{formatCurrency(card.balance)}
+					</div>
+				</div>
+
+				{/* Features */}
+				<div className="mb-3">
+					<div className="row g-2">
+						<div className="col-4">
+							<div className="text-center">
+								<div
+									className={`text-${
+										card.contactless_enabled
+											? "success"
+											: "muted"
+									} small`}
+								>
+									<i
+										className={`bi bi-wifi ${
+											card.contactless_enabled
+												? ""
+												: "opacity-50"
+										}`}
+									></i>
+								</div>
+								<div className="x-small text-muted">
+									Contactless
+								</div>
 							</div>
 						</div>
-						<div className="col-6">
-							<div className="text-muted small">Available</div>
-							<div className="fw-bold text-success">
-								{formatCurrency(card.availableCredit)}
+						<div className="col-4">
+							<div className="text-center">
+								<div
+									className={`text-${
+										card.online_transactions_enabled
+											? "success"
+											: "muted"
+									} small`}
+								>
+									<i
+										className={`bi bi-globe ${
+											card.online_transactions_enabled
+												? ""
+												: "opacity-50"
+										}`}
+									></i>
+								</div>
+								<div className="x-small text-muted">Online</div>
 							</div>
 						</div>
-						<div className="col-12">
-							<div className="text-muted small">Credit Limit</div>
-							<div className="fw-medium">
-								{formatCurrency(card.creditLimit)}
+						<div className="col-4">
+							<div className="text-center">
+								<div
+									className={`text-${
+										card.international_transactions_enabled
+											? "success"
+											: "muted"
+									} small`}
+								>
+									<i
+										className={`bi bi-airplane ${
+											card.international_transactions_enabled
+												? ""
+												: "opacity-50"
+										}`}
+									></i>
+								</div>
+								<div className="x-small text-muted">
+									International
+								</div>
 							</div>
 						</div>
 					</div>
-				) : (
-					<div className="mb-3">
-						<div className="text-muted small">
-							Available Balance
-						</div>
-						<div className="h5 fw-bold text-success mb-0">
-							{formatCurrency(card.availableBalance)}
-						</div>
-					</div>
-				)}
+				</div>
 
 				{/* Actions */}
 				<div className="d-grid gap-2">
@@ -186,7 +295,7 @@ const CardItem = ({
 						size="sm"
 						onClick={() => onViewDetails(card.id)}
 					>
-						View Transactions
+						Card Settings
 					</Button>
 				</div>
 			</Card>
