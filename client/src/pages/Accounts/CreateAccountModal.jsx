@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, DollarSign, CreditCard, PiggyBank, Building, AlertCircle } from "lucide-react";
+import { useCheckExistingAccounts } from "../../hooks/api/features/useAccountHooks";
 
-const CreateAccountModal = ({ isOpen, onClose, onSubmit }) => {
+const CreateAccountModal = ({ isOpen, onClose, onSubmit, accounts = [] }) => {
 	const [formData, setFormData] = useState({
 		account_type: "checking",
 		currency: "USD",
@@ -12,6 +13,16 @@ const CreateAccountModal = ({ isOpen, onClose, onSubmit }) => {
 
 	const [errors, setErrors] = useState({});
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	// Use the new hook to check for existing accounts
+	const { hasCheckingAccount, loading: checkingLoading, checkExistingAccounts } = useCheckExistingAccounts();
+
+	// Check for existing accounts when modal opens
+	useEffect(() => {
+		if (isOpen) {
+			checkExistingAccounts();
+		}
+	}, [isOpen, checkExistingAccounts]);
 
 	const accountTypes = [
 		{
@@ -50,8 +61,40 @@ const CreateAccountModal = ({ isOpen, onClose, onSubmit }) => {
 	const selectedAccountType = accountTypes.find(type => type.value === formData.account_type);
 	const selectedCurrency = currencies.find(currency => currency.value === formData.currency);
 
+	// Find existing checking account using original database structure (for balance info when needed)
+	const checkingAccount = accounts.find(account => 
+		account.account_type === 'checking' && (account.is_active === 1 || account.is_active === true)
+	);
+
+	// Use the API check for existence validation, fallback to local check if API hasn't loaded yet
+	const hasCheckingAccountFinal = hasCheckingAccount || !!checkingAccount;
+
+	// Filter account types based on existing accounts (only checking is limited to one)
+	const availableAccountTypes = accountTypes.filter(type => {
+		if (type.value === 'checking' && hasCheckingAccountFinal) {
+			return false;
+		}
+		return true; // Business and savings accounts can have multiple instances
+	});
+
+	// Update selected account type if current selection is no longer available
+	useEffect(() => {
+		const isCurrentTypeAvailable = availableAccountTypes.some(type => type.value === formData.account_type);
+		if (!isCurrentTypeAvailable && availableAccountTypes.length > 0) {
+			setFormData(prev => ({
+				...prev,
+				account_type: availableAccountTypes[0].value
+			}));
+		}
+	}, [availableAccountTypes, formData.account_type]);
+
 	const validateForm = () => {
 		const newErrors = {};
+
+		// Account type validation - check for duplicates (only checking accounts are limited)
+		if (formData.account_type === 'checking' && hasCheckingAccountFinal) {
+			newErrors.account_type = "You already have a checking account. Only one checking account is allowed per user.";
+		}
 
 		// Account name validation
 		if (!formData.account_name || formData.account_name.trim().length < 2) {
@@ -66,6 +109,19 @@ const CreateAccountModal = ({ isOpen, onClose, onSubmit }) => {
 			const minDeposit = selectedAccountType?.minDeposit || 0;
 			if (depositAmount < minDeposit) {
 				newErrors.initial_deposit = `Minimum deposit for ${selectedAccountType?.label} is ${selectedCurrency?.symbol}${minDeposit}`;
+			}
+			
+			// For non-checking accounts, validate against checking account balance
+			if (formData.account_type !== 'checking' && checkingAccount && depositAmount > 0) {
+				const availableBalance = checkingAccount.balance + (checkingAccount.overdraft_limit || 0);
+				if (depositAmount > availableBalance) {
+					newErrors.initial_deposit = `Insufficient funds in checking account. Available: ${selectedCurrency?.symbol}${availableBalance.toFixed(2)}`;
+				}
+			}
+			
+			// For non-checking accounts, require checking account
+			if (formData.account_type !== 'checking' && !checkingAccount && depositAmount > 0) {
+				newErrors.initial_deposit = "You need a checking account to deposit funds into other account types";
 			}
 		}
 
@@ -138,6 +194,16 @@ const CreateAccountModal = ({ isOpen, onClose, onSubmit }) => {
 		if (errors[field]) {
 			setErrors(prev => ({ ...prev, [field]: "" }));
 		}
+		
+		// Special validation for account type changes
+		if (field === 'account_type') {
+			if (value === 'checking' && hasCheckingAccountFinal) {
+				setErrors(prev => ({ 
+					...prev, 
+					account_type: "You already have a checking account. Only one checking account is allowed per user." 
+				}));
+			}
+		}
 	};
 
 	if (!isOpen) return null;
@@ -166,8 +232,40 @@ const CreateAccountModal = ({ isOpen, onClose, onSubmit }) => {
 							{/* Account Type Selection */}
 							<div className="mb-4">
 								<label className="form-label fw-semibold">Select Account Type</label>
+								
+								{/* Show restriction notice if checking account exists */}
+								{checkingAccount && (
+									<div className="alert alert-info d-flex align-items-center mb-3">
+										<AlertCircle size={16} className="me-2" />
+										<small>
+											You already have a checking account. You can only have one checking account per user.
+											{formData.account_type !== 'checking' && checkingAccount && (
+												<span className="d-block mt-1">
+													Initial deposits will be transferred from your checking account (Available: {selectedCurrency?.symbol}{(checkingAccount.balance + (checkingAccount.overdraft_limit || 0)).toFixed(2)}).
+												</span>
+											)}
+										</small>
+									</div>
+								)}
+								
+								{/* Account Type Validation Error */}
+								{errors.account_type && (
+									<div className="alert alert-danger d-flex align-items-center mb-3">
+										<AlertCircle size={16} className="me-2" />
+										<small>{errors.account_type}</small>
+									</div>
+								)}
+								
 								<div className="row g-3">
-									{accountTypes.map((type) => {
+									{availableAccountTypes.length === 0 ? (
+										<div className="col-12">
+											<div className="alert alert-warning">
+												<AlertCircle size={16} className="me-2" />
+												No account types are available for creation at this time.
+											</div>
+										</div>
+									) : (
+										availableAccountTypes.map((type) => {
 										const IconComponent = type.icon;
 										const isSelected = formData.account_type === type.value;
 										
@@ -218,7 +316,7 @@ const CreateAccountModal = ({ isOpen, onClose, onSubmit }) => {
 												</div>
 											</div>
 										);
-									})}
+									}))}
 								</div>
 							</div>
 
@@ -286,9 +384,15 @@ const CreateAccountModal = ({ isOpen, onClose, onSubmit }) => {
 										</div>
 									)}
 								</div>
-								{selectedAccountType && (
+								{formData.initial_deposit && selectedAccountType && (
 									<div className="form-text">
 										Minimum deposit: {selectedCurrency?.symbol}{selectedAccountType.minDeposit}
+										{formData.account_type !== 'checking' && checkingAccount && parseFloat(formData.initial_deposit) > 0 && (
+											<div className="text-warning mt-1">
+												<AlertCircle size={14} className="me-1" />
+												This amount will be transferred from your checking account
+											</div>
+										)}
 									</div>
 								)}
 							</div>
@@ -377,6 +481,22 @@ const CreateAccountModal = ({ isOpen, onClose, onSubmit }) => {
 												</div>
 											</>
 										)}
+										{formData.account_type !== "checking" && parseFloat(formData.initial_deposit) > 0 && checkingAccount && (
+											<>
+												<div className="col-6">
+													<strong>Transfer Source:</strong>
+												</div>
+												<div className="col-6">
+													Checking Account
+												</div>
+												<div className="col-6">
+													<strong>Available Balance:</strong>
+												</div>
+												<div className="col-6">
+													{selectedCurrency?.symbol}{(checkingAccount.balance + (checkingAccount.overdraft_limit || 0)).toFixed(2)}
+												</div>
+											</>
+										)}
 									</div>
 								</div>
 							</div>
@@ -397,7 +517,12 @@ const CreateAccountModal = ({ isOpen, onClose, onSubmit }) => {
 							type="submit"
 							className="btn btn-primary"
 							onClick={handleSubmit}
-							disabled={isSubmitting || !formData.account_name || !formData.initial_deposit}
+							disabled={
+								isSubmitting || 
+								!formData.account_name || 
+								!formData.initial_deposit ||
+								(formData.account_type === 'checking' && hasCheckingAccount)
+							}
 						>
 							{isSubmitting ? (
 								<>

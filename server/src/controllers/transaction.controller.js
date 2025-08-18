@@ -4,6 +4,7 @@ const { AppError } = require('../utils/error.utils');
 const { catchAsync } = require('../middleware/error.middleware');
 const { generateTransactionRef } = require('../utils/encryption.utils');
 const { emitBalanceUpdate, emitNewTransaction, emitTransactionUpdate } = require('../websocket/socket');
+const { TRANSACTION_TYPES, TRANSACTION_STATUS } = require('../utils/constants');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
 
@@ -264,7 +265,7 @@ const createTransfer = catchAsync(async (req, res, next) => {
         }
 
         // Determine transaction type - for transfers, always use 'transfer'
-        const transactionType = 'transfer';
+        const transactionType = TRANSACTION_TYPES.TRANSFER;
 
         // Create transaction record
         const transaction = await Transaction.create({
@@ -274,7 +275,7 @@ const createTransfer = catchAsync(async (req, res, next) => {
             amount: transferAmount,
             transaction_type: transactionType,
             description,
-            status: 'pending'
+            status: TRANSACTION_STATUS.PENDING
         }, { transaction: t });
 
         // Update account balances
@@ -288,7 +289,7 @@ const createTransfer = catchAsync(async (req, res, next) => {
 
         // Update transaction status to completed
         await transaction.update({
-            status: 'completed',
+            status: TRANSACTION_STATUS.COMPLETED,
             processed_at: new Date()
         }, { transaction: t });
 
@@ -316,7 +317,7 @@ const createTransfer = catchAsync(async (req, res, next) => {
             // Log money transfer to SystemLog (system-level financial operation)
             await AuditService.logSystem({
                 level: 'info',
-                message: `Money transfer completed: ${transferAmount} ${transaction.currency} from account ${fromAccount.account_number} to account ${toAccount.account_number}`,
+                message: `💸 Money transfer completed: ${transferAmount} ${transaction.currency} from account ${fromAccount.account_number} to account ${toAccount.account_number}`,
                 service: 'financial_transfers',
                 meta: {
                     transactionId: transaction.id,
@@ -345,12 +346,16 @@ const createTransfer = catchAsync(async (req, res, next) => {
                 }
             });
 
-            // Also log user action to AuditLog (user-initiated action)
-            await AuditService.logTransaction({
-                action: 'transfer_initiated',
-                req,
-                transaction,
-                details: {
+            // Also log user action to SystemLog
+            await AuditService.logSystem({
+                level: 'info',
+                message: `✅ Transfer completed successfully: $${transferAmount} from ${fromAccount.name} to ${toAccount.name}`,
+                service: 'financial_transactions',
+                meta: {
+                    action: 'transfer_completed',
+                    userId: req.user.id,
+                    transactionId: transaction.id,
+                    transactionRef: transaction.transaction_ref,
                     fromAccountNumber: fromAccount.account_number,
                     toAccountNumber: toAccount.account_number,
                     transferType: transactionType,
@@ -372,8 +377,26 @@ const createTransfer = catchAsync(async (req, res, next) => {
 
         res.status(201).json({
             success: true,
-            message: 'Transfer completed successfully',
-            data: { transaction: completeTransaction }
+            message: `🎉 Transfer completed successfully! $${transferAmount} has been transferred from ${fromAccount.name} to ${toAccount.name}.`,
+            data: { 
+                transaction: completeTransaction,
+                summary: {
+                    amount: transferAmount,
+                    currency: transaction.currency,
+                    reference: transaction.transaction_ref,
+                    fromAccount: {
+                        name: fromAccount.name,
+                        accountNumber: fromAccount.account_number,
+                        newBalance: fromAccount.balance - transferAmount
+                    },
+                    toAccount: {
+                        name: toAccount.name,
+                        accountNumber: toAccount.account_number,
+                        newBalance: toAccount.balance + transferAmount
+                    },
+                    completedAt: new Date()
+                }
+            }
         });
 
     } catch (error) {
@@ -423,9 +446,9 @@ const createDeposit = catchAsync(async (req, res, next) => {
             transaction_ref: generateTransactionRef(),
             to_account_id: account.id,
             amount: depositAmount,
-            transaction_type: 'deposit',
+            transaction_type: TRANSACTION_TYPES.DEPOSIT,
             description,
-            status: 'pending'
+            status: TRANSACTION_STATUS.PENDING
         }, { transaction: t });
 
         // Update account balance
@@ -435,12 +458,20 @@ const createDeposit = catchAsync(async (req, res, next) => {
 
         // Update transaction status to completed
         await transaction.update({
-            status: 'completed',
+            status: TRANSACTION_STATUS.COMPLETED,
             processed_at: new Date()
         }, { transaction: t });
 
         // Commit transaction
         await t.commit();
+
+        // Log successful deposit
+        console.log(`💰 Deposit completed successfully!`);
+        console.log(`   Transaction ID: ${transaction.id}`);
+        console.log(`   Reference: ${transaction.transaction_ref}`);
+        console.log(`   Amount: $${depositAmount}`);
+        console.log(`   Account: ${account.name} (${account.account_number})`);
+        console.log(`   New Balance: $${account.balance + depositAmount}`);
 
         // Log and emit events after successful commit (don't let these fail the transaction)
         try {
@@ -467,12 +498,16 @@ const createDeposit = catchAsync(async (req, res, next) => {
                 }
             });
 
-            // Log deposit audit event to MongoDB
-            await AuditService.logTransaction({
-                action: 'deposit_completed',
-                req,
-                transaction,
-                details: {
+            // Log deposit to SystemLog
+            await AuditService.logSystem({
+                level: 'info',
+                message: `💰 Deposit completed successfully: $${depositAmount} added to ${account.name}`,
+                service: 'financial_transactions',
+                meta: {
+                    action: 'deposit_completed',
+                    userId: req.user.id,
+                    transactionId: transaction.id,
+                    transactionRef: transaction.transaction_ref,
                     accountNumber: account.account_number,
                     previousBalance: account.balance,
                     newBalance: account.balance + depositAmount,
@@ -490,8 +525,21 @@ const createDeposit = catchAsync(async (req, res, next) => {
 
         res.status(201).json({
             success: true,
-            message: 'Deposit completed successfully',
-            data: { transaction }
+            message: `💰 Deposit completed successfully! $${depositAmount} has been added to ${account.name}.`,
+            data: { 
+                transaction,
+                summary: {
+                    amount: depositAmount,
+                    currency: transaction.currency,
+                    reference: transaction.transaction_ref,
+                    account: {
+                        name: account.name,
+                        accountNumber: account.account_number,
+                        newBalance: account.balance + depositAmount
+                    },
+                    completedAt: new Date()
+                }
+            }
         });
 
     } catch (error) {
@@ -546,9 +594,9 @@ const createWithdrawal = catchAsync(async (req, res, next) => {
             transaction_ref: generateTransactionRef(),
             from_account_id: account.id,
             amount: withdrawalAmount,
-            transaction_type: 'withdrawal',
+            transaction_type: TRANSACTION_TYPES.WITHDRAWAL,
             description,
-            status: 'pending'
+            status: TRANSACTION_STATUS.PENDING
         }, { transaction: t });
 
         // Update account balance
@@ -558,12 +606,20 @@ const createWithdrawal = catchAsync(async (req, res, next) => {
 
         // Update transaction status to completed
         await transaction.update({
-            status: 'completed',
+            status: TRANSACTION_STATUS.COMPLETED,
             processed_at: new Date()
         }, { transaction: t });
 
         // Commit transaction
         await t.commit();
+
+        // Log successful withdrawal
+        console.log(`💸 Withdrawal completed successfully!`);
+        console.log(`   Transaction ID: ${transaction.id}`);
+        console.log(`   Reference: ${transaction.transaction_ref}`);
+        console.log(`   Amount: $${withdrawalAmount}`);
+        console.log(`   Account: ${account.name} (${account.account_number})`);
+        console.log(`   New Balance: $${account.balance - withdrawalAmount}`);
 
         // Log and emit events after successful commit (don't let these fail the transaction)
         try {
@@ -590,12 +646,16 @@ const createWithdrawal = catchAsync(async (req, res, next) => {
                 }
             });
 
-            // Log withdrawal audit event to MongoDB
-            await AuditService.logTransaction({
-                action: 'withdrawal_completed',
-                req,
-                transaction,
-                details: {
+            // Log withdrawal to SystemLog
+            await AuditService.logSystem({
+                level: 'info',
+                message: `💸 Withdrawal completed successfully: $${withdrawalAmount} withdrawn from ${account.name}`,
+                service: 'financial_transactions',
+                meta: {
+                    action: 'withdrawal_completed',
+                    userId: req.user.id,
+                    transactionId: transaction.id,
+                    transactionRef: transaction.transaction_ref,
                     accountNumber: account.account_number,
                     previousBalance: account.balance,
                     newBalance: account.balance - withdrawalAmount,
@@ -613,8 +673,21 @@ const createWithdrawal = catchAsync(async (req, res, next) => {
 
         res.status(201).json({
             success: true,
-            message: 'Withdrawal completed successfully',
-            data: { transaction }
+            message: `💸 Withdrawal completed successfully! $${withdrawalAmount} has been withdrawn from ${account.name}.`,
+            data: { 
+                transaction,
+                summary: {
+                    amount: withdrawalAmount,
+                    currency: transaction.currency,
+                    reference: transaction.transaction_ref,
+                    account: {
+                        name: account.name,
+                        accountNumber: account.account_number,
+                        newBalance: account.balance - withdrawalAmount
+                    },
+                    completedAt: new Date()
+                }
+            }
         });
 
     } catch (error) {
@@ -665,7 +738,7 @@ const getTransactionSummary = catchAsync(async (req, res, next) => {
         Transaction.findAll({
             where: {
                 from_account_id: { [Op.in]: accountIds },
-                status: 'completed',
+                status: TRANSACTION_STATUS.COMPLETED,
                 created_at: { [Op.gte]: startDate }
             },
             attributes: [
@@ -680,7 +753,7 @@ const getTransactionSummary = catchAsync(async (req, res, next) => {
         Transaction.findAll({
             where: {
                 to_account_id: { [Op.in]: accountIds },
-                status: 'completed',
+                status: TRANSACTION_STATUS.COMPLETED,
                 created_at: { [Op.gte]: startDate }
             },
             attributes: [
@@ -698,7 +771,7 @@ const getTransactionSummary = catchAsync(async (req, res, next) => {
                     { from_account_id: { [Op.in]: accountIds } },
                     { to_account_id: { [Op.in]: accountIds } }
                 ],
-                status: 'completed'
+                status: TRANSACTION_STATUS.COMPLETED
             },
             include: [
                 {
@@ -781,7 +854,7 @@ const cancelTransaction = catchAsync(async (req, res, next) => {
         where: {
             id,
             from_account_id: { [Op.in]: accountIds },
-            status: 'pending'
+            status: TRANSACTION_STATUS.PENDING
         }
     });
 
