@@ -69,10 +69,36 @@ body {
   background: linear-gradient(135deg, var(--bank-blue), var(--bank-blue-dark)) !important;
 }
 
+.bg-gradient-success {
+  background: linear-gradient(135deg, #28a745, #20832f) !important;
+}
+
+.bg-gradient-warning {
+  background: linear-gradient(135deg, #ffc107, #e0a800) !important;
+}
+
 /* Custom card styles */
 .card-custom {
   box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
   border: 1px solid rgba(0, 0, 0, 0.125);
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Card item styles for consistent sizing */
+.card-item {
+  height: 100%;
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-item .card-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 /* Sidebar styles */
