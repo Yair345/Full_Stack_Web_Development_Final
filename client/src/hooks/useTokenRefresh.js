@@ -89,7 +89,6 @@ export const useTokenRefresh = () => {
         const needsRefresh = isTokenExpiringSoon(token);
 
         if (needsRefresh) {
-            console.log('Token is expiring soon, attempting refresh...');
             const success = await refreshTokenAsync();
 
             if (!success && !alertShownRef.current) {

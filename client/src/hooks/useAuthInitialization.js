@@ -24,14 +24,12 @@ export const useAuthInitialization = () => {
     // Function to attempt token refresh
     const attemptTokenRefresh = useCallback(async () => {
         if (!refreshToken) {
-            console.log('No refresh token available');
             dispatch(logout());
             return false;
         }
 
         try {
             dispatch(refreshTokenStart());
-            console.log('Attempting to refresh token...');
 
             // Use the refresh token directly in the API call
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'}/auth/refresh`, {
@@ -54,7 +52,6 @@ export const useAuthInitialization = () => {
                 refreshToken: data.refreshToken || refreshToken
             }));
 
-            console.log('Token refreshed successfully');
             return data.accessToken || data.token;
         } catch (error) {
             console.error('Token refresh failed:', error);
@@ -91,7 +88,6 @@ export const useAuthInitialization = () => {
             };
 
             dispatch(setUser(transformedUser));
-            console.log('User profile loaded successfully');
         } catch (error) {
             console.error('Failed to get user profile:', error);
             // If profile fetch fails, logout the user
@@ -108,27 +104,20 @@ export const useAuthInitialization = () => {
 
             // If no token, do nothing
             if (!token) {
-                console.log('No token found');
                 return;
             }
 
             // Always fetch user profile if we have a token but no user
             if (!user) {
-                console.log('Initializing user authentication - fetching user profile...');
-
                 // Check if current token is expired
                 if (isTokenExpired(token)) {
-                    console.log('Token is expired, attempting refresh...');
                     const newToken = await attemptTokenRefresh();
                     if (newToken) {
                         await getUserProfile(newToken);
                     }
                 } else {
-                    console.log('Token is valid, getting user profile...');
                     await getUserProfile(token);
                 }
-            } else {
-                console.log('User already exists');
             }
         };
 
