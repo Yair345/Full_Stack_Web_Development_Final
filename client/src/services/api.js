@@ -1,5 +1,5 @@
 // API configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1';
 
 // Generic fetch wrapper
 export const apiRequest = async (endpoint, options = {}) => {
@@ -153,4 +153,42 @@ export const standingOrderAPI = {
     }),
 };
 
-export default { apiRequest, authAPI, accountAPI, transactionAPI, standingOrderAPI };
+// Loan API calls
+export const loanAPI = {
+    getLoans: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/loans${queryString ? `?${queryString}` : ''}`);
+    },
+
+    getLoan: (id) => apiRequest(`/loans/${id}`),
+
+    getLoanSummary: () => apiRequest('/loans/summary'),
+
+    createLoanApplication: (loanData) => apiRequest('/loans', {
+        method: 'POST',
+        body: JSON.stringify(loanData),
+    }),
+
+    updateLoanApplication: (id, loanData) => apiRequest(`/loans/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(loanData),
+    }),
+
+    makeLoanPayment: (id, paymentData) => apiRequest(`/loans/${id}/payment`, {
+        method: 'POST',
+        body: JSON.stringify(paymentData),
+    }),
+
+    calculateLoanPayment: (calculationData) => apiRequest('/loans/calculate', {
+        method: 'POST',
+        body: JSON.stringify(calculationData),
+    }),
+
+    // Admin functions
+    updateLoanStatus: (id, statusData) => apiRequest(`/loans/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify(statusData),
+    }),
+};
+
+export default { apiRequest, authAPI, accountAPI, transactionAPI, standingOrderAPI, loanAPI };

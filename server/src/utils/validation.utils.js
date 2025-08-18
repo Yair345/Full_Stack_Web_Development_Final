@@ -1,4 +1,5 @@
 const { body, param, validationResult } = require('express-validator');
+const { LOAN_TYPES } = require('./constants');
 
 /**
  * User registration validation rules
@@ -388,6 +389,196 @@ const standingOrderIdValidation = [
 ];
 
 /**
+ * Loan application validation rules
+ */
+const loanApplicationValidation = [
+    body('loan_type')
+        .isIn(Object.values(LOAN_TYPES))
+        .withMessage('Invalid loan type'),
+
+    body('amount')
+        .isFloat({ min: 1000, max: 10000000 })
+        .withMessage('Loan amount must be between $1,000 and $10,000,000'),
+
+    body('interest_rate')
+        .isFloat({ min: 0.0001, max: 0.5 })
+        .withMessage('Interest rate must be between 0.01% and 50%'),
+
+    body('term_months')
+        .isInt({ min: 6, max: 480 })
+        .withMessage('Loan term must be between 6 and 480 months'),
+
+    body('purpose')
+        .trim()
+        .isLength({ min: 10, max: 1000 })
+        .withMessage('Loan purpose must be between 10 and 1000 characters'),
+
+    body('collateral_description')
+        .optional()
+        .isLength({ max: 1000 })
+        .withMessage('Collateral description cannot exceed 1000 characters'),
+
+    body('collateral_value')
+        .optional()
+        .isFloat({ min: 0 })
+        .withMessage('Collateral value must be a positive number'),
+
+    body('credit_score')
+        .optional()
+        .isInt({ min: 300, max: 850 })
+        .withMessage('Credit score must be between 300 and 850'),
+
+    body('debt_to_income_ratio')
+        .optional()
+        .isFloat({ min: 0, max: 100 })
+        .withMessage('Debt to income ratio must be between 0% and 100%'),
+
+    body('annual_income')
+        .optional()
+        .isFloat({ min: 0 })
+        .withMessage('Annual income must be a positive number')
+];
+
+/**
+ * Loan update validation rules
+ */
+const loanUpdateValidation = [
+    body('purpose')
+        .optional()
+        .trim()
+        .isLength({ min: 10, max: 1000 })
+        .withMessage('Loan purpose must be between 10 and 1000 characters'),
+
+    body('collateral_description')
+        .optional()
+        .isLength({ max: 1000 })
+        .withMessage('Collateral description cannot exceed 1000 characters'),
+
+    body('collateral_value')
+        .optional()
+        .isFloat({ min: 0 })
+        .withMessage('Collateral value must be a positive number'),
+
+    body('credit_score')
+        .optional()
+        .isInt({ min: 300, max: 850 })
+        .withMessage('Credit score must be between 300 and 850'),
+
+    body('debt_to_income_ratio')
+        .optional()
+        .isFloat({ min: 0, max: 100 })
+        .withMessage('Debt to income ratio must be between 0% and 100%'),
+
+    body('annual_income')
+        .optional()
+        .isFloat({ min: 0 })
+        .withMessage('Annual income must be a positive number')
+];
+
+/**
+ * Loan payment validation rules
+ */
+const loanPaymentValidation = [
+    param('id')
+        .isInt({ min: 1 })
+        .withMessage('Valid loan ID is required'),
+
+    body('amount')
+        .isFloat({ min: 0.01 })
+        .withMessage('Payment amount must be greater than 0')
+];
+
+/**
+ * Loan ID validation rules
+ */
+const loanIdValidation = [
+    param('id')
+        .isInt({ min: 1 })
+        .withMessage('Valid loan ID is required')
+];
+
+/**
+ * Loan calculation validation rules
+ */
+const loanCalculationValidation = [
+    body('amount')
+        .isFloat({ min: 1000, max: 10000000 })
+        .withMessage('Loan amount must be between $1,000 and $10,000,000'),
+
+    body('interest_rate')
+        .isFloat({ min: 0.0001, max: 0.5 })
+        .withMessage('Interest rate must be between 0.01% and 50%'),
+
+    body('term_months')
+        .isInt({ min: 6, max: 480 })
+        .withMessage('Loan term must be between 6 and 480 months')
+];
+
+/**
+ * Simple validation function for controller use
+ */
+const validateLoanApplication = (data) => {
+    const errors = [];
+    
+    if (!data.loan_type || !Object.values(LOAN_TYPES).includes(data.loan_type)) {
+        errors.push('Invalid loan type');
+    }
+    
+    if (!data.amount || data.amount < 1000 || data.amount > 10000000) {
+        errors.push('Loan amount must be between $1,000 and $10,000,000');
+    }
+    
+    if (!data.interest_rate || data.interest_rate < 0.0001 || data.interest_rate > 0.5) {
+        errors.push('Interest rate must be between 0.01% and 50%');
+    }
+    
+    if (!data.term_months || data.term_months < 6 || data.term_months > 480) {
+        errors.push('Loan term must be between 6 and 480 months');
+    }
+    
+    if (!data.purpose || data.purpose.trim().length < 10 || data.purpose.trim().length > 1000) {
+        errors.push('Loan purpose must be between 10 and 1000 characters');
+    }
+    
+    return {
+        isValid: errors.length === 0,
+        errors
+    };
+};
+
+/**
+ * Simple validation function for loan update
+ */
+const validateLoanUpdate = (data) => {
+    const errors = [];
+    
+    if (data.purpose && (data.purpose.trim().length < 10 || data.purpose.trim().length > 1000)) {
+        errors.push('Loan purpose must be between 10 and 1000 characters');
+    }
+    
+    if (data.collateral_value && data.collateral_value < 0) {
+        errors.push('Collateral value must be a positive number');
+    }
+    
+    if (data.credit_score && (data.credit_score < 300 || data.credit_score > 850)) {
+        errors.push('Credit score must be between 300 and 850');
+    }
+    
+    if (data.debt_to_income_ratio && (data.debt_to_income_ratio < 0 || data.debt_to_income_ratio > 100)) {
+        errors.push('Debt to income ratio must be between 0% and 100%');
+    }
+    
+    if (data.annual_income && data.annual_income < 0) {
+        errors.push('Annual income must be a positive number');
+    }
+    
+    return {
+        isValid: errors.length === 0,
+        errors
+    };
+};
+
+/**
  * Validation result checker
  */
 const checkValidationResult = (req, res, next) => {
@@ -419,5 +610,12 @@ module.exports = {
     createStandingOrderValidation,
     updateStandingOrderValidation,
     standingOrderIdValidation,
+    loanApplicationValidation,
+    loanUpdateValidation,
+    loanPaymentValidation,
+    loanIdValidation,
+    loanCalculationValidation,
+    validateLoanApplication,
+    validateLoanUpdate,
     checkValidationResult
 };

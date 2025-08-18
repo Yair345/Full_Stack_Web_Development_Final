@@ -3,34 +3,38 @@ import { Calculator, DollarSign } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
-import { calculateLoanPayment, formatCurrency } from "./loanUtils";
+import { formatCurrency } from "./loanUtils";
+import { useLoanCalculator } from "../../hooks/useLoans";
 
 const LoanCalculator = () => {
 	const [calculatorValues, setCalculatorValues] = useState({
 		amount: "",
-		term: "",
-		rate: 5.5,
+		term_months: "",
+		interest_rate: 0.055, // 5.5% as decimal
 		type: "personal",
 	});
-	const [result, setResult] = useState(null);
 
-	const handleCalculate = () => {
-		const payment = calculateLoanPayment(
-			calculatorValues.amount,
-			calculatorValues.term,
-			calculatorValues.rate
-		);
+	const { calculation, loading, error, calculate, clearError } = useLoanCalculator();
 
-		if (payment > 0) {
-			const totalPaid = payment * parseInt(calculatorValues.term);
-			const totalInterest =
-				totalPaid - parseFloat(calculatorValues.amount);
+	const handleCalculate = async () => {
+		try {
+			clearError();
+			
+			// Validation
+			if (!calculatorValues.amount || !calculatorValues.term_months || !calculatorValues.interest_rate) {
+				alert("Please fill in all fields");
+				return;
+			}
 
-			setResult({
-				monthlyPayment: payment,
-				totalPaid,
-				totalInterest,
-			});
+			const calculationData = {
+				amount: parseFloat(calculatorValues.amount),
+				term_months: parseInt(calculatorValues.term_months),
+				interest_rate: parseFloat(calculatorValues.interest_rate)
+			};
+
+			await calculate(calculationData);
+		} catch (err) {
+			console.error("Calculation error:", err);
 		}
 	};
 
@@ -38,6 +42,15 @@ const LoanCalculator = () => {
 		setCalculatorValues((prev) => ({
 			...prev,
 			[field]: value,
+		}));
+	};
+
+	// Convert percentage to decimal for API
+	const handleRateChange = (value) => {
+		const percentage = parseFloat(value) || 0;
+		setCalculatorValues(prev => ({
+			...prev,
+			interest_rate: percentage / 100 // Convert to decimal
 		}));
 	};
 
@@ -106,12 +119,9 @@ const LoanCalculator = () => {
 									type="number"
 									step="0.01"
 									placeholder="5.5"
-									value={calculatorValues.rate}
+									value={(calculatorValues.interest_rate * 100).toFixed(2)}
 									onChange={(e) =>
-										handleInputChange(
-											"rate",
-											e.target.value
-										)
+										handleRateChange(e.target.value)
 									}
 								/>
 							</div>
@@ -123,24 +133,42 @@ const LoanCalculator = () => {
 								<Input
 									type="number"
 									placeholder="60"
-									value={calculatorValues.term}
+									value={calculatorValues.term_months}
 									onChange={(e) =>
 										handleInputChange(
-											"term",
+											"term_months",
 											e.target.value
 										)
 									}
 								/>
 							</div>
 
+							{error && (
+								<div className="col-12">
+									<div className="alert alert-danger">
+										{error}
+									</div>
+								</div>
+							)}
+
 							<div className="col-12">
 								<Button
 									variant="primary"
 									className="w-100"
 									onClick={handleCalculate}
+									disabled={loading}
 								>
-									<DollarSign size={16} className="me-2" />
-									Calculate Payment
+									{loading ? (
+										<>
+											<span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+											Calculating...
+										</>
+									) : (
+										<>
+											<DollarSign size={16} className="me-2" />
+											Calculate Payment
+										</>
+									)}
 								</Button>
 							</div>
 						</div>
@@ -151,14 +179,12 @@ const LoanCalculator = () => {
 					<Card>
 						<h6 className="fw-medium mb-3">Calculation Results</h6>
 
-						{result ? (
+						{calculation ? (
 							<div className="row g-3">
 								<div className="col-12">
 									<div className="text-center p-4 bg-light rounded">
 										<div className="h3 fw-bold text-primary mb-1">
-											{formatCurrency(
-												result.monthlyPayment
-											)}
+											{formatCurrency(calculation.monthlyPayment)}
 										</div>
 										<small className="text-muted">
 											Monthly Payment
@@ -169,7 +195,7 @@ const LoanCalculator = () => {
 								<div className="col-6">
 									<div className="text-center">
 										<div className="fw-bold">
-											{formatCurrency(result.totalPaid)}
+											{formatCurrency(calculation.totalAmount)}
 										</div>
 										<small className="text-muted">
 											Total Paid
@@ -180,13 +206,40 @@ const LoanCalculator = () => {
 								<div className="col-6">
 									<div className="text-center">
 										<div className="fw-bold text-warning">
-											{formatCurrency(
-												result.totalInterest
-											)}
+											{formatCurrency(calculation.totalInterest)}
 										</div>
 										<small className="text-muted">
 											Total Interest
 										</small>
+									</div>
+								</div>
+
+								<div className="col-12">
+									<div className="row g-2 small">
+										<div className="col-6">
+											<span className="text-muted">Principal:</span>
+										</div>
+										<div className="col-6 text-end">
+											<span className="fw-medium">
+												{formatCurrency(calculation.principal)}
+											</span>
+										</div>
+										<div className="col-6">
+											<span className="text-muted">Interest Rate:</span>
+										</div>
+										<div className="col-6 text-end">
+											<span className="fw-medium">
+												{(calculation.interestRate * 100).toFixed(2)}%
+											</span>
+										</div>
+										<div className="col-6">
+											<span className="text-muted">Term:</span>
+										</div>
+										<div className="col-6 text-end">
+											<span className="fw-medium">
+												{calculation.termMonths} months
+											</span>
+										</div>
 									</div>
 								</div>
 

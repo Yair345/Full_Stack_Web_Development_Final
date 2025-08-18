@@ -9,12 +9,19 @@ import {
 } from "./loanUtils";
 
 const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
-	const progress = calculateProgress(
-		loan.originalAmount,
-		loan.currentBalance
-	);
+	// התאמה לנתונים האמיתיים מה-API
+	const originalAmount = loan.amount || loan.originalAmount;
+	const currentBalance = loan.remainingBalance || loan.currentBalance;
+	const monthlyPayment = loan.monthlyPayment || loan.calculateMonthlyPayment;
+	const interestRate = loan.interest_rate ? (loan.interest_rate * 100).toFixed(2) : loan.interestRate;
+	const loanType = loan.loan_type || loan.type;
+	const loanName = loan.purpose ? `${loanType.charAt(0).toUpperCase() + loanType.slice(1)} Loan` : loan.name;
+	const nextPaymentDate = loan.nextPaymentDue ? new Date(loan.nextPaymentDue).toLocaleDateString() : loan.nextPaymentDate;
+	const remainingMonths = loan.term_months - (loan.payments_made || 0);
 
-	const iconName = getLoanIcon(loan.type);
+	const progress = calculateProgress(originalAmount, currentBalance);
+
+	const iconName = getLoanIcon(loanType);
 	const iconMap = {
 		DollarSign,
 		Home,
@@ -24,6 +31,10 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 	const IconComponent = iconMap[iconName] || DollarSign;
 	const statusInfo = getStatusBadge(loan.status);
 
+	// בדיקה אם הלוואה פעילה לתשלום
+	const canMakePayment = loan.status === 'active' || loan.status === 'current';
+	const isOverdue = loan.isOverdue;
+
 	return (
 		<Card>
 			<div className="d-flex justify-content-between align-items-start mb-3">
@@ -32,9 +43,10 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 						<IconComponent size={20} />
 					</div>
 					<div>
-						<h6 className="fw-medium mb-1">{loan.name}</h6>
+						<h6 className="fw-medium mb-1">{loanName}</h6>
 						<small className="text-muted">
-							Next payment: {loan.nextPaymentDate}
+							{nextPaymentDate ? `Next payment: ${nextPaymentDate}` : 'No active payments'}
+							{isOverdue && <span className="text-danger ms-1">(Overdue)</span>}
 						</small>
 					</div>
 				</div>
@@ -49,7 +61,7 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 				</div>
 				<div className="col-6 text-end">
 					<span className="fw-bold">
-						{formatCurrency(loan.currentBalance)}
+						{formatCurrency(currentBalance)}
 					</span>
 				</div>
 				<div className="col-6">
@@ -57,23 +69,35 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 				</div>
 				<div className="col-6 text-end">
 					<span className="fw-medium">
-						{formatCurrency(loan.monthlyPayment)}
+						{formatCurrency(monthlyPayment)}
 					</span>
 				</div>
 				<div className="col-6">
 					<span className="text-muted">Interest Rate:</span>
 				</div>
 				<div className="col-6 text-end">
-					<span className="fw-medium">{loan.interestRate}%</span>
+					<span className="fw-medium">{interestRate}%</span>
 				</div>
 				<div className="col-6">
 					<span className="text-muted">Remaining Term:</span>
 				</div>
 				<div className="col-6 text-end">
 					<span className="fw-medium">
-						{loan.remainingMonths} months
+						{remainingMonths} months
 					</span>
 				</div>
+				{loan.progressPercentage && (
+					<>
+						<div className="col-6">
+							<span className="text-muted">Progress:</span>
+						</div>
+						<div className="col-6 text-end">
+							<span className="fw-medium">
+								{loan.progressPercentage}%
+							</span>
+						</div>
+					</>
+				)}
 			</div>
 
 			<div className="mb-3">
@@ -91,12 +115,13 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 
 			<div className="d-flex gap-2">
 				<Button
-					variant="primary"
+					variant={isOverdue ? "danger" : "primary"}
 					size="sm"
 					className="flex-grow-1"
-					onClick={() => onMakePayment(loan.id)}
+					onClick={() => onMakePayment(loan.id, monthlyPayment)}
+					disabled={!canMakePayment}
 				>
-					Make Payment
+					{isOverdue ? "Pay Overdue" : "Make Payment"}
 				</Button>
 				<Button
 					variant="outline"

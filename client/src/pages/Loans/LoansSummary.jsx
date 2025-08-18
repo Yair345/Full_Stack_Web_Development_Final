@@ -2,18 +2,43 @@ import { DollarSign, Calendar } from "lucide-react";
 import Card from "../../components/ui/Card";
 import { formatCurrency } from "./loanUtils";
 
-const LoansSummary = ({ loans }) => {
-	const totalBalance = loans.reduce(
-		(sum, loan) => sum + loan.currentBalance,
+const LoansSummary = ({ loans, summary }) => {
+	// Use summary data if available, otherwise calculate from loans
+	const totalBalance = summary?.totalOwed || loans.reduce(
+		(sum, loan) => sum + (loan.remainingBalance || loan.currentBalance || 0),
 		0
 	);
-	const monthlyPayments = loans.reduce(
-		(sum, loan) => sum + loan.monthlyPayment,
+	
+	const monthlyPayments = summary?.monthlyPayments || loans.reduce(
+		(sum, loan) => sum + (loan.monthlyPayment || 0),
 		0
 	);
-	const activeLoans = loans.filter(
-		(loan) => loan.status === "current"
+	
+	const activeLoans = summary?.activeLoans || loans.filter(
+		(loan) => loan.status === "active" || loan.status === "current"
 	).length;
+
+	const totalLoans = summary?.totalLoans || loans.length;
+
+	// Find the next payment due date
+	const getNextPaymentDate = () => {
+		const activeLoanPayments = loans
+			.filter(loan => loan.status === "active" || loan.status === "current")
+			.map(loan => loan.nextPaymentDue || loan.nextPaymentDate)
+			.filter(date => date)
+			.sort();
+		
+		if (activeLoanPayments.length > 0) {
+			const nextDate = new Date(activeLoanPayments[0]);
+			return nextDate.toLocaleDateString('en-US', { 
+				month: 'short', 
+				day: 'numeric', 
+				year: 'numeric' 
+			});
+		}
+		
+		return "No active loans";
+	};
 
 	return (
 		<div className="col-12">
@@ -65,7 +90,7 @@ const LoansSummary = ({ loans }) => {
 								<p className="small text-muted mb-1">
 									Active Loans
 								</p>
-								<p className="h5 fw-bold mb-0">{activeLoans}</p>
+								<p className="h5 fw-bold mb-0">{activeLoans} / {totalLoans}</p>
 							</div>
 						</div>
 					</Card>
@@ -80,7 +105,7 @@ const LoansSummary = ({ loans }) => {
 								<p className="small text-muted mb-1">
 									Next Payment
 								</p>
-								<p className="h6 fw-bold mb-0">Aug 20, 2025</p>
+								<p className="h6 fw-bold mb-0">{getNextPaymentDate()}</p>
 							</div>
 						</div>
 					</Card>

@@ -1,9 +1,14 @@
+import { useState } from "react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
-import { DollarSign, Home, Car, GraduationCap } from "lucide-react";
+import { DollarSign, Home, Car, GraduationCap, ArrowLeft } from "lucide-react";
 import { loanTypes } from "./loanUtils";
+import LoanApplicationForm from "./LoanApplicationForm";
 
-const LoanApplicationsTab = ({ onApplyLoan }) => {
+const LoanApplicationsTab = ({ onApplyLoan, loading }) => {
+	const [showApplicationForm, setShowApplicationForm] = useState(false);
+	const [selectedLoanType, setSelectedLoanType] = useState(null);
+
 	const iconMap = {
 		DollarSign,
 		Home,
@@ -11,11 +16,66 @@ const LoanApplicationsTab = ({ onApplyLoan }) => {
 		GraduationCap,
 	};
 
+	const handleApplyClick = (loanType) => {
+		setSelectedLoanType(loanType);
+		setShowApplicationForm(true);
+	};
+
+	const handleFormSubmit = async (formData) => {
+		try {
+			await onApplyLoan(formData);
+			setShowApplicationForm(false);
+			setSelectedLoanType(null);
+		} catch (error) {
+			// Error handling is done in the parent component
+			throw error;
+		}
+	};
+
+	const handleBack = () => {
+		setShowApplicationForm(false);
+		setSelectedLoanType(null);
+	};
+
+	if (showApplicationForm) {
+		return (
+			<div className="col-12">
+				<div className="d-flex align-items-center mb-4">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={handleBack}
+						className="me-3"
+					>
+						<ArrowLeft size={16} />
+					</Button>
+					<div>
+						<h5 className="fw-medium mb-1">
+							Apply for {selectedLoanType?.name || 'Loan'}
+						</h5>
+						<p className="text-muted mb-0 small">
+							Fill out the form below to submit your loan application
+						</p>
+					</div>
+				</div>
+				
+				<LoanApplicationForm 
+					onSubmit={handleFormSubmit}
+					loading={loading}
+					initialLoanType={selectedLoanType?.type}
+				/>
+			</div>
+		);
+	}
+
 	return (
 		<div className="col-12">
 			<div className="row g-4">
 				<div className="col-12">
 					<h5 className="fw-medium mb-3">Available Loan Products</h5>
+					<p className="text-muted">
+						Choose from our competitive loan products designed to meet your financial needs.
+					</p>
 				</div>
 
 				{loanTypes.map((loanType) => {
@@ -71,9 +131,8 @@ const LoanApplicationsTab = ({ onApplyLoan }) => {
 									<Button
 										variant="primary"
 										className="w-100"
-										onClick={() =>
-											onApplyLoan(loanType.name)
-										}
+										onClick={() => handleApplyClick(loanType)}
+										disabled={loading}
 									>
 										Apply Now
 									</Button>

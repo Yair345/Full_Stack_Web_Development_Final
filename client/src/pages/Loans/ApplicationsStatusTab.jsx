@@ -7,9 +7,15 @@ const ApplicationsStatusTab = ({ applications }) => {
 		switch (status) {
 			case "approved":
 				return <CheckCircle size={20} className="text-success" />;
-			case "under_review":
+			case "pending":
 				return <Clock size={20} className="text-warning" />;
-			case "denied":
+			case "rejected":
+				return <AlertCircle size={20} className="text-danger" />;
+			case "active":
+				return <CheckCircle size={20} className="text-success" />;
+			case "paid_off":
+				return <CheckCircle size={20} className="text-success" />;
+			case "defaulted":
 				return <AlertCircle size={20} className="text-danger" />;
 			default:
 				return <Clock size={20} className="text-muted" />;
@@ -54,14 +60,18 @@ const ApplicationsStatusTab = ({ applications }) => {
 									</div>
 									<div>
 										<h6 className="fw-medium mb-1">
-											{application.type
-												.charAt(0)
-												.toUpperCase() +
-												application.type.slice(1)}{" "}
+											{application.loan_type
+												? (application.loan_type
+													.charAt(0)
+													.toUpperCase() +
+													application.loan_type.slice(1))
+												: 'Unknown'}{" "}
 											Loan
 										</h6>
 										<small className="text-muted">
-											Applied: {application.submittedDate}
+											Applied: {application.application_date ? 
+												new Date(application.application_date).toLocaleDateString() : 
+												'N/A'}
 										</small>
 									</div>
 								</div>
@@ -88,33 +98,33 @@ const ApplicationsStatusTab = ({ applications }) => {
 								</div>
 								<div className="col-6 text-end">
 									<span className="fw-medium">
-										{application.purpose}
+										{application.purpose || 'N/A'}
 									</span>
 								</div>
-								{application.rate && (
+								{application.interest_rate && (
 									<>
 										<div className="col-6">
 											<span className="text-muted">
-												Approved Rate:
+												Interest Rate:
 											</span>
 										</div>
 										<div className="col-6 text-end">
-											<span className="fw-medium text-success">
-												{application.rate}%
+											<span className="fw-medium text-info">
+												{(application.interest_rate * 100).toFixed(2)}%
 											</span>
 										</div>
 									</>
 								)}
-								{application.expectedDecision && (
+								{application.approval_date && (
 									<>
 										<div className="col-6">
 											<span className="text-muted">
-												Expected Decision:
+												Approval Date:
 											</span>
 										</div>
 										<div className="col-6 text-end">
 											<span className="fw-medium">
-												{application.expectedDecision}
+												{new Date(application.approval_date).toLocaleDateString()}
 											</span>
 										</div>
 									</>
@@ -131,11 +141,32 @@ const ApplicationsStatusTab = ({ applications }) => {
 								</div>
 							)}
 
-							{application.status === "under_review" && (
+							{application.status === "pending" && (
 								<div className="alert alert-info">
 									<small>
 										Your application is being reviewed.
 										We'll notify you of the decision soon.
+									</small>
+								</div>
+							)}
+
+							{application.status === "rejected" && (
+								<div className="alert alert-danger">
+									<small>
+										Unfortunately, your application was not approved.
+										{application.rejection_reason && ` Reason: ${application.rejection_reason}`}
+									</small>
+								</div>
+							)}
+
+							{application.status === "active" && (
+								<div className="alert alert-primary">
+									<small>
+										Your loan is active. Next payment due: {
+											application.first_payment_date ? 
+											new Date(application.first_payment_date).toLocaleDateString() : 
+											'TBD'
+										}
 									</small>
 								</div>
 							)}

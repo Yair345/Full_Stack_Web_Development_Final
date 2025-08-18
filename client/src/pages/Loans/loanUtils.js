@@ -71,17 +71,17 @@ export const loanTypes = [
         name: "Personal Loan",
         icon: "DollarSign",
         description: "For personal expenses, debt consolidation, or major purchases",
-        rates: "5.99% - 24.99% APR",
-        terms: "12 - 84 months",
-        maxAmount: "$50,000"
+        rates: "7.00% - 12.50% APR",
+        terms: "6 - 60 months",
+        maxAmount: "$100,000"
     },
     {
         type: "mortgage",
         name: "Home Mortgage",
         icon: "Home",
         description: "Purchase or refinance your home with competitive rates",
-        rates: "3.25% - 7.50% APR",
-        terms: "15 - 30 years",
+        rates: "3.50% - 4.50% APR",
+        terms: "10 - 30 years",
         maxAmount: "$2,000,000"
     },
     {
@@ -89,18 +89,18 @@ export const loanTypes = [
         name: "Auto Loan",
         icon: "Car",
         description: "Finance your new or used vehicle purchase",
-        rates: "3.99% - 18.99% APR",
-        terms: "12 - 84 months",
+        rates: "3.50% - 5.50% APR",
+        terms: "12 - 72 months",
         maxAmount: "$150,000"
     },
     {
-        type: "student",
-        name: "Student Loan",
-        icon: "GraduationCap",
-        description: "Fund your education with flexible repayment options",
-        rates: "4.50% - 12.00% APR",
-        terms: "5 - 20 years",
-        maxAmount: "$100,000"
+        type: "business",
+        name: "Business Loan",
+        icon: "DollarSign",
+        description: "Grow your business with flexible financing solutions",
+        rates: "5.80% - 8.50% APR",
+        terms: "12 - 60 months",
+        maxAmount: "$500,000"
     }
 ];
 
@@ -124,10 +124,20 @@ export const getLoanIcon = (type) => {
 
 export const getStatusBadge = (status) => {
     const statusMap = {
+        // Current system statuses
         current: { class: "bg-success", text: "Current" },
         late: { class: "bg-warning", text: "Late" },
         overdue: { class: "bg-danger", text: "Overdue" },
-        approved: { class: "bg-success", text: "Approved" },
+        
+        // Database statuses (from LOAN_STATUS constants)
+        pending: { class: "bg-warning", text: "Pending" },
+        approved: { class: "bg-info", text: "Approved" },
+        rejected: { class: "bg-danger", text: "Rejected" },
+        active: { class: "bg-success", text: "Active" },
+        paid_off: { class: "bg-success", text: "Paid Off" },
+        defaulted: { class: "bg-danger", text: "Defaulted" },
+        
+        // Legacy statuses for compatibility
         under_review: { class: "bg-warning", text: "Under Review" },
         denied: { class: "bg-danger", text: "Denied" }
     };
