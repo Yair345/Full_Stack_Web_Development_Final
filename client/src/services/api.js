@@ -224,4 +224,57 @@ export const cardAPI = {
     }),
 };
 
-export default { apiRequest, authAPI, accountAPI, transactionAPI, standingOrderAPI, loanAPI, cardAPI };
+// Stock API calls
+export const stockAPI = {
+    // Get available stocks for trading
+    getAvailableStocks: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/stocks${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Search stocks by symbol or name
+    searchStocks: (query) => apiRequest(`/stocks/search?q=${encodeURIComponent(query)}`),
+
+    // Get stock quote by symbol
+    getStockQuote: (symbol) => apiRequest(`/stocks/${symbol}/quote`),
+
+    // Buy stock
+    buyStock: (orderData) => apiRequest('/stocks/buy', {
+        method: 'POST',
+        body: JSON.stringify(orderData),
+    }),
+
+    // Sell stock
+    sellStock: (orderData) => apiRequest('/stocks/sell', {
+        method: 'POST',
+        body: JSON.stringify(orderData),
+    }),
+
+    // Get user's stock transactions
+    getStockTransactions: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/stocks/transactions${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get user's portfolio
+    getPortfolio: () => apiRequest('/stocks/portfolio'),
+
+    // Get user's watchlist
+    getWatchlist: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/stocks/watchlist${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Add stock to watchlist
+    addToWatchlist: (watchlistData) => apiRequest('/stocks/watchlist', {
+        method: 'POST',
+        body: JSON.stringify(watchlistData),
+    }),
+
+    // Remove stock from watchlist
+    removeFromWatchlist: (id) => apiRequest(`/stocks/watchlist/${id}`, {
+        method: 'DELETE',
+    }),
+};
+
+export default { apiRequest, authAPI, accountAPI, transactionAPI, standingOrderAPI, loanAPI, cardAPI, stockAPI };

@@ -10,6 +10,7 @@ import {
 	Building2,
 	User,
 	Wallet,
+	TrendingUp,
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -22,6 +23,7 @@ const Sidebar = () => {
 		{ name: "Transfer", href: "/transfer", icon: Send },
 		{ name: "Loans", href: "/loans", icon: Banknote },
 		{ name: "Cards", href: "/cards", icon: Wallet },
+		{ name: "Stocks", href: "/stocks", icon: TrendingUp },
 		{ name: "Profile", href: "/profile", icon: User },
 	];
 

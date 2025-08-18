@@ -20,6 +20,7 @@ import Cards from "./pages/Cards/Cards";
 import AdminPanel from "./pages/AdminPanel/AdminPanel";
 import BranchManagement from "./pages/BranchManagement/BranchManagement";
 import Profile from "./pages/Profile/Profile";
+import Stocks from "./pages/Stocks/Stocks.jsx";
 
 function AppContent() {
 	const { loading } = useAuthInitialization();
@@ -69,6 +70,10 @@ function AppContent() {
 									/>
 									<Route path="/loans" element={<Loans />} />
 									<Route path="/cards" element={<Cards />} />
+									<Route
+										path="/stocks"
+										element={<Stocks />}
+									/>
 									<Route
 										path="/profile"
 										element={<Profile />}

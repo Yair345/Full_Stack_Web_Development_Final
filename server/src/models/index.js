@@ -7,6 +7,10 @@ const Transaction = require('./Transaction.model');
 const Card = require('./Card.model');
 const Loan = require('./Loan.model');
 const StandingOrder = require('./StandingOrder.model');
+const StockTransaction = require('./StockTransaction.model');
+const Portfolio = require('./Portfolio.model');
+const Watchlist = require('./Watchlist.model');
+const StockQuote = require('./StockQuote.model');
 
 // Define model associations
 const setupAssociations = () => {
@@ -147,6 +151,42 @@ const setupAssociations = () => {
         as: 'creator'
     });
 
+    // Stock Transaction associations
+    StockTransaction.belongsTo(User, {
+        foreignKey: 'user_id',
+        as: 'user'
+    });
+
+    User.hasMany(StockTransaction, {
+        foreignKey: 'user_id',
+        as: 'stockTransactions',
+        onDelete: 'CASCADE'
+    });
+
+    // Portfolio associations
+    Portfolio.belongsTo(User, {
+        foreignKey: 'user_id',
+        as: 'user'
+    });
+
+    User.hasMany(Portfolio, {
+        foreignKey: 'user_id',
+        as: 'portfolioHoldings',
+        onDelete: 'CASCADE'
+    });
+
+    // Watchlist associations
+    Watchlist.belongsTo(User, {
+        foreignKey: 'user_id',
+        as: 'user'
+    });
+
+    User.hasMany(Watchlist, {
+        foreignKey: 'user_id',
+        as: 'watchlistItems',
+        onDelete: 'CASCADE'
+    });
+
     console.log('✅ Model associations established');
 };
 
@@ -162,6 +202,10 @@ module.exports = {
     Card,
     Loan,
     StandingOrder,
+    StockTransaction,
+    Portfolio,
+    Watchlist,
+    StockQuote,
 
     // Helper function to sync all models
     syncModels: async (options = {}) => {

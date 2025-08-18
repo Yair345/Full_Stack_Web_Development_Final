@@ -253,6 +253,109 @@ const validateBodySize = (maxSize = 1024 * 1024) => { // 1MB default
     };
 };
 
+/**
+ * Validate stock transaction data
+ */
+const validateStockTransaction = [
+    requireFields(['stockSymbol', 'quantity', 'pricePerShare']),
+    validateNumericFields(['quantity', 'pricePerShare']),
+    validatePositiveNumbers(['quantity', 'pricePerShare']),
+    (req, res, next) => {
+        const { stockSymbol, quantity, pricePerShare } = req.body;
+
+        // Validate stock symbol format
+        if (stockSymbol && (typeof stockSymbol !== 'string' || !/^[A-Z]{1,10}$/.test(stockSymbol.toUpperCase()))) {
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                success: false,
+                message: 'Stock symbol must be 1-10 uppercase letters',
+                field: 'stockSymbol'
+            });
+        }
+
+        // Validate quantity is integer
+        if (quantity && !Number.isInteger(parseFloat(quantity))) {
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                success: false,
+                message: 'Quantity must be a whole number',
+                field: 'quantity'
+            });
+        }
+
+        // Validate maximum transaction amount
+        const totalAmount = parseFloat(quantity) * parseFloat(pricePerShare);
+        if (totalAmount > 1000000) { // Max $1M per transaction
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                success: false,
+                message: 'Transaction amount exceeds maximum limit of $1,000,000',
+                field: 'totalAmount'
+            });
+        }
+
+        // Convert stock symbol to uppercase
+        req.body.stockSymbol = stockSymbol.toUpperCase();
+
+        next();
+    },
+    handleValidationErrors
+];
+
+/**
+ * Validate watchlist item data
+ */
+const validateWatchlistItem = [
+    requireFields(['stockSymbol']),
+    (req, res, next) => {
+        const { stockSymbol, priceAboveAlert, priceBelowAlert, notes } = req.body;
+
+        // Validate stock symbol format
+        if (stockSymbol && (typeof stockSymbol !== 'string' || !/^[A-Z]{1,10}$/.test(stockSymbol.toUpperCase()))) {
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                success: false,
+                message: 'Stock symbol must be 1-10 uppercase letters',
+                field: 'stockSymbol'
+            });
+        }
+
+        // Validate alert prices if provided
+        if (priceAboveAlert !== undefined && priceAboveAlert !== null) {
+            const price = parseFloat(priceAboveAlert);
+            if (isNaN(price) || price <= 0) {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Price above alert must be a positive number',
+                    field: 'priceAboveAlert'
+                });
+            }
+        }
+
+        if (priceBelowAlert !== undefined && priceBelowAlert !== null) {
+            const price = parseFloat(priceBelowAlert);
+            if (isNaN(price) || price <= 0) {
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Price below alert must be a positive number',
+                    field: 'priceBelowAlert'
+                });
+            }
+        }
+
+        // Validate notes length if provided
+        if (notes && typeof notes === 'string' && notes.length > 500) {
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({
+                success: false,
+                message: 'Notes must not exceed 500 characters',
+                field: 'notes'
+            });
+        }
+
+        // Convert stock symbol to uppercase
+        req.body.stockSymbol = stockSymbol.toUpperCase();
+
+        next();
+    },
+    handleValidationErrors
+];
+
 module.exports = {
     handleValidationErrors,
     sanitizeBody,
@@ -263,5 +366,7 @@ module.exports = {
     validatePositiveNumbers,
     validateEnumFields,
     validateDateFields,
-    validateBodySize
+    validateBodySize,
+    validateStockTransaction,
+    validateWatchlistItem
 };
