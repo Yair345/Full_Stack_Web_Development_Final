@@ -340,7 +340,7 @@ const createTransfer = catchAsync(async (req, res, next) => {
                     },
                     transferType: transactionType,
                     description: description,
-                    processingTime: Date.now() - transaction.created_at.getTime(),
+                    processingTime: completeTransaction?.createdAt ? Date.now() - new Date(completeTransaction.createdAt).getTime() : 0,
                     ipAddress: req.ip || req.connection.remoteAddress,
                     userAgent: req.get('User-Agent')
                 }
@@ -378,7 +378,7 @@ const createTransfer = catchAsync(async (req, res, next) => {
         res.status(201).json({
             success: true,
             message: `🎉 Transfer completed successfully! $${transferAmount} has been transferred from ${fromAccount.name} to ${toAccount.name}.`,
-            data: { 
+            data: {
                 transaction: completeTransaction,
                 summary: {
                     amount: transferAmount,
@@ -526,7 +526,7 @@ const createDeposit = catchAsync(async (req, res, next) => {
         res.status(201).json({
             success: true,
             message: `💰 Deposit completed successfully! $${depositAmount} has been added to ${account.name}.`,
-            data: { 
+            data: {
                 transaction,
                 summary: {
                     amount: depositAmount,
@@ -674,7 +674,7 @@ const createWithdrawal = catchAsync(async (req, res, next) => {
         res.status(201).json({
             success: true,
             message: `💸 Withdrawal completed successfully! $${withdrawalAmount} has been withdrawn from ${account.name}.`,
-            data: { 
+            data: {
                 transaction,
                 summary: {
                     amount: withdrawalAmount,

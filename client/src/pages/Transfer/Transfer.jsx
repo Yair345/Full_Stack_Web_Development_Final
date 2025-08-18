@@ -70,12 +70,12 @@ const Transfer = () => {
 		description: "",
 		type: "internal", // internal, external, wire
 	});
-	
+
 	// Notification state
 	const [notification, setNotification] = useState({
 		show: false,
 		message: "",
-		type: "success"
+		type: "success",
 	});
 
 	// Show notification for 5 seconds
@@ -136,36 +136,28 @@ const Transfer = () => {
 				};
 			}
 
-			await createTransfer(transferRequest, {
-				onSuccess: (data) => {
-					console.log("🎉 Transfer successful:", data);
-					
-					// Show simple success message from server
-					const message = data.message || "Transfer completed successfully!";
-					showNotification(message, "success");
+			const result = await createTransfer(transferRequest);
+			console.log("🎉 Transfer successful:", result);
 
-					// Clear the form
-					setTransferForm({
-						fromAccount: "",
-						toAccount: "",
-						amount: "",
-						description: "",
-						type: "internal",
-					});
+			// Show simple success message from server
+			const message =
+				result.message || "Transfer completed successfully!";
+			showNotification(message, "success");
 
-					// Refresh accounts data to update balances
-					refetchAccounts();
-
-					// Refresh transfer history
-					refetchHistory();
-				},
-				onError: (error) => {
-					console.error("Transfer failed:", error);
-					alert(
-						`Transfer failed: ${error.message || "Unknown error"}`
-					);
-				},
+			// Clear the form
+			setTransferForm({
+				fromAccount: "",
+				toAccount: "",
+				amount: "",
+				description: "",
+				type: "internal",
 			});
+
+			// Refresh accounts data to update balances
+			refetchAccounts();
+
+			// Refresh transfer history
+			refetchHistory();
 		} catch (error) {
 			console.error("Transfer error:", error);
 			alert(`Transfer failed: ${error.message || "Unknown error"}`);
@@ -260,18 +252,36 @@ const Transfer = () => {
 			{/* Notification Display */}
 			{notification.show && (
 				<div className="col-12">
-					<div className={`alert alert-${notification.type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`} role="alert">
-						<strong>{notification.type === 'success' ? '✅ Success!' : '❌ Error!'}</strong> {notification.message}
-						<button 
-							type="button" 
-							className="btn-close" 
-							onClick={() => setNotification({ show: false, message: "", type: "success" })}
+					<div
+						className={`alert alert-${
+							notification.type === "success"
+								? "success"
+								: "danger"
+						} alert-dismissible fade show`}
+						role="alert"
+					>
+						<strong>
+							{notification.type === "success"
+								? "✅ Success!"
+								: "❌ Error!"}
+						</strong>{" "}
+						{notification.message}
+						<button
+							type="button"
+							className="btn-close"
+							onClick={() =>
+								setNotification({
+									show: false,
+									message: "",
+									type: "success",
+								})
+							}
 							aria-label="Close"
 						></button>
 					</div>
 				</div>
 			)}
-			
+
 			<TransferHeader />
 
 			<TransferTabs activeTab={activeTab} onTabChange={setActiveTab} />

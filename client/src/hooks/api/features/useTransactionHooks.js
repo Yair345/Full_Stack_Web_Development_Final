@@ -129,17 +129,10 @@ export const useCreateTransaction = () => {
 
 /**
  * Hook for creating a new transfer
- * @returns {Object} - { createTransfer, loading, error, data }
+ * @returns {Object} - { mutate: createTransfer, loading, error, data }
  */
 export const useCreateTransfer = () => {
-    return useMutation(transactionAPI.createTransfer, {
-        onSuccess: (data) => {
-            console.log('Transfer completed successfully:', data);
-        },
-        onError: (error) => {
-            console.error('Transfer failed:', error);
-        }
-    });
+    return useMutation(transactionAPI.createTransfer);
 };
 
 /**
