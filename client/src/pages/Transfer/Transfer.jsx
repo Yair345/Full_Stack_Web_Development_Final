@@ -70,6 +70,21 @@ const Transfer = () => {
 		description: "",
 		type: "internal", // internal, external, wire
 	});
+	
+	// Notification state
+	const [notification, setNotification] = useState({
+		show: false,
+		message: "",
+		type: "success"
+	});
+
+	// Show notification for 5 seconds
+	const showNotification = (message, type = "success") => {
+		setNotification({ show: true, message, type });
+		setTimeout(() => {
+			setNotification({ show: false, message: "", type: "success" });
+		}, 5000);
+	};
 
 	const handleInputChange = (field, value) => {
 		setTransferForm((prev) => ({
@@ -123,8 +138,11 @@ const Transfer = () => {
 
 			await createTransfer(transferRequest, {
 				onSuccess: (data) => {
-					console.log("Transfer successful:", data);
-					alert("Transfer completed successfully!");
+					console.log("🎉 Transfer successful:", data);
+					
+					// Show simple success message from server
+					const message = data.message || "Transfer completed successfully!";
+					showNotification(message, "success");
 
 					// Clear the form
 					setTransferForm({
@@ -239,6 +257,21 @@ const Transfer = () => {
 
 	return (
 		<div className="row g-4">
+			{/* Notification Display */}
+			{notification.show && (
+				<div className="col-12">
+					<div className={`alert alert-${notification.type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`} role="alert">
+						<strong>{notification.type === 'success' ? '✅ Success!' : '❌ Error!'}</strong> {notification.message}
+						<button 
+							type="button" 
+							className="btn-close" 
+							onClick={() => setNotification({ show: false, message: "", type: "success" })}
+							aria-label="Close"
+						></button>
+					</div>
+				</div>
+			)}
+			
 			<TransferHeader />
 
 			<TransferTabs activeTab={activeTab} onTabChange={setActiveTab} />
