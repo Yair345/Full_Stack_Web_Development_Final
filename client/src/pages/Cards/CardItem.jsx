@@ -42,7 +42,7 @@ const CardItem = ({
 
 	return (
 		<div className="col-lg-4 col-md-6">
-			<Card>
+			<Card className="card-item">
 				{/* Card Visual */}
 				<div
 					className={`${card.color} text-white rounded p-4 mb-3`}

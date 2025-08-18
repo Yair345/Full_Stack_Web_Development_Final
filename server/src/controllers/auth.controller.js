@@ -17,19 +17,42 @@ const register = catchAsync(async (req, res, next) => {
 
     logger.info(`Registration attempt for email: ${email}`);
 
-    // Check if user already exists
-    const existingUser = await User.findOne({
-        where: {
-            [Op.or]: [
-                { email },
-                { username },
-                { national_id }
-            ]
-        }
-    });
+    // Check if user already exists - check each field separately for specific error messages
+    const existingEmailUser = await User.findOne({ where: { email } });
+    const existingUsernameUser = await User.findOne({ where: { username } });
+    const existingNationalIdUser = await User.findOne({ where: { national_id } });
 
-    if (existingUser) {
-        throw new AppError('User with this email, username, or national ID already exists', 400);
+    if (existingEmailUser || existingUsernameUser || existingNationalIdUser) {
+        // Create field-specific error response similar to validation middleware
+        const errors = [];
+
+        if (existingEmailUser) {
+            errors.push({
+                field: 'email',
+                message: 'An account with this email already exists',
+                value: email
+            });
+        }
+        if (existingUsernameUser) {
+            errors.push({
+                field: 'username',
+                message: 'This username is already taken',
+                value: username
+            });
+        }
+        if (existingNationalIdUser) {
+            errors.push({
+                field: 'national_id',
+                message: 'An account with this National ID already exists',
+                value: national_id
+            });
+        }
+
+        return res.status(400).json({
+            success: false,
+            message: 'User already exists',
+            errors: errors
+        });
     }
 
     // Create user with AuthService

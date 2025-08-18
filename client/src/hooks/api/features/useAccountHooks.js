@@ -25,7 +25,6 @@ export const useAccounts = (options = {}) => {
         loading,
         error,
         refetch: (customOptions = {}) => {
-            console.log('useAccounts refetch called with:', customOptions);
             return refetch(customOptions);
         },
         mutate: (newData, shouldRevalidate) => {
@@ -92,30 +91,26 @@ export const useCheckExistingAccounts = () => {
  */
 export const useCreateAccount = () => {
     const mutation = useMutation(accountAPI.createAccount);
-    
+
     return {
         ...mutation,
         mutate: async (accountData) => {
-            console.log("useCreateAccount: Starting account creation with data:", accountData);
             try {
                 const result = await mutation.mutate(accountData);
-                console.log("useCreateAccount: Account creation result:", result);
-                
+
                 // Force a global cache refresh for accounts
                 if (typeof window !== 'undefined' && window.location) {
-                    console.log("useCreateAccount: Dispatching account-created event after 100ms delay");
                     // Use a small delay to ensure backend has processed everything
                     setTimeout(() => {
-                        window.dispatchEvent(new CustomEvent('account-created', { 
-                            detail: { accountData: result } 
+                        window.dispatchEvent(new CustomEvent('account-created', {
+                            detail: { accountData: result }
                         }));
-                        console.log("useCreateAccount: account-created event dispatched");
                     }, 100);
                 }
-                
+
                 return result;
             } catch (error) {
-                console.error("useCreateAccount: Account creation failed:", error);
+                console.error("Account creation failed:", error);
                 throw error;
             }
         }

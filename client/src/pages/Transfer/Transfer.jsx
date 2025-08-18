@@ -51,6 +51,15 @@ const Transfer = () => {
 		refetch: refetchScheduled,
 	} = useStandingOrders();
 
+	// Create a wrapper function for refetchScheduled
+	const handleRefreshScheduled = async () => {
+		try {
+			await refetchScheduled();
+		} catch (error) {
+			console.error("Failed to refresh scheduled transfers:", error);
+		}
+	};
+
 	// Fetch recent recipients from transaction history
 	const { recipients: recentRecipients, loading: recipientsLoading } =
 		useRecentRecipients();
@@ -95,8 +104,6 @@ const Transfer = () => {
 
 	const handleQuickTransfer = async (transferData) => {
 		try {
-			console.log("Submitting transfer:", transferData);
-
 			// Find the from account to get its ID
 			const fromAccount = accounts.find(
 				(acc) => acc.id.toString() === transferData.fromAccount
@@ -137,7 +144,6 @@ const Transfer = () => {
 			}
 
 			const result = await createTransfer(transferRequest);
-			console.log("🎉 Transfer successful:", result);
 
 			// Show simple success message from server
 			const message =
@@ -174,7 +180,6 @@ const Transfer = () => {
 	};
 
 	const handleAddRecipient = () => {
-		console.log("Adding new recipient...");
 		alert("Add recipient feature will be implemented soon!");
 	};
 
@@ -183,8 +188,10 @@ const Transfer = () => {
 			// Handle actual scheduling with provided data
 			createStandingOrder(scheduleData, {
 				onSuccess: (data) => {
-					console.log("Standing order created successfully:", data);
-					alert("Scheduled transfer created successfully!");
+					showNotification(
+						"Scheduled transfer created successfully!",
+						"success"
+					);
 					refetchScheduled();
 				},
 				onError: (error) => {
@@ -192,17 +199,20 @@ const Transfer = () => {
 						"Failed to create scheduled transfer:",
 						error
 					);
-					alert(
+					showNotification(
 						`Failed to create scheduled transfer: ${
 							error.message || "Unknown error"
-						}`
+						}`,
+						"error"
 					);
 				},
 			});
 		} else {
 			// Just show a placeholder for now - in real app, would open a modal/form
-			console.log("Scheduling new transfer...");
-			alert("Schedule transfer form will be implemented soon!");
+			showNotification(
+				"Schedule transfer form will be implemented soon!",
+				"error"
+			);
 		}
 	};
 
@@ -323,7 +333,7 @@ const Transfer = () => {
 					onScheduleTransfer={handleScheduleTransfer}
 					accounts={accounts}
 					loading={scheduledLoading || createScheduledLoading}
-					onRefresh={refetchScheduled}
+					onRefresh={handleRefreshScheduled}
 				/>
 			)}
 

@@ -40,37 +40,25 @@ const ScheduledTransfersTab = ({
 		useUpdateStandingOrder();
 
 	const handleToggleStatus = async (transferId, currentStatus) => {
-		console.log(
-			`${
-				currentStatus === "active" ? "Pausing" : "Resuming"
-			} transfer ${transferId}`
-		);
-
 		try {
-			await toggleStandingOrder(transferId, {
-				onSuccess: () => {
-					console.log("Standing order status toggled successfully");
-					if (onRefresh) onRefresh();
-				},
-				onError: (error) => {
-					console.error(
-						"Failed to toggle standing order status:",
-						error
-					);
-					alert(
-						`Failed to ${
-							currentStatus === "active" ? "pause" : "resume"
-						} transfer: ${error.message || "Unknown error"}`
-					);
-				},
-			});
+			// Call the mutation and wait for it to complete
+			const result = await toggleStandingOrder(transferId);
+
+			// Force refresh the list to show updated status
+			if (onRefresh) {
+				await onRefresh();
+			}
 		} catch (error) {
 			console.error("Toggle standing order error:", error);
+			alert(
+				`Failed to ${
+					currentStatus === "active" ? "pause" : "resume"
+				} transfer: ${error.message || "Unknown error"}`
+			);
 		}
 	};
 
 	const handleEditTransfer = (transfer) => {
-		console.log(`Editing transfer ${transfer.id}`);
 		setEditingTransfer(transfer);
 		setShowForm(true);
 	};
@@ -81,12 +69,9 @@ const ScheduledTransfersTab = ({
 				"Are you sure you want to delete this scheduled transfer?"
 			)
 		) {
-			console.log(`Deleting transfer ${transferId}`);
-
 			try {
 				await cancelStandingOrder(transferId, {
 					onSuccess: () => {
-						console.log("Standing order deleted successfully");
 						if (onRefresh) onRefresh();
 					},
 					onError: (error) => {
@@ -120,7 +105,6 @@ const ScheduledTransfersTab = ({
 					{ id: editingTransfer.id, data: scheduleData },
 					{
 						onSuccess: () => {
-							console.log("Standing order updated successfully");
 							setShowForm(false);
 							setEditingTransfer(null);
 							if (onRefresh) onRefresh();
@@ -138,6 +122,8 @@ const ScheduledTransfersTab = ({
 				// Create new standing order
 				await onScheduleTransfer(scheduleData);
 				setShowForm(false);
+				// Refresh the scheduled transfers list
+				if (onRefresh) onRefresh();
 			}
 		} catch (error) {
 			// Error is handled in the form component
@@ -260,25 +246,44 @@ const ScheduledTransfersTab = ({
 									? "border-bottom-0"
 									: ""
 							} ${
+								transfer.status === "active" &&
 								isUpcoming(transfer.nextDate)
 									? "border-start border-primary border-3"
+									: ""
+							} ${
+								transfer.status === "paused"
+									? "bg-warning bg-opacity-10"
 									: ""
 							}`}
 						>
 							<div className="d-flex align-items-center">
-								<div className="bg-light rounded-circle p-2 me-3">
-									<Clock
-										size={20}
-										className={
-											transfer.status === "active"
-												? "text-primary"
-												: "text-muted"
-										}
-									/>
+								<div
+									className={`rounded-circle p-2 me-3 ${
+										transfer.status === "active"
+											? "bg-primary bg-opacity-10"
+											: "bg-warning bg-opacity-10"
+									}`}
+								>
+									{transfer.status === "active" ? (
+										<Clock
+											size={20}
+											className="text-primary"
+										/>
+									) : (
+										<Pause
+											size={20}
+											className="text-warning"
+										/>
+									)}
 								</div>
 								<div>
 									<h6 className="fw-medium mb-1">
 										{transfer.recipient}
+										{transfer.status === "paused" && (
+											<span className="ms-2 badge bg-warning text-dark">
+												PAUSED
+											</span>
+										)}
 									</h6>
 									<div className="d-flex align-items-center text-muted small">
 										<span
@@ -295,14 +300,25 @@ const ScheduledTransfersTab = ({
 												transfer.nextDate
 											).toLocaleDateString()}
 										</span>
-										{isUpcoming(transfer.nextDate) && (
+										{transfer.status === "paused" && (
 											<>
 												<span className="mx-2">•</span>
-												<span className="badge bg-warning text-dark">
-													Upcoming
+												<span className="text-warning small">
+													Paused
 												</span>
 											</>
 										)}
+										{transfer.status === "active" &&
+											isUpcoming(transfer.nextDate) && (
+												<>
+													<span className="mx-2">
+														•
+													</span>
+													<span className="badge bg-info text-white">
+														Upcoming
+													</span>
+												</>
+											)}
 									</div>
 								</div>
 							</div>
@@ -314,8 +330,8 @@ const ScheduledTransfersTab = ({
 									<span
 										className={`badge ${
 											transfer.status === "active"
-												? "bg-success"
-												: "bg-warning"
+												? "bg-success text-white"
+												: "bg-warning text-dark"
 										}`}
 									>
 										{transfer.status.toUpperCase()}

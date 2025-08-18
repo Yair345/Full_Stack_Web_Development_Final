@@ -26,7 +26,6 @@ export const useTransactions = (filters = {}, options = {}) => {
         try {
             // If there are errors or no data, return empty array
             if (error || accountsError || !transactionsResponse) {
-                console.log('API error or no data, returning empty array');
                 return [];
             }
 
