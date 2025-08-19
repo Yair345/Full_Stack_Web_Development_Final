@@ -3,16 +3,39 @@ import Card from "../../components/ui/Card";
 import { formatCurrency, formatDate } from "./dashboardUtils";
 
 const TransactionItem = ({ transaction, isLast }) => {
+	// Handle both mock data format and real API format
 	const getTransactionIcon = () => {
-		return transaction.type === "credit" ? (
-			<ArrowUpRight size={20} className="text-success" />
-		) : (
-			<ArrowDownRight size={20} className="text-danger" />
-		);
+		// For real API data, check the amount and transaction type
+		if (transaction.amount > 0 || transaction.type === "credit") {
+			return <ArrowUpRight size={20} className="text-success" />;
+		}
+		return <ArrowDownRight size={20} className="text-danger" />;
 	};
 
 	const getAmountClass = () => {
 		return transaction.amount >= 0 ? "text-success" : "text-danger";
+	};
+
+	// Get transaction description - handle both formats
+	const getDescription = () => {
+		if (transaction.description) {
+			return transaction.description;
+		}
+		// Fallback for API format
+		return transaction.merchant || "Transaction";
+	};
+
+	// Get transaction date - handle both formats
+	const getDate = () => {
+		if (transaction.date) {
+			return transaction.date;
+		}
+		// Handle API format dates
+		return (
+			transaction.created_at ||
+			transaction.processed_at ||
+			new Date().toISOString()
+		);
 	};
 
 	return (
@@ -24,10 +47,10 @@ const TransactionItem = ({ transaction, isLast }) => {
 			<div className="d-flex align-items-center">
 				<div className="flex-shrink-0">{getTransactionIcon()}</div>
 				<div className="ms-3">
-					<p className="fw-medium mb-1">{transaction.description}</p>
+					<p className="fw-medium mb-1">{getDescription()}</p>
 					<p className="small text-muted mb-0 d-flex align-items-center">
 						<Calendar size={14} className="me-1" />
-						{formatDate(transaction.date)}
+						{formatDate(getDate())}
 					</p>
 				</div>
 			</div>
@@ -42,28 +65,38 @@ const TransactionItem = ({ transaction, isLast }) => {
 };
 
 const RecentTransactions = ({ transactions, onViewAll }) => {
+	// Ensure transactions is always an array
+	const transactionsList = Array.isArray(transactions) ? transactions : [];
+
 	return (
 		<div className="col-12">
 			<Card>
 				<div className="d-flex align-items-center justify-content-between mb-4">
 					<h2 className="h5 fw-medium mb-0">Recent Transactions</h2>
-					<button
-						className="btn btn-link text-primary p-0 small"
-						onClick={onViewAll}
-					>
-						View all
-					</button>
+					{transactionsList.length > 0 && (
+						<button
+							className="btn btn-link text-primary p-0 small"
+							onClick={onViewAll}
+						>
+							View all
+						</button>
+					)}
 				</div>
 
-				{transactions.length > 0 ? (
+				{transactionsList.length > 0 ? (
 					<div className="list-group list-group-flush">
-						{transactions.map((transaction, index) => (
-							<TransactionItem
-								key={transaction.id}
-								transaction={transaction}
-								isLast={index === transactions.length - 1}
-							/>
-						))}
+						{transactionsList
+							.slice(0, 10)
+							.map((transaction, index) => (
+								<TransactionItem
+									key={transaction.id || index}
+									transaction={transaction}
+									isLast={
+										index ===
+										Math.min(transactionsList.length - 1, 9)
+									}
+								/>
+							))}
 					</div>
 				) : (
 					<div className="text-center py-4">

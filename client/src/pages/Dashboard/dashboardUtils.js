@@ -100,17 +100,34 @@ export const getAccountTypeColor = (type) => {
 };
 
 export const calculateTotalBalance = (accounts) => {
+    // Ensure accounts is an array
+    if (!Array.isArray(accounts)) {
+        return 0;
+    }
+
     return accounts.reduce((sum, account) => {
+        // Handle both mock data format and real API format
+        const balance = parseFloat(account.balance || 0);
+
         // For credit accounts, we want to show available credit, not negative balance
-        if (account.type === "credit") {
-            return sum + (account.limit || 0) + account.balance;
+        if (account.type === "credit" || account.account_type === "credit") {
+            const limit = parseFloat(account.limit || account.overdraft_limit || 0);
+            return sum + limit + balance; // balance is negative for debt
         }
-        return sum + account.balance;
+        return sum + balance;
     }, 0);
 };
 
 export const calculateNetWorth = (accounts) => {
-    return accounts.reduce((sum, account) => sum + account.balance, 0);
+    // Ensure accounts is an array
+    if (!Array.isArray(accounts)) {
+        return 0;
+    }
+
+    return accounts.reduce((sum, account) => {
+        const balance = parseFloat(account.balance || 0);
+        return sum + balance;
+    }, 0);
 };
 
 export const getTransactionIcon = (type) => {
@@ -125,28 +142,120 @@ export const calculateMonthlySpending = (transactions) => {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
 
-    return transactions
-        .filter(transaction => {
-            const transactionDate = new Date(transaction.date);
-            return transactionDate.getMonth() === currentMonth &&
-                transactionDate.getFullYear() === currentYear &&
-                transaction.amount < 0;
-        })
-        .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0);
+    // Ensure transactions is an array
+    if (!Array.isArray(transactions)) {
+        return 0;
+    }
+
+    const spendingTransactions = transactions.filter(transaction => {
+        // Handle different date field names from API - both transformed and raw formats
+        const dateField = transaction.date ||
+            transaction.created_at ||
+            transaction.processed_at ||
+            transaction.createdAt;
+
+        if (!dateField) {
+            return false;
+        }
+
+        const transactionDate = new Date(dateField);
+        const isCurrentMonth = transactionDate.getMonth() === currentMonth &&
+            transactionDate.getFullYear() === currentYear;
+
+        // Enhanced expense detection for both raw and transformed data
+        let isExpense = false;
+
+        // Handle transformed transaction format first (has 'type' field)
+        if (transaction.type) {
+            if (transaction.amount < 0 || transaction.type === 'debit') {
+                isExpense = true;
+            }
+        }
+        // Handle raw transaction format (has 'transaction_type' field)
+        else if (transaction.transaction_type) {
+            if (['withdrawal', 'payment'].includes(transaction.transaction_type)) {
+                isExpense = true;
+            }
+            // For raw transfer transactions, check if it's outgoing (from user's account)
+            else if (transaction.transaction_type === 'transfer' &&
+                transaction.from_account_id && !transaction.to_account_id) {
+                isExpense = true;
+            }
+        }
+        // Fallback: if amount is negative, it's likely an expense
+        else if (transaction.amount < 0) {
+            isExpense = true;
+        }
+
+        return isCurrentMonth && isExpense;
+    });
+
+    // Calculate total using absolute values
+    const totalSpending = spendingTransactions.reduce((sum, transaction) => {
+        const absAmount = Math.abs(transaction.amount);
+        return sum + absAmount;
+    }, 0);
+
+    return totalSpending;
 };
 
 export const calculateMonthlyIncome = (transactions) => {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
 
-    return transactions
-        .filter(transaction => {
-            const transactionDate = new Date(transaction.date);
-            return transactionDate.getMonth() === currentMonth &&
-                transactionDate.getFullYear() === currentYear &&
-                transaction.amount > 0;
-        })
-        .reduce((sum, transaction) => sum + transaction.amount, 0);
+    // Ensure transactions is an array
+    if (!Array.isArray(transactions)) {
+        return 0;
+    }
+
+    const incomeTransactions = transactions.filter(transaction => {
+        // Handle different date field names from API - both transformed and raw formats
+        const dateField = transaction.date ||
+            transaction.created_at ||
+            transaction.processed_at ||
+            transaction.createdAt;
+
+        if (!dateField) return false;
+
+        const transactionDate = new Date(dateField);
+        const isCurrentMonth = transactionDate.getMonth() === currentMonth &&
+            transactionDate.getFullYear() === currentYear;
+
+        // Enhanced income detection for both raw and transformed data
+        let isIncome = false;
+
+        // Handle transformed transaction format first (has 'type' field)
+        if (transaction.type) {
+            if (transaction.amount > 0 || transaction.type === 'credit') {
+                isIncome = true;
+            }
+        }
+        // Handle raw transaction format (has 'transaction_type' field)
+        else if (transaction.transaction_type) {
+            if (transaction.transaction_type === 'deposit') {
+                isIncome = true;
+            }
+            // For raw transfer transactions, check if it's incoming (to user's account only)
+            else if (transaction.transaction_type === 'transfer' &&
+                transaction.to_account_id && !transaction.from_account_id) {
+                isIncome = true;
+            }
+        }
+        // Fallback: if amount is positive, it's likely income
+        else if (transaction.amount > 0) {
+            isIncome = true;
+        }
+
+        return isCurrentMonth && isIncome;
+    });
+
+    // Calculate total using absolute values
+    const totalIncome = incomeTransactions.reduce((sum, transaction) => {
+        const absAmount = Math.abs(transaction.amount);
+        return sum + absAmount;
+    }, 0);
+
+    return totalIncome;
 };
 
 export const getSavingsProgress = (currentSavings, savingsGoal) => {
@@ -154,6 +263,10 @@ export const getSavingsProgress = (currentSavings, savingsGoal) => {
 };
 
 export const getFinancialHealthScore = (accounts, transactions) => {
+    // Ensure inputs are arrays
+    if (!Array.isArray(accounts)) accounts = [];
+    if (!Array.isArray(transactions)) transactions = [];
+
     const totalBalance = calculateNetWorth(accounts);
     const monthlyIncome = calculateMonthlyIncome(transactions);
     const monthlySpending = calculateMonthlySpending(transactions);

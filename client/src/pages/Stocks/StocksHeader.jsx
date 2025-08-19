@@ -1,13 +1,7 @@
-import { TrendingUp, TrendingDown, DollarSign, Wifi } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
 import Card from "../../components/ui/Card";
-import Button from "../../components/ui/Button";
 
-const StocksHeader = ({
-	totalPortfolioValue,
-	totalGain,
-	totalGainPercent,
-	onTestApi,
-}) => {
+const StocksHeader = ({ totalPortfolioValue, totalGain, totalGainPercent }) => {
 	const isGainPositive = totalGain >= 0;
 
 	return (
@@ -26,17 +20,6 @@ const StocksHeader = ({
 									and track your investments
 								</p>
 							</div>
-							{onTestApi && (
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={onTestApi}
-									className="text-white border-white"
-								>
-									<Wifi size={16} className="me-1" />
-									Test API
-								</Button>
-							)}
 						</div>
 					</div>
 				</div>
