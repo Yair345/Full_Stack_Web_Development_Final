@@ -218,15 +218,15 @@ User.init({
             }
         }
     },
+
+    // Branch assignment (without foreign key constraint)
     branch_id: {
         type: DataTypes.INTEGER,
-        allowNull: true
-        // Temporarily removed foreign key constraint
-        // references: {
-        //     model: 'branches',
-        //     key: 'id'
-        // }
+        allowNull: true,
+        comment: 'Branch where the user is assigned (for customers/employees)'
+        // Note: No foreign key constraint - just a simple integer field
     },
+
     is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -301,10 +301,10 @@ User.init({
             fields: ['role']
         },
         {
-            fields: ['is_active']
+            fields: ['branch_id']
         },
         {
-            fields: ['branch_id']
+            fields: ['is_active']
         }
     ]
 });

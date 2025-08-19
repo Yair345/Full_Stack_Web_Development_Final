@@ -7,7 +7,9 @@ const {
     makeLoanPayment,
     getLoanSummary,
     calculateLoanPayment,
-    updateLoanStatus
+    updateLoanStatus,
+    getBranchLoans,
+    approveBranchLoan
 } = require('../controllers/loan.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireRole } = require('../middleware/role.middleware');
@@ -39,6 +41,13 @@ router.put('/:id', updateLoanApplication);
 
 // POST /api/v1/loans/:id/payment - Make loan payment
 router.post('/:id/payment', transactionLimiter, makeLoanPayment);
+
+// Branch manager routes - require manager or admin role
+// GET /api/v1/loans/branch/all - Get all loans for manager's branch
+router.get('/branch/all', requireRole([USER_ROLES.MANAGER, USER_ROLES.ADMIN]), getBranchLoans);
+
+// PUT /api/v1/loans/:id/branch-approval - Approve or reject loan (branch manager or admin)
+router.put('/:id/branch-approval', requireRole([USER_ROLES.MANAGER, USER_ROLES.ADMIN]), approveBranchLoan);
 
 // Admin routes - require manager or admin role
 // PUT /api/v1/loans/:id/status - Approve or reject loan (admin only)

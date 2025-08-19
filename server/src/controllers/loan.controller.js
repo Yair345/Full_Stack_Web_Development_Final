@@ -1,4 +1,4 @@
-const { Loan, User } = require('../models');
+const { Loan, User, Branch } = require('../models');
 const { LOAN_STATUS, LOAN_TYPES, HTTP_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } = require('../utils/constants');
 const { ValidationError, NotFoundError, ForbiddenError } = require('../utils/error.utils');
 const { validateLoanApplication, validateLoanUpdate } = require('../utils/validation.utils');
@@ -14,11 +14,11 @@ const getLoans = async (req, res) => {
         const { status, type, page = 1, limit = 20 } = req.query;
 
         const whereClause = { user_id: userId };
-        
+
         if (status) {
             whereClause.status = status;
         }
-        
+
         if (type) {
             whereClause.loan_type = type;
         }
@@ -94,9 +94,9 @@ const getLoan = async (req, res) => {
         const userId = req.user.id;
 
         const loan = await Loan.findOne({
-            where: { 
+            where: {
                 id,
-                user_id: userId 
+                user_id: userId
             },
             include: [
                 {
@@ -131,7 +131,7 @@ const getLoan = async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching loan:', error);
-        
+
         if (error instanceof NotFoundError) {
             return res.status(HTTP_STATUS.NOT_FOUND).json({
                 success: false,
@@ -155,7 +155,16 @@ const getLoan = async (req, res) => {
 const createLoanApplication = async (req, res) => {
     try {
         const userId = req.user.id;
-        
+
+        // Get user's branch information
+        const user = await User.findByPk(userId, {
+            attributes: ['id', 'branch_id']
+        });
+
+        if (!user) {
+            throw new NotFoundError('User not found');
+        }
+
         // Validate loan application data
         const validationResult = validateLoanApplication(req.body);
         if (!validationResult.isValid) {
@@ -175,9 +184,10 @@ const createLoanApplication = async (req, res) => {
             annual_income
         } = req.body;
 
-        // Create the loan application
+        // Create the loan application with branch information
         const loan = await Loan.create({
             user_id: userId,
+            branch_id: user.branch_id, // Set branch from user's branch assignment
             loan_type,
             amount,
             interest_rate,
@@ -199,7 +209,7 @@ const createLoanApplication = async (req, res) => {
         });
     } catch (error) {
         console.error('Error creating loan application:', error);
-        
+
         if (error instanceof ValidationError) {
             return res.status(HTTP_STATUS.BAD_REQUEST).json({
                 success: false,
@@ -227,7 +237,7 @@ const updateLoanApplication = async (req, res) => {
         const userId = req.user.id;
 
         const loan = await Loan.findOne({
-            where: { 
+            where: {
                 id,
                 user_id: userId,
                 status: LOAN_STATUS.PENDING
@@ -254,7 +264,7 @@ const updateLoanApplication = async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating loan application:', error);
-        
+
         if (error instanceof NotFoundError) {
             return res.status(HTTP_STATUS.NOT_FOUND).json({
                 success: false,
@@ -294,7 +304,7 @@ const makeLoanPayment = async (req, res) => {
         }
 
         const loan = await Loan.findOne({
-            where: { 
+            where: {
                 id,
                 user_id: userId,
                 status: LOAN_STATUS.ACTIVE
@@ -345,7 +355,7 @@ const makeLoanPayment = async (req, res) => {
         });
     } catch (error) {
         console.error('Error processing loan payment:', error);
-        
+
         if (error instanceof NotFoundError) {
             return res.status(HTTP_STATUS.NOT_FOUND).json({
                 success: false,
@@ -393,7 +403,7 @@ const getLoanSummary = async (req, res) => {
 
         // Calculate totals for active loans
         const activeLoans = loans.filter(loan => loan.status === LOAN_STATUS.ACTIVE);
-        
+
         if (activeLoans.length > 0) {
             summary.totalOwed = activeLoans.reduce((sum, loan) => sum + loan.calculateRemainingBalance(), 0);
             summary.monthlyPayments = activeLoans.reduce((sum, loan) => sum + loan.calculateMonthlyPayment(), 0);
@@ -462,7 +472,7 @@ const calculateLoanPayment = async (req, res) => {
         });
     } catch (error) {
         console.error('Error calculating loan payment:', error);
-        
+
         if (error instanceof ValidationError) {
             return res.status(HTTP_STATUS.BAD_REQUEST).json({
                 success: false,
@@ -520,7 +530,7 @@ const updateLoanStatus = async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating loan status:', error);
-        
+
         if (error instanceof NotFoundError) {
             return res.status(HTTP_STATUS.NOT_FOUND).json({
                 success: false,
@@ -543,6 +553,200 @@ const updateLoanStatus = async (req, res) => {
     }
 };
 
+/**
+ * Get loans for branch manager - shows loans from manager's branch
+ * @param {Object} req - Express request object  
+ * @param {Object} res - Express response object
+ */
+const getBranchLoans = async (req, res) => {
+    try {
+        const managerId = req.user.id;
+        const { status, type, page = 1, limit = 20 } = req.query;
+
+        // Find the branch where this user is the manager
+        const branch = await Branch.findOne({
+            where: { manager_id: managerId },
+            attributes: ['id', 'branch_name', 'branch_code']
+        });
+
+        if (!branch) {
+            throw new ForbiddenError('You are not assigned as a manager to any branch');
+        }
+
+        const whereClause = { branch_id: branch.id };
+
+        if (status) {
+            whereClause.status = status;
+        }
+
+        if (type) {
+            whereClause.loan_type = type;
+        }
+
+        const offset = (page - 1) * limit;
+
+        const loans = await Loan.findAndCountAll({
+            where: whereClause,
+            include: [
+                {
+                    model: User,
+                    as: 'borrower',
+                    attributes: ['id', 'first_name', 'last_name', 'email', 'phone'],
+                    required: true
+                },
+                {
+                    model: User,
+                    as: 'approver',
+                    attributes: ['id', 'first_name', 'last_name'],
+                    required: false
+                }
+            ],
+            order: [['application_date', 'DESC']],
+            limit: parseInt(limit),
+            offset: parseInt(offset)
+        });
+
+        // Add calculated fields to each loan
+        const loansWithCalculations = loans.rows.map(loan => {
+            const loanData = loan.toJSON();
+            return {
+                ...loanData,
+                monthly_payment_calculated: loan.calculateMonthlyPayment(),
+                total_interest: loan.calculateTotalInterest(),
+                remaining_balance: loan.calculateRemainingBalance(),
+                next_payment_due: loan.getNextPaymentDue(),
+                is_overdue: loan.isOverdue()
+            };
+        });
+
+        const totalPages = Math.ceil(loans.count / limit);
+
+        res.json({
+            success: true,
+            message: 'Branch loans retrieved successfully',
+            data: {
+                loans: loansWithCalculations,
+                pagination: {
+                    current_page: parseInt(page),
+                    per_page: parseInt(limit),
+                    total_items: loans.count,
+                    total_pages: totalPages,
+                    has_next_page: page < totalPages,
+                    has_prev_page: page > 1
+                },
+                branch_info: {
+                    id: branch.id,
+                    name: branch.branch_name,
+                    code: branch.branch_code
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error getting branch loans:', error);
+
+        if (error instanceof ForbiddenError) {
+            return res.status(HTTP_STATUS.FORBIDDEN).json({
+                success: false,
+                message: error.message
+            });
+        }
+
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: ERROR_MESSAGES.INTERNAL_ERROR,
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Approve or reject loan (for branch managers and admins)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const approveBranchLoan = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, rejection_reason } = req.body;
+        const approverId = req.user.id;
+        const userRole = req.user.role;
+
+        const loan = await Loan.findByPk(id, {
+            include: [
+                {
+                    model: User,
+                    as: 'borrower',
+                    attributes: ['id', 'first_name', 'last_name']
+                }
+            ]
+        });
+
+        if (!loan) {
+            throw new NotFoundError('Loan not found');
+        }
+
+        if (loan.status !== LOAN_STATUS.PENDING) {
+            throw new ValidationError('Only pending loans can be approved or rejected');
+        }
+
+        // Check if user is authorized to approve this loan
+        if (userRole === 'manager') {
+            // Manager can only approve loans from their branch
+            const branch = await Branch.findOne({
+                where: { manager_id: approverId },
+                attributes: ['id']
+            });
+
+            if (!branch || loan.branch_id !== branch.id) {
+                throw new ForbiddenError('You can only approve loans from your assigned branch');
+            }
+        }
+        // Admins can approve any loan (no additional check needed)
+
+        const updateData = { status };
+
+        if (status === LOAN_STATUS.APPROVED) {
+            updateData.approved_by = approverId;
+            updateData.approval_date = new Date();
+        } else if (status === LOAN_STATUS.REJECTED) {
+            if (!rejection_reason) {
+                throw new ValidationError('Rejection reason is required');
+            }
+            updateData.rejection_reason = rejection_reason;
+        }
+
+        await loan.update(updateData);
+
+        res.json({
+            success: true,
+            message: `Loan ${status} successfully`,
+            data: loan
+        });
+    } catch (error) {
+        console.error('Error approving branch loan:', error);
+
+        if (error instanceof NotFoundError) {
+            return res.status(HTTP_STATUS.NOT_FOUND).json({
+                success: false,
+                message: error.message
+            });
+        }
+
+        if (error instanceof ValidationError || error instanceof ForbiddenError) {
+            return res.status(error instanceof ForbiddenError ? HTTP_STATUS.FORBIDDEN : HTTP_STATUS.BAD_REQUEST).json({
+                success: false,
+                message: error.message
+            });
+        }
+
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+            success: false,
+            message: ERROR_MESSAGES.INTERNAL_ERROR,
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     getLoans,
     getLoan,
@@ -551,5 +755,7 @@ module.exports = {
     makeLoanPayment,
     getLoanSummary,
     calculateLoanPayment,
-    updateLoanStatus
+    updateLoanStatus,
+    getBranchLoans,
+    approveBranchLoan
 };

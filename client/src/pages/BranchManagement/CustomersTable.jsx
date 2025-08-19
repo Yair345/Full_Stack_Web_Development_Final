@@ -80,38 +80,67 @@ const CustomersTable = ({ customers, onCustomerAction }) => {
 				</thead>
 				<tbody>
 					{customers.map((customer) => {
-						const statusInfo = getStatusBadge(customer.status);
-						const accountTypeColor = getAccountTypeColor(
-							customer.accountType
-						);
+						// Handle different possible status formats
+						const status =
+							customer.status ||
+							(customer.is_active ? "active" : "inactive");
+						const statusInfo = getStatusBadge(status);
+
+						// Handle account type - get from accounts if available
+						const accountType =
+							customer.accountType ||
+							(customer.accounts && customer.accounts[0]
+								? customer.accounts[0].account_type
+								: "Standard");
+						const accountTypeColor =
+							getAccountTypeColor(accountType);
+
+						// Handle customer name
+						const customerName =
+							customer.name ||
+							(customer.first_name && customer.last_name
+								? `${customer.first_name} ${customer.last_name}`
+								: customer.username || "Unknown");
+
+						// Handle account number and balance
+						const accountNumber =
+							customer.accountNumber ||
+							(customer.accounts && customer.accounts[0]
+								? customer.accounts[0].account_number
+								: "N/A");
+						const balance =
+							customer.balance ||
+							(customer.accounts && customer.accounts[0]
+								? customer.accounts[0].balance
+								: 0);
 
 						return (
 							<tr key={customer.id}>
 								<td>
 									<div>
 										<div className="fw-medium">
-											{customer.name}
+											{customerName}
 										</div>
 										<small className="text-muted">
-											{customer.email}
+											{customer.email || "No email"}
 										</small>
 									</div>
 								</td>
 								<td>
 									<div>
 										<div className="fw-medium">
-											{customer.accountNumber}
+											{accountNumber}
 										</div>
 										<small
 											className={`text-${accountTypeColor}`}
 										>
-											{customer.accountType}
+											{accountType}
 										</small>
 									</div>
 								</td>
 								<td>
 									<span className="fw-medium">
-										{formatCurrency(customer.balance)}
+										{formatCurrency(balance)}
 									</span>
 								</td>
 								<td>
@@ -124,16 +153,23 @@ const CustomersTable = ({ customers, onCustomerAction }) => {
 								<td>
 									<span
 										className={
-											getRiskScore(customer.riskScore)
-												.class
+											getRiskScore(
+												customer.riskScore || 1
+											).class
 										}
 									>
-										{getRiskScore(customer.riskScore).text}
+										{
+											getRiskScore(
+												customer.riskScore || 1
+											).text
+										}
 									</span>
 								</td>
 								<td>
 									<small className="text-muted">
-										{customer.lastVisit}
+										{customer.lastVisit ||
+											customer.last_login ||
+											"Never"}
 									</small>
 								</td>
 								<td>

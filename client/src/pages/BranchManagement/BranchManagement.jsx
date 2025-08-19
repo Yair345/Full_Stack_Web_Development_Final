@@ -5,29 +5,63 @@ import OverviewTab from "./OverviewTab";
 import CustomersTab from "./CustomersTab";
 import LoanApplicationsTab from "./LoanApplicationsTab";
 import ReportsTab from "./ReportsTab";
-import { mockBranchData } from "./branchUtils";
+import {
+	useBranch,
+	useBranchStats,
+	useBranchCustomers,
+	useBranchLoans,
+} from "../../hooks/api/apiHooks";
+import { useAuth } from "../../hooks";
 
 const BranchManagement = () => {
-	const [loading, setLoading] = useState(true);
 	const [activeTab, setActiveTab] = useState("overview");
-	const [branchData, setBranchData] = useState({});
+	const { user } = useAuth();
 
-	useEffect(() => {
-		const loadData = async () => {
-			try {
-				setLoading(true);
-				// Simulate API call
-				await new Promise((resolve) => setTimeout(resolve, 1000));
-				setBranchData(mockBranchData);
-			} catch (err) {
-				console.error("Error loading branch data:", err);
-			} finally {
-				setLoading(false);
-			}
-		};
+	// For this demo, we'll use the first branch or user's branch
+	// In a real app, this would be determined by user's role and assignments
+	const branchId = user?.branch_id || 1;
 
-		loadData();
-	}, []);
+	// Fetch branch data
+	const {
+		data: branchResponse,
+		loading: branchLoading,
+		error: branchError,
+		refetch: refetchBranch,
+	} = useBranch(branchId);
+	const {
+		data: statsResponse,
+		loading: statsLoading,
+		error: statsError,
+		refetch: refetchStats,
+	} = useBranchStats(branchId);
+	const {
+		data: customersResponse,
+		loading: customersLoading,
+		error: customersError,
+		refetch: refetchCustomers,
+	} = useBranchCustomers(branchId);
+	const {
+		data: loansResponse,
+		loading: loansLoading,
+		error: loansError,
+		refetch: refetchLoans,
+	} = useBranchLoans(branchId, { status: "pending" });
+
+	// Extract data from responses
+	const branch = branchResponse?.data?.branch;
+	const branchStats = statsResponse?.data;
+	const customers = customersResponse?.data?.customers || [];
+	const loanApplications = loansResponse?.data?.loans || [];
+
+	const loading = branchLoading || statsLoading;
+	const error = branchError || statsError;
+
+	const handleRefresh = () => {
+		refetchBranch();
+		refetchStats();
+		refetchCustomers();
+		refetchLoans();
+	};
 
 	const handleBranchReport = () => {
 		console.log("Generating branch report...");
@@ -93,31 +127,37 @@ const BranchManagement = () => {
 			case "overview":
 				return (
 					<OverviewTab
-						branchStats={branchData.branchStats}
-						branchInfo={branchData.branchInfo}
+						branchStats={branchStats}
+						branchInfo={branch}
 						onQuickActions={handleQuickActions}
 					/>
 				);
 			case "customers":
 				return (
 					<CustomersTab
-						customers={branchData.branchCustomers || []}
+						customers={customers}
+						loading={customersLoading}
+						error={customersError}
 						onAddCustomer={handleAddCustomer}
 						onCustomerAction={handleCustomerAction}
+						onRefresh={refetchCustomers}
 					/>
 				);
 			case "loans":
 				return (
 					<LoanApplicationsTab
-						loanApplications={branchData.loanApplications || []}
+						loanApplications={loanApplications}
+						loading={loansLoading}
+						error={loansError}
 						onNewApplication={handleNewApplication}
 						onLoanAction={handleLoanAction}
+						onRefresh={refetchLoans}
 					/>
 				);
 			case "reports":
 				return (
 					<ReportsTab
-						recentReports={branchData.recentReports || []}
+						recentReports={[]} // Will be implemented later
 						onGenerateReport={handleGenerateReport}
 						onDownloadReport={handleDownloadReport}
 					/>
@@ -127,6 +167,7 @@ const BranchManagement = () => {
 		}
 	};
 
+	// Show loading state
 	if (loading) {
 		return (
 			<div className="container-fluid p-4">
@@ -138,8 +179,50 @@ const BranchManagement = () => {
 								role="status"
 							>
 								<span className="visually-hidden">
-									Loading...
+									Loading branch data...
 								</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	// Show error state
+	if (error) {
+		return (
+			<div className="container-fluid p-4">
+				<div className="row g-4">
+					<div className="col-12">
+						<div
+							className="alert alert-danger d-flex align-items-center"
+							role="alert"
+						>
+							<div className="me-3">
+								<svg
+									width="24"
+									height="24"
+									fill="currentColor"
+									className="bi bi-exclamation-triangle-fill"
+								>
+									<path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" />
+								</svg>
+							</div>
+							<div className="flex-grow-1">
+								<h6 className="mb-1">
+									Error Loading Branch Data
+								</h6>
+								<p className="mb-2">
+									{error?.message ||
+										"Unable to load branch data. Please try again."}
+								</p>
+								<button
+									className="btn btn-outline-danger btn-sm"
+									onClick={handleRefresh}
+								>
+									Try Again
+								</button>
 							</div>
 						</div>
 					</div>
@@ -152,9 +235,10 @@ const BranchManagement = () => {
 		<div className="container-fluid p-4">
 			<div className="row g-4">
 				<BranchHeader
-					branchInfo={branchData.branchInfo}
+					branchInfo={branch}
 					onBranchReport={handleBranchReport}
 					onScheduleMeeting={handleScheduleMeeting}
+					onRefresh={handleRefresh}
 				/>
 
 				<BranchTabs activeTab={activeTab} onTabChange={setActiveTab} />

@@ -277,4 +277,51 @@ export const stockAPI = {
     }),
 };
 
-export default { apiRequest, authAPI, accountAPI, transactionAPI, standingOrderAPI, loanAPI, cardAPI, stockAPI };
+// Branch API calls
+export const branchAPI = {
+    // Get all branches
+    getBranches: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/branches${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get branch by ID
+    getBranch: (id) => apiRequest(`/branches/${id}`),
+
+    // Create new branch
+    createBranch: (branchData) => apiRequest('/branches', {
+        method: 'POST',
+        body: JSON.stringify(branchData),
+    }),
+
+    // Update branch
+    updateBranch: (id, branchData) => apiRequest(`/branches/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(branchData),
+    }),
+
+    // Delete branch
+    deleteBranch: (id) => apiRequest(`/branches/${id}`, {
+        method: 'DELETE',
+    }),
+
+    // Get branch customers
+    getBranchCustomers: (id, params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/branches/${id}/customers${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get branch statistics
+    getBranchStats: (id, params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/branches/${id}/stats${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get branch loan applications
+    getBranchLoans: (id, params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/branches/${id}/loans${queryString ? `?${queryString}` : ''}`);
+    },
+};
+
+export default { apiRequest, authAPI, accountAPI, transactionAPI, standingOrderAPI, loanAPI, cardAPI, stockAPI, branchAPI };

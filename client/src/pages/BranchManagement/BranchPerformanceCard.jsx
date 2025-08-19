@@ -2,9 +2,34 @@ import Card from "../../components/ui/Card";
 import { formatNumber, getBranchPerformanceColor } from "./branchUtils";
 
 const BranchPerformanceCard = ({ branchStats }) => {
-	const performanceColor = getBranchPerformanceColor(
-		branchStats.customerSatisfaction
-	);
+	// Safety check for branchStats and provide default values
+	const safeStats = branchStats || {};
+	const summary = safeStats.summary || {};
+	const totals = summary.totals || {};
+	const averages = summary.averages || {};
+
+	const customerSatisfaction = averages.avgSatisfactionScore || 4.5;
+	const performanceColor = getBranchPerformanceColor(customerSatisfaction);
+
+	// Show loading state if no data
+	if (!branchStats) {
+		return (
+			<div className="col-lg-8">
+				<Card>
+					<div className="d-flex justify-content-center py-5">
+						<div
+							className="spinner-border text-primary"
+							role="status"
+						>
+							<span className="visually-hidden">
+								Loading performance data...
+							</span>
+						</div>
+					</div>
+				</Card>
+			</div>
+		);
+	}
 
 	return (
 		<div className="col-lg-8">
@@ -18,7 +43,7 @@ const BranchPerformanceCard = ({ branchStats }) => {
 								style={{ width: "80px", height: "80px" }}
 							>
 								<span className="h4 fw-bold text-white mb-0">
-									{branchStats.customerSatisfaction}
+									{customerSatisfaction.toFixed(1)}
 								</span>
 							</div>
 							<h6 className="fw-medium">Customer Satisfaction</h6>
@@ -33,20 +58,20 @@ const BranchPerformanceCard = ({ branchStats }) => {
 								<span>Monthly Transactions</span>
 								<span className="fw-bold">
 									{formatNumber(
-										branchStats.monthlyTransactions
+										totals.totalTransactions || 0
 									)}
 								</span>
 							</div>
 							<div className="list-group-item d-flex justify-content-between align-items-center px-0">
 								<span>New Accounts</span>
 								<span className="fw-bold text-success">
-									+{branchStats.newCustomersThisMonth}
+									+{totals.newCustomers || 0}
 								</span>
 							</div>
 							<div className="list-group-item d-flex justify-content-between align-items-center px-0">
 								<span>Loan Applications</span>
 								<span className="fw-bold text-warning">
-									{branchStats.pendingApplications}
+									{totals.pendingLoans || 0}
 								</span>
 							</div>
 							<div className="list-group-item d-flex justify-content-between align-items-center px-0 border-bottom-0">

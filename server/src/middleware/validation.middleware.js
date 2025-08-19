@@ -358,6 +358,7 @@ const validateWatchlistItem = [
 
 module.exports = {
     handleValidationErrors,
+    validateRequest: handleValidationErrors, // Alias for compatibility
     sanitizeBody,
     sanitizeQuery,
     validateContentType,

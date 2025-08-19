@@ -169,6 +169,9 @@ export const mockBranchData = {
 };
 
 export const formatCurrency = (amount) => {
+    if (amount === null || amount === undefined || isNaN(amount)) {
+        return "$0.00";
+    }
     return new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
@@ -176,6 +179,9 @@ export const formatCurrency = (amount) => {
 };
 
 export const formatNumber = (number) => {
+    if (number === null || number === undefined || isNaN(number)) {
+        return "0";
+    }
     return new Intl.NumberFormat("en-US").format(number);
 };
 
@@ -222,23 +228,56 @@ export const getRiskScore = (score) => {
 };
 
 export const filterCustomers = (customers, searchTerm, statusFilter) => {
+    if (!customers || !Array.isArray(customers)) {
+        return [];
+    }
+
     return customers.filter(customer => {
-        const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            customer.accountNumber.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesFilter = statusFilter === "all" || customer.status === statusFilter;
+        if (!customer) return false;
+
+        const safeSearchTerm = searchTerm ? searchTerm.toLowerCase() : '';
+
+        // Handle different possible property names and ensure they exist
+        const customerName = customer.name ||
+            (customer.first_name && customer.last_name ?
+                `${customer.first_name} ${customer.last_name}` : '');
+        const customerEmail = customer.email || '';
+        const accountNumber = customer.accountNumber || customer.account_number || '';
+        const username = customer.username || '';
+
+        const matchesSearch = !safeSearchTerm ||
+            customerName.toLowerCase().includes(safeSearchTerm) ||
+            customerEmail.toLowerCase().includes(safeSearchTerm) ||
+            accountNumber.toLowerCase().includes(safeSearchTerm) ||
+            username.toLowerCase().includes(safeSearchTerm);
+
+        const matchesFilter = statusFilter === "all" || customer.status === statusFilter ||
+            (customer.is_active !== undefined && (
+                (statusFilter === "active" && customer.is_active) ||
+                (statusFilter === "inactive" && !customer.is_active)
+            ));
+
         return matchesSearch && matchesFilter;
     });
 };
 
 export const getAccountTypeColor = (type) => {
+    if (!type) return "secondary";
+
+    const normalizedType = type.toLowerCase();
     const typeMap = {
+        premium: "primary",
+        standard: "info",
+        business: "warning",
+        savings: "success",
+        checking: "primary",
+        // Handle both formats
         Premium: "primary",
         Standard: "info",
         Business: "warning",
         Savings: "success"
     };
-    return typeMap[type] || "secondary";
+    return typeMap[type] || typeMap[normalizedType] || "secondary";
 };
 
 export const getCreditScoreColor = (score) => {
@@ -278,6 +317,9 @@ export const calculateApprovalChance = (creditScore, monthlyIncome, requestedAmo
 };
 
 export const getBranchPerformanceColor = (rating) => {
+    if (rating === null || rating === undefined || isNaN(rating)) {
+        return "secondary";
+    }
     if (rating >= 4.5) return "success";
     if (rating >= 3.5) return "warning";
     return "danger";

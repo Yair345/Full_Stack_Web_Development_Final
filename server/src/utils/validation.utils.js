@@ -519,27 +519,27 @@ const loanCalculationValidation = [
  */
 const validateLoanApplication = (data) => {
     const errors = [];
-    
+
     if (!data.loan_type || !Object.values(LOAN_TYPES).includes(data.loan_type)) {
         errors.push('Invalid loan type');
     }
-    
+
     if (!data.amount || data.amount < 1000 || data.amount > 10000000) {
         errors.push('Loan amount must be between $1,000 and $10,000,000');
     }
-    
+
     if (!data.interest_rate || data.interest_rate < 0.0001 || data.interest_rate > 0.5) {
         errors.push('Interest rate must be between 0.01% and 50%');
     }
-    
+
     if (!data.term_months || data.term_months < 6 || data.term_months > 480) {
         errors.push('Loan term must be between 6 and 480 months');
     }
-    
+
     if (!data.purpose || data.purpose.trim().length < 10 || data.purpose.trim().length > 1000) {
         errors.push('Loan purpose must be between 10 and 1000 characters');
     }
-    
+
     return {
         isValid: errors.length === 0,
         errors
@@ -551,32 +551,156 @@ const validateLoanApplication = (data) => {
  */
 const validateLoanUpdate = (data) => {
     const errors = [];
-    
+
     if (data.purpose && (data.purpose.trim().length < 10 || data.purpose.trim().length > 1000)) {
         errors.push('Loan purpose must be between 10 and 1000 characters');
     }
-    
+
     if (data.collateral_value && data.collateral_value < 0) {
         errors.push('Collateral value must be a positive number');
     }
-    
+
     if (data.credit_score && (data.credit_score < 300 || data.credit_score > 850)) {
         errors.push('Credit score must be between 300 and 850');
     }
-    
+
     if (data.debt_to_income_ratio && (data.debt_to_income_ratio < 0 || data.debt_to_income_ratio > 100)) {
         errors.push('Debt to income ratio must be between 0% and 100%');
     }
-    
+
     if (data.annual_income && data.annual_income < 0) {
         errors.push('Annual income must be a positive number');
     }
-    
+
     return {
         isValid: errors.length === 0,
         errors
     };
 };
+
+/**
+ * Branch creation validation rules
+ */
+const createBranchValidation = [
+    body('name')
+        .trim()
+        .isLength({ min: 2, max: 100 })
+        .withMessage('Branch name must be between 2 and 100 characters'),
+
+    body('code')
+        .trim()
+        .isLength({ min: 3, max: 10 })
+        .withMessage('Branch code must be between 3 and 10 characters')
+        .matches(/^[A-Z0-9]+$/)
+        .withMessage('Branch code must contain only uppercase letters and numbers'),
+
+    body('address')
+        .trim()
+        .isLength({ min: 10, max: 500 })
+        .withMessage('Address must be between 10 and 500 characters'),
+
+    body('city')
+        .trim()
+        .isLength({ min: 2, max: 100 })
+        .withMessage('City must be between 2 and 100 characters'),
+
+    body('state')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 })
+        .withMessage('State must be between 2 and 100 characters'),
+
+    body('country')
+        .trim()
+        .isLength({ min: 2, max: 100 })
+        .withMessage('Country must be between 2 and 100 characters'),
+
+    body('postal_code')
+        .trim()
+        .isLength({ min: 3, max: 20 })
+        .withMessage('Postal code must be between 3 and 20 characters'),
+
+    body('phone')
+        .optional()
+        .matches(/^\+?[\d\s\-\(\)]+$/)
+        .withMessage('Please provide a valid phone number'),
+
+    body('email')
+        .optional()
+        .isEmail()
+        .withMessage('Please provide a valid email address'),
+
+    body('manager_id')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('Manager ID must be a positive integer'),
+
+    body('is_active')
+        .optional()
+        .isBoolean()
+        .withMessage('Active status must be a boolean value')
+];
+
+/**
+ * Branch update validation rules
+ */
+const updateBranchValidation = [
+    body('name')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 })
+        .withMessage('Branch name must be between 2 and 100 characters'),
+
+    body('address')
+        .optional()
+        .trim()
+        .isLength({ min: 10, max: 500 })
+        .withMessage('Address must be between 10 and 500 characters'),
+
+    body('city')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 })
+        .withMessage('City must be between 2 and 100 characters'),
+
+    body('state')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 })
+        .withMessage('State must be between 2 and 100 characters'),
+
+    body('country')
+        .optional()
+        .trim()
+        .isLength({ min: 2, max: 100 })
+        .withMessage('Country must be between 2 and 100 characters'),
+
+    body('postal_code')
+        .optional()
+        .trim()
+        .isLength({ min: 3, max: 20 })
+        .withMessage('Postal code must be between 3 and 20 characters'),
+
+    body('phone')
+        .optional()
+        .matches(/^\+?[\d\s\-\(\)]+$/)
+        .withMessage('Please provide a valid phone number'),
+
+    body('email')
+        .optional()
+        .isEmail()
+        .withMessage('Please provide a valid email address'),
+
+    body('manager_id')
+        .optional()
+        .isInt({ min: 1 })
+        .withMessage('Manager ID must be a positive integer'),
+
+    body('is_active')
+        .optional()
+        .isBoolean()
+        .withMessage('Active status must be a boolean value')
+];
 
 /**
  * Validation result checker
@@ -617,5 +741,7 @@ module.exports = {
     loanCalculationValidation,
     validateLoanApplication,
     validateLoanUpdate,
+    createBranchValidation,
+    updateBranchValidation,
     checkValidationResult
 };

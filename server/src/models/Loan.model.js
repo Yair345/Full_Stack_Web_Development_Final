@@ -219,6 +219,15 @@ Loan.init({
             }
         }
     },
+
+    // Branch assignment (without foreign key constraint)
+    branch_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Branch where the loan application was submitted'
+        // Note: No foreign key constraint - just a simple integer field
+    },
+
     loan_type: {
         type: DataTypes.ENUM(
             LOAN_TYPES.PERSONAL,
