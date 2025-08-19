@@ -1,3 +1,189 @@
+// Determine if transaction is income or expense based on context
+// This function properly categorizes transactions to distinguish between money coming in (income) 
+// and money going out (expenses) from the user's perspective:
+// - Stock purchases: Always expenses (money goes out to buy stocks)
+// - Stock sales: Always income (money comes in from selling stocks)
+// - Deposits: Income (money coming into user's account)
+// - Withdrawals/Payments: Expenses (money going out of user's account)
+// - Transfers: Based on direction (incoming = income, outgoing = expense)
+export const categorizeTransaction = (transaction) => {
+    const amount = Math.abs(transaction.amount);
+    const metadata = transaction.metadata || {};
+
+    // Check for stock transactions first
+    if (metadata.transactionType === 'STOCK_PURCHASE') {
+        // Stock purchase is always an expense (money going out)
+        return {
+            amount: amount,
+            isIncome: false,
+            category: 'expense'
+        };
+    }
+
+    if (metadata.transactionType === 'STOCK_SALE') {
+        // Stock sale is always income (money coming in)
+        return {
+            amount: amount,
+            isIncome: true,
+            category: 'income'
+        };
+    }
+
+    // Handle other transaction types
+    switch (transaction.transaction_type) {
+        case "deposit":
+            // Money coming into user's account = income
+            return {
+                amount: amount,
+                isIncome: true,
+                category: 'income'
+            };
+
+        case "withdrawal":
+        case "payment":
+            // Money going out of user's account = expense
+            return {
+                amount: amount,
+                isIncome: false,
+                category: 'expense'
+            };
+
+        case "transfer":
+            // For transfers, check if money is coming in or going out
+            // If user is sender (fromAccount exists) = expense
+            // If user is receiver (toAccount exists) = income
+            if (transaction.fromAccount && !transaction.toAccount) {
+                // Money going out = expense
+                return {
+                    amount: amount,
+                    isIncome: false,
+                    category: 'expense'
+                };
+            } else if (transaction.toAccount && !transaction.fromAccount) {
+                // Money coming in = income
+                return {
+                    amount: amount,
+                    isIncome: true,
+                    category: 'income'
+                };
+            } else {
+                // Internal transfer - categorize based on original amount sign
+                const isPositive = transaction.amount >= 0;
+                return {
+                    amount: amount,
+                    isIncome: isPositive,
+                    category: isPositive ? 'income' : 'expense'
+                };
+            }
+
+        default:
+            // Fallback to original logic based on amount sign
+            const isPositive = transaction.amount >= 0;
+            return {
+                amount: amount,
+                isIncome: isPositive,
+                category: isPositive ? 'income' : 'expense'
+            };
+    }
+};
+
+// Get transaction flow description (From Account → To Account)
+export const getTransactionFlow = (transaction) => {
+    const metadata = transaction.metadata || {};
+
+    // Handle stock transactions
+    if (metadata.transactionType === 'STOCK_PURCHASE') {
+        const fromAccount = transaction.fromAccount?.name ||
+            `Account ${transaction.fromAccount?.account_number || 'Unknown'}`;
+        return {
+            from: fromAccount,
+            to: `Stock Market (${metadata.stockSymbol})`,
+            description: `${fromAccount} → Stock Market (${metadata.stockSymbol})`
+        };
+    }
+
+    if (metadata.transactionType === 'STOCK_SALE') {
+        const toAccount = transaction.toAccount?.name ||
+            `Account ${transaction.toAccount?.account_number || 'Unknown'}`;
+        return {
+            from: `Stock Market (${metadata.stockSymbol})`,
+            to: toAccount,
+            description: `Stock Market (${metadata.stockSymbol}) → ${toAccount}`
+        };
+    }
+
+    // Handle regular transactions
+    const fromAccount = transaction.fromAccount;
+    const toAccount = transaction.toAccount;
+
+    if (fromAccount && toAccount) {
+        // Internal or external transfer
+        const fromName = fromAccount.User?.username || fromAccount.name ||
+            `Account ${fromAccount.account_number || 'Unknown'}`;
+        const toName = toAccount.User?.username || toAccount.name ||
+            `Account ${toAccount.account_number || 'Unknown'}`;
+
+        return {
+            from: fromName,
+            to: toName,
+            description: `${fromName} → ${toName}`
+        };
+    }
+
+    if (fromAccount && !toAccount) {
+        // Withdrawal/Payment
+        const fromName = fromAccount.name || `Account ${fromAccount.account_number || 'Unknown'}`;
+
+        switch (transaction.transaction_type) {
+            case 'withdrawal':
+                return {
+                    from: fromName,
+                    to: 'Cash/ATM',
+                    description: `${fromName} → Cash/ATM`
+                };
+            case 'payment':
+                return {
+                    from: fromName,
+                    to: 'External Payment',
+                    description: `${fromName} → External Payment`
+                };
+            default:
+                return {
+                    from: fromName,
+                    to: 'External',
+                    description: `${fromName} → External`
+                };
+        }
+    }
+
+    if (!fromAccount && toAccount) {
+        // Deposit
+        const toName = toAccount.name || `Account ${toAccount.account_number || 'Unknown'}`;
+
+        switch (transaction.transaction_type) {
+            case 'deposit':
+                return {
+                    from: 'External Deposit',
+                    to: toName,
+                    description: `External Deposit → ${toName}`
+                };
+            default:
+                return {
+                    from: 'External',
+                    to: toName,
+                    description: `External → ${toName}`
+                };
+        }
+    }
+
+    // Fallback for unknown transaction structure
+    return {
+        from: 'Unknown',
+        to: 'Unknown',
+        description: 'Unknown → Unknown'
+    };
+};
+
 // Transform server transaction data to client format
 export const transformServerTransaction = (serverTransaction, userAccountIds = []) => {
     if (!serverTransaction) return null;
@@ -209,37 +395,66 @@ export const filterTransactions = (transactions, searchTerm, filters) => {
     if (searchTerm) {
         filtered = filtered.filter(
             (transaction) =>
-                transaction.description
+                (transaction.description || '')
                     .toLowerCase()
                     .includes(searchTerm.toLowerCase()) ||
-                transaction.merchant
+                (transaction.merchant || '')
                     .toLowerCase()
                     .includes(searchTerm.toLowerCase()) ||
-                transaction.category
+                (transaction.category || '')
+                    .toLowerCase()
+                    .includes(searchTerm.toLowerCase()) ||
+                (transaction.transaction_ref || '')
                     .toLowerCase()
                     .includes(searchTerm.toLowerCase())
         );
     }
 
-    // Type filter
-    if (filters.type !== "all") {
-        filtered = filtered.filter(
-            (transaction) => transaction.type === filters.type
-        );
+    // Type filter - use our categorization system
+    if (filters.type && filters.type !== "all") {
+        filtered = filtered.filter((transaction) => {
+            const metadata = transaction.metadata || {};
+
+            // Handle special filter categories
+            if (filters.type === "income") {
+                const categorized = categorizeTransaction(transaction);
+                return categorized.isIncome;
+            }
+
+            if (filters.type === "expense") {
+                const categorized = categorizeTransaction(transaction);
+                return !categorized.isIncome;
+            }
+
+            if (filters.type === "stock_purchase") {
+                return metadata.transactionType === 'STOCK_PURCHASE';
+            }
+
+            if (filters.type === "stock_sale") {
+                return metadata.transactionType === 'STOCK_SALE';
+            }
+
+            // Handle regular transaction types
+            return transaction.transaction_type === filters.type;
+        });
     }
 
     // Date range filter
     if (filters.dateFrom) {
         filtered = filtered.filter(
-            (transaction) =>
-                new Date(transaction.date) >= new Date(filters.dateFrom)
+            (transaction) => {
+                const transactionDate = transaction.created_at || transaction.createdAt || transaction.date;
+                return new Date(transactionDate) >= new Date(filters.dateFrom);
+            }
         );
     }
 
     if (filters.dateTo) {
         filtered = filtered.filter(
-            (transaction) =>
-                new Date(transaction.date) <= new Date(filters.dateTo)
+            (transaction) => {
+                const transactionDate = transaction.created_at || transaction.createdAt || transaction.date;
+                return new Date(transactionDate) <= new Date(filters.dateTo);
+            }
         );
     }
 
@@ -259,7 +474,11 @@ export const filterTransactions = (transactions, searchTerm, filters) => {
     }
 
     // Sort by date (newest first) - create a new sorted array
-    return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return filtered.sort((a, b) => {
+        const dateA = new Date(a.created_at || a.createdAt || a.date);
+        const dateB = new Date(b.created_at || b.createdAt || b.date);
+        return dateB - dateA;
+    });
 };
 
 // Export transactions to CSV
@@ -302,20 +521,24 @@ export const exportTransactions = (transactions) => {
         return date ? new Date(date).toLocaleDateString() : 'Unknown Date';
     };
 
-    const headers = ["Date", "Description", "Reference", "Amount", "Type", "To Account", "From Account", "Status"];
+    const headers = ["Date", "Description", "Reference", "Amount", "Type", "Transaction Flow", "From Account", "To Account", "Status"];
 
     const csvRows = [
         headers.join(','),
-        ...transactions.map((t) => [
-            escapeCSVField(getDateForCSV(t)),
-            escapeCSVField(getDescriptionForCSV(t)),
-            escapeCSVField(t.transaction_ref || t.reference || ''),
-            escapeCSVField(t.amount || 0),
-            escapeCSVField(getTypeForCSV(t)),
-            escapeCSVField(t.toAccount ? `${t.toAccount.name || 'Account'} (${t.toAccount.account_number})` : ''),
-            escapeCSVField(t.fromAccount ? `${t.fromAccount.name || 'Account'} (${t.fromAccount.account_number})` : ''),
-            escapeCSVField(t.status || 'unknown'),
-        ].join(','))
+        ...transactions.map((t) => {
+            const flow = getTransactionFlow(t);
+            return [
+                escapeCSVField(getDateForCSV(t)),
+                escapeCSVField(getDescriptionForCSV(t)),
+                escapeCSVField(t.transaction_ref || t.reference || ''),
+                escapeCSVField(t.amount || 0),
+                escapeCSVField(getTypeForCSV(t)),
+                escapeCSVField(flow.description),
+                escapeCSVField(flow.from),
+                escapeCSVField(flow.to),
+                escapeCSVField(t.status || 'unknown'),
+            ].join(',');
+        })
     ];
 
     const csvContent = csvRows.join('\n');

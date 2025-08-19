@@ -1,5 +1,6 @@
 import { ArrowUpCircle, ArrowDownCircle, CreditCard } from "lucide-react";
 import { formatCurrency, formatDate } from "../../utils/helpers";
+import { categorizeTransaction, getTransactionFlow } from "./transactionUtils";
 
 const TransactionItem = ({ transaction }) => {
 	const getTransactionIcon = (type) => {
@@ -48,6 +49,25 @@ const TransactionItem = ({ transaction }) => {
 		return transaction.account || "Unknown Account";
 	};
 
+	// Get transaction flow (From → To)
+	const transactionFlow = getTransactionFlow(transaction);
+
+	// Determine if transaction is income or expense based on context
+	const getAmountDisplay = () => {
+		const categorized = categorizeTransaction(transaction);
+		const displayText = `${
+			categorized.isIncome ? "+" : "-"
+		}${formatCurrency(categorized.amount)}`;
+
+		return {
+			amount: categorized.amount,
+			isIncome: categorized.isIncome,
+			displayText: displayText,
+		};
+	};
+
+	const amountDisplay = getAmountDisplay();
+
 	return (
 		<tr>
 			<td>
@@ -68,11 +88,10 @@ const TransactionItem = ({ transaction }) => {
 			<td>
 				<span
 					className={`fw-bold ${
-						transaction.amount >= 0 ? "text-success" : "text-danger"
+						amountDisplay.isIncome ? "text-success" : "text-danger"
 					}`}
 				>
-					{transaction.amount >= 0 ? "+" : ""}
-					{formatCurrency(transaction.amount)}
+					{amountDisplay.displayText}
 				</span>
 			</td>
 			<td>
@@ -80,7 +99,13 @@ const TransactionItem = ({ transaction }) => {
 					{transaction.transaction_type}
 				</span>
 			</td>
-			<td className="text-muted small">{getDisplayAccount()}</td>
+			<td className="text-muted small">
+				<div className="d-flex flex-column">
+					<span className="fw-medium text-dark small">
+						{transactionFlow.description}
+					</span>
+				</div>
+			</td>
 			<td className="text-muted small">
 				{formatDate(transaction.created_at || transaction.createdAt, {
 					year: "numeric",

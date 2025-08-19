@@ -59,11 +59,10 @@ const Transactions = () => {
 		error: summaryError,
 	} = useTransactionSummary(apiFilters);
 
-	// Apply client-side filtering for search term (since API might not support text search)
+	// Apply client-side filtering for search term and local filters
 	const filteredTransactions = useMemo(() => {
-		if (!searchTerm) return transactions;
-		return filterTransactions(transactions, searchTerm, {});
-	}, [transactions, searchTerm]);
+		return filterTransactions(transactions, searchTerm, localFilters);
+	}, [transactions, searchTerm, localFilters]);
 
 	const hasActiveFilters =
 		searchTerm ||

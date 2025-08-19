@@ -93,9 +93,16 @@ const TransactionFilters = ({
 								}
 							>
 								<option value="all">All Types</option>
-								<option value="credit">Income</option>
-								<option value="debit">Expenses</option>
+								<option value="income">Income</option>
+								<option value="expense">Expenses</option>
+								<option value="deposit">Deposits</option>
+								<option value="withdrawal">Withdrawals</option>
 								<option value="transfer">Transfers</option>
+								<option value="payment">Payments</option>
+								<option value="stock_purchase">
+									Stock Purchases
+								</option>
+								<option value="stock_sale">Stock Sales</option>
 							</select>
 						</div>
 						<div className="col-md-2">

@@ -1,6 +1,7 @@
 import { ArrowDownCircle, ArrowUpCircle, Building } from "lucide-react";
 import Card from "../../components/ui/Card";
 import { formatCurrency } from "../../utils/helpers";
+import { categorizeTransaction } from "./transactionUtils";
 
 const TransactionSummaryCards = ({
 	transactions,
@@ -16,16 +17,16 @@ const TransactionSummaryCards = ({
 		totalExpenses = Math.abs(summary.total_amount_sent || 0);
 		totalTransactions = summary.total_transactions || 0;
 	} else {
-		// Fallback to client-side calculation
+		// Use the new categorization logic for client-side calculation
 		totalIncome = transactions
-			.filter((t) => t.type === "credit")
-			.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+			.map((transaction) => categorizeTransaction(transaction))
+			.filter((cat) => cat.isIncome)
+			.reduce((sum, cat) => sum + cat.amount, 0);
 
-		totalExpenses = Math.abs(
-			transactions
-				.filter((t) => t.type === "debit")
-				.reduce((sum, t) => sum + Math.abs(t.amount), 0)
-		);
+		totalExpenses = transactions
+			.map((transaction) => categorizeTransaction(transaction))
+			.filter((cat) => !cat.isIncome)
+			.reduce((sum, cat) => sum + cat.amount, 0);
 
 		totalTransactions = transactions.length;
 	}
