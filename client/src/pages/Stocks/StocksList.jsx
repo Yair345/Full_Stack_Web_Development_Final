@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-	TrendingUp,
-	TrendingDown,
-	Plus,
-	Eye,
-	ShoppingCart,
-} from "lucide-react";
+import { TrendingUp, TrendingDown, Eye, ShoppingCart } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -15,14 +9,26 @@ const StockCard = ({ stock, onBuyStock, onAddToWatchlist }) => {
 	const [quantity, setQuantity] = useState("");
 	const [loading, setLoading] = useState(false);
 
-	const isPositive = stock.change >= 0;
+	// Safely handle stock properties with defaults
+	const stockData = {
+		symbol: stock.symbol || "N/A",
+		name: stock.name || stock.companyName || "Unknown Company",
+		price: stock.price || 0,
+		change: stock.change || 0,
+		changePercent: stock.changePercent || 0,
+		dayHigh: stock.dayHigh || stock.high || stock.price || 0,
+		dayLow: stock.dayLow || stock.low || stock.price || 0,
+		volume: stock.volume || 0,
+	};
+
+	const isPositive = stockData.change >= 0;
 
 	const handleBuy = async () => {
 		if (!quantity || quantity <= 0) return;
 
 		setLoading(true);
 		try {
-			await onBuyStock(stock.symbol, quantity, stock.price);
+			await onBuyStock(stockData.symbol, quantity, stockData.price);
 			setShowBuyForm(false);
 			setQuantity("");
 		} catch (error) {
@@ -36,12 +42,13 @@ const StockCard = ({ stock, onBuyStock, onAddToWatchlist }) => {
 		<Card className="h-100">
 			<div className="d-flex justify-content-between align-items-start mb-3">
 				<div>
-					<h6 className="fw-bold mb-1">{stock.symbol}</h6>
-					<p className="text-muted small mb-0">{stock.name}</p>
-					<p className="text-muted small mb-0">{stock.sector}</p>
+					<h6 className="fw-bold mb-1">{stockData.symbol}</h6>
+					<p className="text-muted small mb-0">{stockData.name}</p>
 				</div>
 				<div className="text-end">
-					<h5 className="mb-1 fw-bold">${stock.price.toFixed(2)}</h5>
+					<h5 className="mb-1 fw-bold">
+						${stockData.price.toFixed(2)}
+					</h5>
 					<div
 						className={`small ${
 							isPositive ? "text-success" : "text-danger"
@@ -53,23 +60,22 @@ const StockCard = ({ stock, onBuyStock, onAddToWatchlist }) => {
 							<TrendingDown size={14} />
 						)}
 						<span className="ms-1">
-							{isPositive ? "+" : ""}${stock.change.toFixed(2)}(
+							{isPositive ? "+" : ""}$
+							{stockData.change.toFixed(2)} (
 							{isPositive ? "+" : ""}
-							{stock.changePercent.toFixed(2)}%)
+							{stockData.changePercent.toFixed(2)}%)
 						</span>
 					</div>
 				</div>
 			</div>
 
-			{/* Stock metrics */}
 			<div className="row g-2 mb-3 small text-muted">
 				<div className="col-6">
-					<div>High: ${stock.dayHigh.toFixed(2)}</div>
-					<div>Low: ${stock.dayLow.toFixed(2)}</div>
+					<div>High: ${stockData.dayHigh.toFixed(2)}</div>
+					<div>Low: ${stockData.dayLow.toFixed(2)}</div>
 				</div>
 				<div className="col-6">
-					<div>Volume: {stock.volume.toLocaleString()}</div>
-					<div>Mkt Cap: ${stock.marketCap}</div>
+					<div>Volume: {stockData.volume.toLocaleString()}</div>
 				</div>
 			</div>
 
@@ -87,7 +93,7 @@ const StockCard = ({ stock, onBuyStock, onAddToWatchlist }) => {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => onAddToWatchlist(stock.symbol)}
+						onClick={() => onAddToWatchlist(stockData.symbol)}
 					>
 						<Eye size={14} className="me-1" />
 						Watch
@@ -106,7 +112,8 @@ const StockCard = ({ stock, onBuyStock, onAddToWatchlist }) => {
 						/>
 						{quantity && (
 							<div className="small text-muted mt-1">
-								Total: ${(quantity * stock.price).toFixed(2)}
+								Total: $
+								{(quantity * stockData.price).toFixed(2)}
 							</div>
 						)}
 					</div>
@@ -147,19 +154,23 @@ const StocksList = ({ stocks, onBuyStock, onAddToWatchlist, loading }) => {
 	const filteredStocks = safeStocks
 		.filter(
 			(stock) =>
-				stock.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				stock.name.toLowerCase().includes(searchTerm.toLowerCase())
+				(stock.symbol || "")
+					.toLowerCase()
+					.includes(searchTerm.toLowerCase()) ||
+				(stock.name || stock.companyName || "")
+					.toLowerCase()
+					.includes(searchTerm.toLowerCase())
 		)
 		.sort((a, b) => {
 			switch (sortBy) {
 				case "price":
-					return b.price - a.price;
+					return (b.price || 0) - (a.price || 0);
 				case "change":
-					return b.change - a.change;
+					return (b.change || 0) - (a.change || 0);
 				case "volume":
-					return b.volume - a.volume;
+					return (b.volume || 0) - (a.volume || 0);
 				default:
-					return a.symbol.localeCompare(b.symbol);
+					return (a.symbol || "").localeCompare(b.symbol || "");
 			}
 		});
 
@@ -210,7 +221,20 @@ const StocksList = ({ stocks, onBuyStock, onAddToWatchlist, loading }) => {
 					</div>
 					<div className="col-md-3">
 						<div className="text-muted small">
-							{filteredStocks.length} stocks available
+							{searchTerm ? (
+								<>
+									{filteredStocks.length} stocks found
+									{safeStocks.length !==
+										filteredStocks.length && (
+										<span>
+											{" "}
+											from {safeStocks.length} loaded
+										</span>
+									)}
+								</>
+							) : (
+								<>{safeStocks.length} stocks loaded</>
+							)}
 						</div>
 					</div>
 				</div>
@@ -218,8 +242,11 @@ const StocksList = ({ stocks, onBuyStock, onAddToWatchlist, loading }) => {
 
 			{/* Stocks Grid */}
 			<div className="row g-4">
-				{filteredStocks.map((stock) => (
-					<div key={stock.symbol} className="col-lg-4 col-md-6">
+				{filteredStocks.map((stock, index) => (
+					<div
+						key={stock.symbol || index}
+						className="col-lg-4 col-md-6"
+					>
 						<StockCard
 							stock={stock}
 							onBuyStock={onBuyStock}

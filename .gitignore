@@ -1,0 +1,43 @@
+# Environment variables with sensitive data (API keys, secrets, etc.)
+**/.env.local
+**/.env.development.local
+**/.env.test.local  
+**/.env.production.local
+# Note: Base .env files are tracked for configuration like API URLs
+
+# Dependencies
+**/node_modules/
+
+# Build outputs
+**/dist/
+**/build/
+
+# IDE and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+**/logs/
+**/*.log
+
+# Runtime data
+**/pids/
+**/*.pid
+**/*.seed
+**/*.pid.lock
+
+# Coverage directory used by tools like istanbul
+**/coverage/
+
+# Database files
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# Cache
+**/.cache/
+**/tmp/

@@ -1,3 +1,10 @@
+# Environment variables (sensitive overrides - these contain secrets)
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# Note: .env is tracked for base configuration like API URLs
+
 # Logs
 logs
 *.log
@@ -22,9 +29,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local

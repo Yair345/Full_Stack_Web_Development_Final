@@ -14,80 +14,10 @@ const { generateTransactionRef } = require('../utils/encryption.utils');
 const { Op } = require('sequelize');
 const AuditService = require('../services/audit.service');
 
-// Mock stock data for development (will be replaced by external API calls)
-const mockStockData = [
-    {
-        symbol: "AAPL",
-        name: "Apple Inc.",
-        sector: "Technology",
-        price: 178.25,
-        change: 2.15,
-        changePercent: 1.22,
-        dayHigh: 180.45,
-        dayLow: 176.80,
-        volume: 45678900,
-        marketCap: "2800000000000"
-    },
-    {
-        symbol: "MSFT",
-        name: "Microsoft Corporation",
-        sector: "Technology",
-        price: 342.60,
-        change: -1.85,
-        changePercent: -0.54,
-        dayHigh: 345.20,
-        dayLow: 340.15,
-        volume: 28945600,
-        marketCap: "2500000000000"
-    },
-    {
-        symbol: "GOOGL",
-        name: "Alphabet Inc.",
-        sector: "Technology",
-        price: 125.80,
-        change: 3.45,
-        changePercent: 2.82,
-        dayHigh: 127.90,
-        dayLow: 122.35,
-        volume: 34567800,
-        marketCap: "1600000000000"
-    },
-    {
-        symbol: "AMZN",
-        name: "Amazon.com Inc.",
-        sector: "Consumer Discretionary",
-        price: 145.30,
-        change: -0.95,
-        changePercent: -0.65,
-        dayHigh: 147.50,
-        dayLow: 143.80,
-        volume: 41234500,
-        marketCap: "1500000000000"
-    },
-    {
-        symbol: "TSLA",
-        name: "Tesla Inc.",
-        sector: "Automotive",
-        price: 238.45,
-        change: 12.30,
-        changePercent: 5.44,
-        dayHigh: 242.80,
-        dayLow: 225.60,
-        volume: 87654300,
-        marketCap: "758000000000"
-    },
-    {
-        symbol: "NVDA",
-        name: "NVIDIA Corporation",
-        sector: "Technology",
-        price: 875.20,
-        change: 15.60,
-        changePercent: 1.81,
-        dayHigh: 888.90,
-        dayLow: 865.40,
-        volume: 52341700,
-        marketCap: "2100000000000"
-    }
+// Popular stock symbols for demo
+const popularStocks = [
+    'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX',
+    'AMD', 'INTC', 'CRM', 'ORCL', 'ADBE', 'PYPL', 'UBER', 'SPOT'
 ];
 
 /**
@@ -97,21 +27,55 @@ const getAvailableStocks = async (req, res) => {
     try {
         const { search, sector, limit = 50, offset = 0 } = req.query;
 
-        // In production, this would fetch from external API
-        let stocks = [...mockStockData];
+        // Use real stock API to get current data
+        let stocks = [];
 
-        // Apply filters
         if (search) {
-            const searchTerm = search.toLowerCase();
-            stocks = stocks.filter(stock =>
-                stock.symbol.toLowerCase().includes(searchTerm) ||
-                stock.name.toLowerCase().includes(searchTerm)
-            );
+            // If searching, use the search API
+            try {
+                const searchResults = await stockService.searchStocks(search, parseInt(limit));
+                stocks = searchResults.map(stock => ({
+                    symbol: stock.symbol,
+                    name: stock.name,
+                    type: stock.type,
+                    region: stock.region,
+                    currency: stock.currency,
+                    price: 0, // Will be populated by subsequent quote calls
+                    change: 0,
+                    changePercent: 0,
+                    volume: 0,
+                    sector: 'Unknown'
+                }));
+            } catch (error) {
+                console.warn('Search API failed, falling back to filtered popular stocks');
+                const searchTerm = search.toLowerCase();
+                const filteredSymbols = popularStocks.filter(symbol =>
+                    symbol.toLowerCase().includes(searchTerm)
+                );
+
+                // Get quotes for filtered symbols
+                const batchResult = await stockService.getBatchQuotes(filteredSymbols.slice(0, parseInt(limit)));
+                stocks = batchResult.results || [];
+            }
+        } else {
+            // Get popular stocks with real-time data
+            try {
+                const batchResult = await stockService.getBatchQuotes(popularStocks.slice(0, parseInt(limit)));
+                stocks = batchResult.results || [];
+            } catch (error) {
+                console.error('Failed to fetch stock data:', error);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to fetch stock data from external API',
+                    error: error.message
+                });
+            }
         }
 
-        if (sector) {
+        // Apply sector filter if specified
+        if (sector && stocks.length > 0) {
             stocks = stocks.filter(stock =>
-                stock.sector.toLowerCase() === sector.toLowerCase()
+                stock.sector && stock.sector.toLowerCase() === sector.toLowerCase()
             );
         }
 
@@ -120,19 +84,22 @@ const getAvailableStocks = async (req, res) => {
         const endIndex = startIndex + parseInt(limit);
         const paginatedStocks = stocks.slice(startIndex, endIndex);
 
+        console.log(`Fetched ${paginatedStocks.length} stocks from external API`);
+
         // Return stocks array directly for easier client handling
         res.json({
             success: true,
-            data: paginatedStocks || [], // Return stocks array directly
+            data: paginatedStocks || [],
             total: stocks.length,
             limit: parseInt(limit),
-            offset: parseInt(offset)
+            offset: parseInt(offset),
+            source: 'EXTERNAL_API'
         });
     } catch (error) {
         console.error('Error fetching available stocks:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch available stocks',
+            message: 'Failed to fetch available stocks from external API',
             error: error.message
         });
     }
@@ -145,27 +112,34 @@ const getStockQuote = async (req, res) => {
     try {
         const { symbol } = req.params;
 
-        // In production, this would fetch from external API
-        const stock = mockStockData.find(s =>
-            s.symbol.toUpperCase() === symbol.toUpperCase()
-        );
+        console.log(`Fetching real-time quote for ${symbol}`);
 
-        if (!stock) {
+        // Get real stock data from external API
+        const stockData = await stockService.getStockQuote(symbol.toUpperCase());
+
+        if (!stockData) {
             return res.status(404).json({
                 success: false,
-                message: 'Stock not found'
+                message: `Stock quote not found for symbol: ${symbol}`
             });
         }
 
+        console.log(`Successfully fetched quote for ${symbol}:`, {
+            price: stockData.price,
+            change: stockData.change,
+            source: stockData.source
+        });
+
         res.json({
             success: true,
-            data: stock
+            data: stockData,
+            source: 'EXTERNAL_API'
         });
     } catch (error) {
         console.error('Error fetching stock quote:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch stock quote',
+            message: `Failed to fetch stock quote for ${req.params.symbol}`,
             error: error.message
         });
     }
@@ -202,16 +176,34 @@ const buyStock = async (req, res) => {
             });
         }
 
-        // Get stock info (in production, verify current price from API)
-        const stockInfo = mockStockData.find(s =>
-            s.symbol.toUpperCase() === stockSymbol.toUpperCase()
-        );
-
-        if (!stockInfo) {
+        // Get real stock info and verify current price
+        let stockInfo;
+        try {
+            stockInfo = await stockService.getStockQuote(stockSymbol.toUpperCase());
+            console.log('Real-time stock data:', stockInfo);
+        } catch (error) {
             await dbTransaction.rollback();
-            return res.status(404).json({
+            console.error('Failed to fetch real-time stock data:', error);
+            return res.status(400).json({
                 success: false,
-                message: 'Stock not found'
+                message: 'Failed to fetch current stock price. Please try again.'
+            });
+        }
+
+        // Validate price against current market price (allow 5% tolerance)
+        const currentMarketPrice = stockInfo.price;
+        const priceDeviation = Math.abs(pricePerShare - currentMarketPrice) / currentMarketPrice;
+
+        if (priceDeviation > 0.05) { // 5% tolerance
+            await dbTransaction.rollback();
+            return res.status(400).json({
+                success: false,
+                message: `Price has changed. Current market price: $${currentMarketPrice.toFixed(2)}`,
+                data: {
+                    requestedPrice: pricePerShare,
+                    currentPrice: currentMarketPrice,
+                    symbol: stockSymbol.toUpperCase()
+                }
             });
         }
 
@@ -429,10 +421,29 @@ const sellStock = async (req, res) => {
             });
         }
 
-        // Get stock info
-        const stockInfo = mockStockData.find(s =>
-            s.symbol.toUpperCase() === stockSymbol.toUpperCase()
-        );
+        // Get real stock info and current market price
+        let stockInfo;
+        try {
+            stockInfo = await stockService.getStockQuote(stockSymbol.toUpperCase());
+            console.log('Real-time stock data for sale:', stockInfo);
+
+            // Validate price against current market price (allow 5% tolerance)
+            if (stockInfo.price && Math.abs(pricePerShare - stockInfo.price) / stockInfo.price > 0.05) {
+                await dbTransaction.rollback();
+                return res.status(400).json({
+                    success: false,
+                    message: `Price has changed. Current market price: $${stockInfo.price.toFixed(2)}`,
+                    data: {
+                        requestedPrice: pricePerShare,
+                        currentPrice: stockInfo.price,
+                        symbol: stockSymbol.toUpperCase()
+                    }
+                });
+            }
+        } catch (error) {
+            console.warn('Failed to fetch real-time stock data, using provided price:', error);
+            stockInfo = { price: pricePerShare }; // Fallback to provided price
+        }
 
         const totalAmount = quantity * pricePerShare;
         const fees = 2.99; // Fixed trading fee
@@ -708,15 +719,16 @@ const addToWatchlist = async (req, res) => {
             });
         }
 
-        // Get stock info
-        const stockInfo = mockStockData.find(s =>
-            s.symbol.toUpperCase() === stockSymbol.toUpperCase()
-        );
-
-        if (!stockInfo) {
+        // Get real stock info from external API
+        let stockInfo;
+        try {
+            stockInfo = await stockService.getStockQuote(stockSymbol.toUpperCase());
+            console.log('Real-time stock data for watchlist:', stockInfo);
+        } catch (error) {
+            console.error('Failed to fetch real-time stock data:', error);
             return res.status(404).json({
                 success: false,
-                message: 'Stock not found'
+                message: 'Stock not found or unable to fetch current data'
             });
         }
 
@@ -812,19 +824,42 @@ const searchStocks = async (req, res) => {
             });
         }
 
-        // In production, this would use external API
-        const searchTerm = query.toLowerCase();
-        const results = mockStockData.filter(stock =>
-            stock.symbol.toLowerCase().includes(searchTerm) ||
-            stock.name.toLowerCase().includes(searchTerm)
-        );
+        console.log(`Searching stocks for query: "${query}"`);
+
+        // Use external API for stock search
+        let results = [];
+        try {
+            results = await stockService.searchStocks(query, 20);
+            console.log(`Found ${results.length} stocks matching "${query}"`);
+        } catch (error) {
+            console.warn('Stock search API failed, falling back to popular stocks filter:', error);
+
+            // Fallback: filter popular stocks by query
+            const searchTerm = query.toLowerCase();
+            const filteredSymbols = popularStocks.filter(symbol =>
+                symbol.toLowerCase().includes(searchTerm)
+            );
+
+            if (filteredSymbols.length > 0) {
+                const batchResult = await stockService.getBatchQuotes(filteredSymbols.slice(0, 10));
+                results = batchResult.results.map(stock => ({
+                    symbol: stock.symbol,
+                    name: stock.name,
+                    type: 'Common Stock',
+                    region: 'US',
+                    currency: 'USD',
+                    matchScore: 1.0
+                }));
+            }
+        }
 
         res.json({
             success: true,
             data: {
                 results,
                 query,
-                total: results.length
+                total: results.length,
+                source: 'EXTERNAL_API'
             }
         });
     } catch (error) {
