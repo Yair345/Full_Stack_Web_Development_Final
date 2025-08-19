@@ -346,6 +346,12 @@ export const branchAPI = {
         method: 'PUT',
         body: JSON.stringify({ reason }),
     }),
+
+    // Create branch deposit to customer account
+    createBranchDeposit: (branchId, depositData) => apiRequest(`/branches/${branchId}/deposit`, {
+        method: 'POST',
+        body: JSON.stringify(depositData),
+    }),
 };
 
 export default { apiRequest, authAPI, accountAPI, transactionAPI, standingOrderAPI, loanAPI, cardAPI, stockAPI, branchAPI };

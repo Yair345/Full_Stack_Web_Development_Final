@@ -831,6 +831,144 @@ const getBranchPerformance = catchAsync(async (req, res, next) => {
     });
 });
 
+/**
+ * @desc Create branch deposit to customer account
+ * @route POST /api/branches/:id/deposit
+ * @access Private (Manager/Admin)
+ */
+const createBranchDeposit = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const { account_id, amount, description } = req.body;
+    const managerId = req.user.id;
+
+    logger.info(`Branch manager ${managerId} creating deposit for account ${account_id} in branch ${id}`);
+
+    // Validate required fields
+    if (!account_id || !amount) {
+        throw new AppError('Account ID and amount are required', 400);
+    }
+
+    if (amount <= 0) {
+        throw new AppError('Deposit amount must be positive', 400);
+    }
+
+    // Check branch exists and user has access
+    const branch = await Branch.findByPk(id);
+    if (!branch) {
+        throw new AppError('Branch not found', 404);
+    }
+
+    // Authorization check - ensure user is branch manager or admin
+    if (req.user.role !== 'admin' && branch.manager_id !== managerId) {
+        throw new AppError('Not authorized to make deposits for this branch', 403);
+    }
+
+    // Find the account and verify it belongs to a customer of this branch
+    const account = await Account.findOne({
+        where: { id: account_id },
+        include: [{
+            model: User,
+            as: 'user',
+            attributes: ['id', 'first_name', 'last_name', 'branch_id', 'username'],
+            required: true
+        }]
+    });
+
+    if (!account) {
+        throw new AppError('Account not found', 404);
+    }
+
+    // Verify the account belongs to a customer of this branch
+    if (account.user.branch_id !== parseInt(id)) {
+        throw new AppError('Account does not belong to a customer of this branch', 403);
+    }
+
+    // Start transaction
+    const dbTransaction = await sequelize.transaction();
+
+    try {
+        // Generate transaction reference
+        const transactionRef = `DEP_${Date.now()}_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+        // Create transaction record
+        const transaction = await Transaction.create({
+            transaction_ref: transactionRef,
+            from_account_id: null, // Branch deposit - money comes from outside the system
+            to_account_id: account_id,
+            transaction_type: TRANSACTION_TYPES.DEPOSIT,
+            amount: parseFloat(amount),
+            currency: 'USD',
+            status: TRANSACTION_STATUS.COMPLETED,
+            description: description || `Branch cash deposit by manager`,
+            metadata: {
+                branchId: parseInt(id),
+                branchName: branch.branch_name,
+                managerId: managerId,
+                managerName: `${req.user.first_name} ${req.user.last_name}`,
+                customerName: `${account.user.first_name} ${account.user.last_name}`,
+                transactionType: 'BRANCH_DEPOSIT'
+            },
+            external_reference: `BRANCH_DEPOSIT_${id}_${Date.now()}`,
+            initiated_by: managerId,
+            completed_at: new Date()
+        }, { transaction: dbTransaction });
+
+        // Update account balance
+        const previousBalance = account.balance;
+        await account.update({
+            balance: account.balance + parseFloat(amount)
+        }, { transaction: dbTransaction });
+
+        // Commit transaction
+        await dbTransaction.commit();
+
+        logger.info(`Branch deposit completed: $${amount} to account ${account.account_number}`);
+
+        // Log audit event
+        await AuditService.logSystem({
+            level: 'info',
+            message: `Branch deposit completed: $${amount} deposited to customer account by branch manager`,
+            service: 'branch_deposits',
+            meta: {
+                branchId: parseInt(id),
+                branchName: branch.branch_name,
+                managerId: managerId,
+                transactionId: transaction.id,
+                transactionRef: transaction.transaction_ref,
+                accountId: account_id,
+                accountNumber: account.account_number,
+                customerId: account.user.id,
+                customerName: `${account.user.first_name} ${account.user.last_name}`,
+                amount: parseFloat(amount),
+                previousBalance: previousBalance,
+                newBalance: account.balance + parseFloat(amount),
+                description: description
+            }
+        });
+
+        res.status(201).json({
+            success: true,
+            message: `Deposit of $${parseFloat(amount).toFixed(2)} has been successfully processed for ${account.user.first_name} ${account.user.last_name}`,
+            data: {
+                transaction: {
+                    id: transaction.id,
+                    transaction_ref: transaction.transaction_ref,
+                    amount: transaction.amount,
+                    account_number: account.account_number,
+                    customer_name: `${account.user.first_name} ${account.user.last_name}`,
+                    previous_balance: previousBalance,
+                    new_balance: account.balance + parseFloat(amount),
+                    created_at: transaction.created_at
+                }
+            }
+        });
+
+    } catch (error) {
+        await dbTransaction.rollback();
+        throw error;
+    }
+});
+
 module.exports = {
     getBranches,
     getBranch,
@@ -842,5 +980,6 @@ module.exports = {
     getBranchPerformance,
     getPendingUsers,
     approveUser,
-    rejectUser
+    rejectUser,
+    createBranchDeposit
 };

@@ -1,4 +1,10 @@
-import { TrendingUp, Users, FileText, UserCheck } from "lucide-react";
+import {
+	TrendingUp,
+	Users,
+	FileText,
+	UserCheck,
+	DollarSign,
+} from "lucide-react";
 
 const BranchTabs = ({ activeTab, onTabChange }) => {
 	const tabs = [
@@ -21,6 +27,11 @@ const BranchTabs = ({ activeTab, onTabChange }) => {
 			id: "loans",
 			label: "Loan Applications",
 			icon: FileText,
+		},
+		{
+			id: "cash-deposit",
+			label: "Cash Deposit",
+			icon: DollarSign,
 		},
 	];
 

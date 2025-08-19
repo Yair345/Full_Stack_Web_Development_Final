@@ -67,5 +67,6 @@ export {
     useCreateBranch,
     useUpdateBranch,
     useDeleteBranch,
+    useCreateBranchDeposit,
     useBranchOperations,
 } from './features/useBranchHooks';

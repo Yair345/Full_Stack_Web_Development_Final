@@ -141,6 +141,21 @@ export const useDeleteBranch = () => {
 };
 
 /**
+ * Hook to create branch deposit
+ * @returns {Object} Mutation object with mutate function
+ */
+export const useCreateBranchDeposit = () => {
+    return useMutation(
+        ({ branchId, depositData }) => {
+            return apiRequest(`/branches/${branchId}/deposit`, {
+                method: 'POST',
+                body: JSON.stringify(depositData),
+            });
+        }
+    );
+};
+
+/**
  * Hook for all branch operations (CRUD)
  * @returns {Object} All branch operations
  */

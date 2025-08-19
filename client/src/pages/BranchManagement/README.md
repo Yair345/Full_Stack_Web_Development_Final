@@ -21,6 +21,7 @@ The **BranchManagement** page provides comprehensive branch administration capab
 -   **OverviewTab.jsx** - Branch overview with statistics and performance analytics
 -   **CustomersTab.jsx** - Customer management interface
 -   **LoanApplicationsTab.jsx** - Loan application processing and management
+-   **CashDepositTab.jsx** - Cash deposit processing for customer accounts
 
 ### Statistics Components
 
@@ -57,6 +58,15 @@ The **BranchManagement** page provides comprehensive branch administration capab
 -   Approval/rejection workflow
 -   Application details view
 -   Processing statistics
+
+### Cash Deposit Tab
+
+-   Real-time customer search and selection
+-   Multiple account support for deposits
+-   Live balance calculations and previews
+-   Secure cash deposit processing
+-   Transaction confirmation and audit trail
+-   Integration with existing transaction system
 
 ## Data Flow
 

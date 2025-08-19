@@ -6,6 +6,7 @@ import OverviewTab from "./OverviewTab";
 import CustomersTab from "./CustomersTab";
 import PendingUsersTab from "./PendingUsersTab";
 import LoanApplicationsTab from "./LoanApplicationsTab";
+import CashDepositTab from "./CashDepositTab";
 import RejectionModal from "./RejectionModal";
 import {
 	useBranch,
@@ -172,6 +173,13 @@ const BranchManagement = () => {
 						error={loansError}
 						onLoanAction={handleLoanAction}
 						onRefresh={refetchLoans}
+					/>
+				);
+			case "cash-deposit":
+				return (
+					<CashDepositTab
+						branchId={branchId}
+						onNotification={showNotification}
 					/>
 				);
 			default:

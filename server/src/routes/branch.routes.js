@@ -19,7 +19,8 @@ const {
     getBranchPerformance,
     getPendingUsers,
     approveUser,
-    rejectUser
+    rejectUser,
+    createBranchDeposit
 } = require('../controllers/branch.controller');
 
 // Import validation schemas
@@ -192,6 +193,21 @@ router.put('/:id/reject-user/:userId',
     ],
     handleValidationErrors,
     rejectUser
+);
+
+/**
+ * @route POST /api/branches/:id/deposit
+ * @desc Create branch deposit to customer account
+ * @access Private (Manager/Admin)
+ */
+router.post('/:id/deposit',
+    authenticate,
+    requireRole(['manager', 'admin']),
+    [
+        param('id').isInt({ min: 1 }).withMessage('Branch ID must be a positive integer')
+    ],
+    handleValidationErrors,
+    createBranchDeposit
 );
 
 module.exports = router;
