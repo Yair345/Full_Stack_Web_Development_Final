@@ -1,7 +1,6 @@
-import { Building, FileText, Calendar } from "lucide-react";
-import Button from "../../components/ui/Button";
+import { Building } from "lucide-react";
 
-const BranchHeader = ({ branchInfo, onBranchReport, onScheduleMeeting }) => {
+const BranchHeader = ({ branchInfo }) => {
 	// Safety check for branchInfo
 	if (!branchInfo) {
 		return (
@@ -33,16 +32,6 @@ const BranchHeader = ({ branchInfo, onBranchReport, onScheduleMeeting }) => {
 						{branchInfo?.branch_name || "Branch"} - Manager
 						Dashboard
 					</p>
-				</div>
-				<div className="d-flex gap-2">
-					<Button variant="outline" onClick={onBranchReport}>
-						<FileText size={16} className="me-2" />
-						Branch Report
-					</Button>
-					<Button variant="primary" onClick={onScheduleMeeting}>
-						<Calendar size={16} className="me-2" />
-						Schedule Meeting
-					</Button>
 				</div>
 			</div>
 		</div>

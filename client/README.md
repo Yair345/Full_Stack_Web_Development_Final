@@ -109,7 +109,6 @@ For testing purposes, you can use these demo credentials:
 -   Branch management (for managers)
 -   Real-time notifications
 -   Advanced filtering and search
--   Report generation
 -   WebSocket integration
 
 ## Environment Variables

@@ -1,11 +1,14 @@
-import { CheckCircle, XCircle } from "lucide-react";
+import { useState } from "react";
+import { CheckCircle, XCircle, Search, Filter } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
+import Input from "../../components/ui/Input";
 import {
 	formatCurrency,
 	getStatusBadge,
 	getPriorityBadge,
 	getCreditScoreColor,
+	filterLoanApplications,
 } from "./branchUtils";
 
 const LoanApplicationCard = ({ application, onLoanAction }) => {
@@ -208,11 +211,30 @@ const LoanApplicationsTab = ({
 	loanApplications,
 	loading,
 	error,
-	onNewApplication,
 	onLoanAction,
 	onRefresh,
 }) => {
+	const [searchTerm, setSearchTerm] = useState("");
+	const [statusFilter, setStatusFilter] = useState("all");
+	const [typeFilter, setTypeFilter] = useState("all");
+
 	console.log("LoanApplicationsTab - loanApplications:", loanApplications); // Debug log
+
+	const filteredApplications = filterLoanApplications(
+		loanApplications,
+		searchTerm,
+		statusFilter,
+		typeFilter
+	);
+
+	const handleClearFilters = () => {
+		setSearchTerm("");
+		setStatusFilter("all");
+		setTypeFilter("all");
+	};
+
+	const hasActiveFilters =
+		searchTerm || statusFilter !== "all" || typeFilter !== "all";
 
 	if (loading) {
 		return (
@@ -256,34 +278,137 @@ const LoanApplicationsTab = ({
 		<div className="col-12">
 			<Card>
 				<div className="d-flex justify-content-between align-items-center mb-4">
-					<h5 className="fw-medium mb-0">Loan Applications</h5>
+					<div>
+						<h5 className="fw-medium mb-0">Loan Applications</h5>
+						{hasActiveFilters && (
+							<small className="text-muted">
+								Showing {filteredApplications.length} of{" "}
+								{loanApplications?.length || 0} applications
+							</small>
+						)}
+					</div>
 					<div className="d-flex gap-2">
-						<Button variant="outline" onClick={onRefresh}>
-							<span className="me-2">🔄</span>
-							Refresh
-						</Button>
-						<Button variant="outline">
-							<span className="me-2">🔍</span>
-							Filter
-						</Button>
-						<Button variant="primary" onClick={onNewApplication}>
-							<span className="me-2">📝</span>
-							New Application
-						</Button>
+						{onRefresh && (
+							<Button variant="outline" onClick={onRefresh}>
+								<span className="me-2">🔄</span>
+								Refresh
+							</Button>
+						)}
+						{hasActiveFilters && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleClearFilters}
+							>
+								Clear Filters
+							</Button>
+						)}
 					</div>
 				</div>
 
-				<div className="row g-4">
-					{loanApplications.map((application) => (
-						<LoanApplicationCard
-							key={application.id}
-							application={application}
-							onLoanAction={onLoanAction}
-						/>
-					))}
+				{/* Search and Filter Controls */}
+				<div className="row g-3 mb-4">
+					<div className="col-md-6">
+						<div className="input-group">
+							<span className="input-group-text">
+								<Search size={16} />
+							</span>
+							<Input
+								placeholder="Search by customer, email, type, or purpose..."
+								value={searchTerm}
+								onChange={(e) => setSearchTerm(e.target.value)}
+							/>
+						</div>
+					</div>
+					<div className="col-md-3">
+						<select
+							className="form-select"
+							value={statusFilter}
+							onChange={(e) => setStatusFilter(e.target.value)}
+						>
+							<option value="all">All Applications</option>
+							<option value="pending">Pending Review</option>
+							<option value="approved">Approved/Active</option>
+							<option value="rejected">Rejected</option>
+						</select>
+					</div>
+					<div className="col-md-3">
+						<select
+							className="form-select"
+							value={typeFilter}
+							onChange={(e) => setTypeFilter(e.target.value)}
+						>
+							<option value="all">All Types</option>
+							<option value="personal loan">Personal Loan</option>
+							<option value="auto loan">Auto Loan</option>
+							<option value="mortgage">Mortgage</option>
+							<option value="business loan">Business Loan</option>
+						</select>
+					</div>
 				</div>
 
-				{loanApplications.length === 0 && (
+				{/* Loading State */}
+				{loading && (
+					<div className="text-center py-4">
+						<div className="spinner-border" role="status">
+							<span className="visually-hidden">Loading...</span>
+						</div>
+						<p className="text-muted mt-2">
+							Loading loan applications...
+						</p>
+					</div>
+				)}
+
+				{/* Error State */}
+				{error && !loading && (
+					<div className="text-center py-4">
+						<span style={{ fontSize: "3rem" }}>⚠️</span>
+						<p className="text-muted mt-2">
+							Error loading loan applications
+						</p>
+						<p className="small text-muted">
+							{error.message || "Unknown error"}
+						</p>
+						<Button variant="primary" onClick={onRefresh}>
+							Try Again
+						</Button>
+					</div>
+				)}
+
+				{/* Applications Grid */}
+				{!loading && !error && (
+					<div className="row g-4">
+						{filteredApplications.map((application) => (
+							<LoanApplicationCard
+								key={application.id}
+								application={application}
+								onLoanAction={onLoanAction}
+							/>
+						))}
+					</div>
+				)}
+
+				{/* No Results Message */}
+				{!loading &&
+					!error &&
+					filteredApplications.length === 0 &&
+					loanApplications.length > 0 && (
+						<div className="text-center py-4">
+							<span style={{ fontSize: "3rem" }}>🔍</span>
+							<p className="text-muted mt-2">
+								No applications found matching your filters
+							</p>
+							<Button
+								variant="outline"
+								onClick={handleClearFilters}
+							>
+								Clear Filters
+							</Button>
+						</div>
+					)}
+
+				{/* No Applications Message */}
+				{!loading && !error && loanApplications.length === 0 && (
 					<div className="text-center py-4">
 						<span style={{ fontSize: "3rem" }}>📄</span>
 						<p className="text-muted mt-2">

@@ -15,8 +15,8 @@ const {
     updateBranch,
     deleteBranch,
     getBranchCustomers,
-    getBranchStats,
     getBranchLoans,
+    getBranchPerformance,
     getPendingUsers,
     approveUser,
     rejectUser
@@ -120,19 +120,6 @@ router.get('/:id/customers',
 );
 
 /**
- * @route GET /api/branches/:id/stats
- * @desc Get branch statistics
- * @access Private (Manager/Admin)
- */
-router.get('/:id/stats',
-    authenticate,
-    requireRole(['manager', 'admin']),
-    branchParamsValidation,
-    handleValidationErrors,
-    getBranchStats
-);
-
-/**
  * @route GET /api/branches/:id/loans
  * @desc Get branch loan applications
  * @access Private (Manager/Admin)
@@ -144,6 +131,22 @@ router.get('/:id/loans',
     branchQueryValidation,
     handleValidationErrors,
     getBranchLoans
+);
+
+/**
+ * @route GET /api/branches/:id/performance
+ * @desc Get branch performance metrics
+ * @access Private (Manager/Admin)
+ */
+router.get('/:id/performance',
+    authenticate,
+    requireRole(['manager', 'admin']),
+    branchParamsValidation,
+    [
+        query('period').optional().isInt({ min: 1, max: 365 }).withMessage('Period must be between 1 and 365 days')
+    ],
+    handleValidationErrors,
+    getBranchPerformance
 );
 
 /**

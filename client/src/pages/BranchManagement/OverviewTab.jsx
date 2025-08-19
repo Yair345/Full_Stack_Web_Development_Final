@@ -1,21 +1,12 @@
-import BranchStatsCards from "./BranchStatsCards";
 import BranchPerformanceCard from "./BranchPerformanceCard";
-import BranchSidebarCards from "./BranchSidebarCards";
+import BranchInfoCard from "./BranchInfoCard";
 
-const OverviewTab = ({ branchStats, branchInfo, onQuickActions }) => {
+const OverviewTab = ({ branchInfo }) => {
 	return (
 		<>
-			<BranchStatsCards branchStats={branchStats} />
+			<BranchPerformanceCard />
 
-			<BranchPerformanceCard branchStats={branchStats} />
-
-			<BranchSidebarCards
-				branchInfo={branchInfo}
-				onAddCustomer={onQuickActions.addCustomer}
-				onReviewApplications={onQuickActions.reviewApplications}
-				onScheduleAppointments={onQuickActions.scheduleAppointments}
-				onBranchSettings={onQuickActions.branchSettings}
-			/>
+			<BranchInfoCard branchInfo={branchInfo} />
 		</>
 	);
 };

@@ -57,26 +57,6 @@ export const useBranchCustomers = (branchId, params = {}) => {
 };
 
 /**
- * Hook to fetch branch statistics
- * @param {Number} branchId - Branch ID
- * @param {Object} params - Query parameters
- * @returns {Object} Statistics data and loading state
- */
-export const useBranchStats = (branchId, params = {}) => {
-    const queryString = new URLSearchParams(params).toString();
-    const endpoint = branchId ? `/branches/${branchId}/stats${queryString ? `?${queryString}` : ''}` : null;
-
-    return useApi(
-        endpoint,
-        {
-            immediate: !!branchId,
-            dependencies: [branchId, JSON.stringify(params)],
-            cacheTime: 1 * 60 * 1000, // 1 minute
-        }
-    );
-};
-
-/**
  * Hook to fetch branch loan applications
  * @param {Number} branchId - Branch ID
  * @param {Object} params - Query parameters
@@ -92,6 +72,26 @@ export const useBranchLoans = (branchId, params = {}) => {
             immediate: !!branchId,
             dependencies: [branchId, JSON.stringify(params)],
             cacheTime: 2 * 60 * 1000, // 2 minutes
+        }
+    );
+};
+
+/**
+ * Hook to fetch branch performance metrics
+ * @param {Number} branchId - Branch ID
+ * @param {Object} params - Query parameters (period)
+ * @returns {Object} Performance metrics data and loading state
+ */
+export const useBranchPerformance = (branchId, params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = branchId ? `/branches/${branchId}/performance${queryString ? `?${queryString}` : ''}` : null;
+
+    return useApi(
+        endpoint,
+        {
+            immediate: !!branchId,
+            dependencies: [branchId, JSON.stringify(params)],
+            cacheTime: 5 * 60 * 1000, // 5 minutes cache for performance data
         }
     );
 };

@@ -139,33 +139,7 @@ export const mockBranchData = {
         email: "downtown@bank.com",
         hours: "Mon-Fri: 9AM-5PM",
         manager: "Jane Smith"
-    },
-    recentReports: [
-        {
-            id: 1,
-            title: "July 2025 Branch Report",
-            generatedDate: "Aug 1, 2025",
-            type: "monthly"
-        },
-        {
-            id: 2,
-            title: "Q2 Customer Analysis",
-            generatedDate: "Jul 15, 2025",
-            type: "quarterly"
-        },
-        {
-            id: 3,
-            title: "Loan Portfolio Review",
-            generatedDate: "Jul 1, 2025",
-            type: "portfolio"
-        },
-        {
-            id: 4,
-            title: "Risk Assessment Report",
-            generatedDate: "Jun 15, 2025",
-            type: "risk"
-        }
-    ]
+    }
 };
 
 export const formatCurrency = (amount) => {
@@ -259,6 +233,55 @@ export const filterCustomers = (customers, searchTerm, statusFilter) => {
             ));
 
         return matchesSearch && matchesFilter;
+    });
+};
+
+export const filterLoanApplications = (loanApplications, searchTerm, statusFilter, typeFilter) => {
+    if (!loanApplications || !Array.isArray(loanApplications)) {
+        return [];
+    }
+
+    return loanApplications.filter(loan => {
+        if (!loan) return false;
+
+        const safeSearchTerm = searchTerm ? searchTerm.toLowerCase() : '';
+
+        // Handle different possible property names for customer name
+        const customerName = loan.customerName ||
+            (loan.borrower ? `${loan.borrower.first_name} ${loan.borrower.last_name}` : '');
+        const customerEmail = loan.email || (loan.borrower ? loan.borrower.email : '') || '';
+        const loanType = (loan.loanType || loan.loan_type || '').toLowerCase();
+        const purpose = (loan.purpose || '').toLowerCase();
+
+        const matchesSearch = !safeSearchTerm ||
+            customerName.toLowerCase().includes(safeSearchTerm) ||
+            customerEmail.toLowerCase().includes(safeSearchTerm) ||
+            loanType.includes(safeSearchTerm) ||
+            purpose.includes(safeSearchTerm);
+
+        // Enhanced status matching - group related statuses
+        let matchesStatus = true;
+        if (statusFilter !== "all") {
+            const loanStatus = loan.status;
+
+            if (statusFilter === "pending") {
+                // Group all pending-related statuses
+                matchesStatus = ["pending", "pending_review", "pending_approval", "under_review", "documentation_required"].includes(loanStatus);
+            } else if (statusFilter === "approved") {
+                // Group approved and active statuses
+                matchesStatus = ["approved", "active"].includes(loanStatus);
+            } else if (statusFilter === "rejected") {
+                matchesStatus = loanStatus === "rejected";
+            } else {
+                matchesStatus = loanStatus === statusFilter;
+            }
+        }
+
+        const matchesType = typeFilter === "all" ||
+            (loan.loanType && loan.loanType.toLowerCase() === typeFilter.toLowerCase()) ||
+            (loan.loan_type && loan.loan_type.toLowerCase() === typeFilter.toLowerCase());
+
+        return matchesSearch && matchesStatus && matchesType;
     });
 };
 

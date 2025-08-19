@@ -6,11 +6,9 @@ import OverviewTab from "./OverviewTab";
 import CustomersTab from "./CustomersTab";
 import PendingUsersTab from "./PendingUsersTab";
 import LoanApplicationsTab from "./LoanApplicationsTab";
-import ReportsTab from "./ReportsTab";
 import RejectionModal from "./RejectionModal";
 import {
 	useBranch,
-	useBranchStats,
 	useBranchCustomers,
 	useBranchLoans,
 } from "../../hooks/api/apiHooks";
@@ -37,12 +35,6 @@ const BranchManagement = () => {
 		refetch: refetchBranch,
 	} = useBranch(branchId);
 	const {
-		data: statsResponse,
-		loading: statsLoading,
-		error: statsError,
-		refetch: refetchStats,
-	} = useBranchStats(branchId);
-	const {
 		data: customersResponse,
 		loading: customersLoading,
 		error: customersError,
@@ -57,16 +49,14 @@ const BranchManagement = () => {
 
 	// Extract data from responses
 	const branch = branchResponse?.data?.branch;
-	const branchStats = statsResponse?.data;
 	const customers = customersResponse?.data?.customers || [];
 	const loanApplications = loansResponse?.data?.loans || [];
 
-	const loading = branchLoading || statsLoading;
-	const error = branchError || statsError;
+	const loading = branchLoading;
+	const error = branchError;
 
 	const handleRefresh = () => {
 		refetchBranch();
-		refetchStats();
 		refetchCustomers();
 		refetchLoans();
 	};
@@ -79,48 +69,9 @@ const BranchManagement = () => {
 		}, 5000);
 	};
 
-	const handleBranchReport = () => {
-		console.log("Generating branch report...");
-		alert("Branch report generation started!");
-	};
-
-	const handleScheduleMeeting = () => {
-		console.log("Scheduling meeting...");
-		alert("Meeting scheduler will be implemented soon!");
-	};
-
-	const handleQuickActions = {
-		addCustomer: () => {
-			console.log("Adding new customer...");
-			alert("Add customer functionality will be implemented soon!");
-		},
-		reviewApplications: () => {
-			console.log("Reviewing applications...");
-			setActiveTab("loans");
-		},
-		scheduleAppointments: () => {
-			console.log("Scheduling appointments...");
-			alert("Appointment scheduler will be implemented soon!");
-		},
-		branchSettings: () => {
-			console.log("Opening branch settings...");
-			alert("Branch settings will be implemented soon!");
-		},
-	};
-
-	const handleAddCustomer = () => {
-		console.log("Adding new customer...");
-		alert("Add customer functionality will be implemented soon!");
-	};
-
 	const handleCustomerAction = (action, customerId) => {
 		console.log(`${action} customer:`, customerId);
 		alert(`${action} customer action will be implemented soon!`);
-	};
-
-	const handleNewApplication = () => {
-		console.log("Creating new loan application...");
-		alert("New loan application form will be implemented soon!");
 	};
 
 	const handleLoanAction = async (action, applicationId) => {
@@ -197,33 +148,16 @@ const BranchManagement = () => {
 		}
 	};
 
-	const handleGenerateReport = (reportType) => {
-		console.log("Generating report:", reportType);
-		alert(`${reportType} report generation started!`);
-	};
-
-	const handleDownloadReport = (reportId) => {
-		console.log("Downloading report:", reportId);
-		alert("Report download started!");
-	};
-
 	const renderTabContent = () => {
 		switch (activeTab) {
 			case "overview":
-				return (
-					<OverviewTab
-						branchStats={branchStats}
-						branchInfo={branch}
-						onQuickActions={handleQuickActions}
-					/>
-				);
+				return <OverviewTab branchInfo={branch} />;
 			case "customers":
 				return (
 					<CustomersTab
 						customers={customers}
 						loading={customersLoading}
 						error={customersError}
-						onAddCustomer={handleAddCustomer}
 						onCustomerAction={handleCustomerAction}
 						onRefresh={refetchCustomers}
 					/>
@@ -236,17 +170,8 @@ const BranchManagement = () => {
 						loanApplications={loanApplications}
 						loading={loansLoading}
 						error={loansError}
-						onNewApplication={handleNewApplication}
 						onLoanAction={handleLoanAction}
 						onRefresh={refetchLoans}
-					/>
-				);
-			case "reports":
-				return (
-					<ReportsTab
-						recentReports={[]} // Will be implemented later
-						onGenerateReport={handleGenerateReport}
-						onDownloadReport={handleDownloadReport}
 					/>
 				);
 			default:
@@ -357,12 +282,7 @@ const BranchManagement = () => {
 					</div>
 				)}
 
-				<BranchHeader
-					branchInfo={branch}
-					onBranchReport={handleBranchReport}
-					onScheduleMeeting={handleScheduleMeeting}
-					onRefresh={handleRefresh}
-				/>
+				<BranchHeader branchInfo={branch} onRefresh={handleRefresh} />
 
 				<BranchTabs activeTab={activeTab} onTabChange={setActiveTab} />
 

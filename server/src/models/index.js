@@ -12,8 +12,6 @@ const Portfolio = require('./Portfolio.model');
 const Watchlist = require('./Watchlist.model');
 const StockQuote = require('./StockQuote.model');
 const Branch = require('./Branch.model');
-const BranchStatistics = require('./BranchStatistics.model');
-const BranchReport = require('./BranchReport.model');
 
 // Define model associations
 const setupAssociations = () => {
@@ -213,41 +211,6 @@ const setupAssociations = () => {
         as: 'branch'
     });
 
-    // Branch Statistics associations
-    BranchStatistics.belongsTo(Branch, {
-        foreignKey: 'branch_id',
-        as: 'branch'
-    });
-
-    Branch.hasMany(BranchStatistics, {
-        foreignKey: 'branch_id',
-        as: 'statistics',
-        onDelete: 'CASCADE'
-    });
-
-    // Branch Reports associations
-    BranchReport.belongsTo(Branch, {
-        foreignKey: 'branch_id',
-        as: 'branch'
-    });
-
-    BranchReport.belongsTo(User, {
-        foreignKey: 'generated_by',
-        as: 'generator'
-    });
-
-    Branch.hasMany(BranchReport, {
-        foreignKey: 'branch_id',
-        as: 'reports',
-        onDelete: 'CASCADE'
-    });
-
-    User.hasMany(BranchReport, {
-        foreignKey: 'generated_by',
-        as: 'generatedReports',
-        onDelete: 'SET NULL'
-    });
-
     console.log('✅ Model associations established');
 };
 
@@ -268,8 +231,6 @@ module.exports = {
     Watchlist,
     StockQuote,
     Branch,
-    BranchStatistics,
-    BranchReport,
 
     // Helper function to sync all models
     syncModels: async (options = {}) => {

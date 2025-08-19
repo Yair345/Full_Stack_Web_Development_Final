@@ -69,7 +69,6 @@ Full_Stack_Web_Development_7/
 -   All customer features
 -   View branch customers
 -   Approve/reject loan applications
--   Generate branch reports
 -   Monitor branch transactions
 
 ### 🔧 System Administrator Features
@@ -78,7 +77,6 @@ Full_Stack_Web_Development_7/
 -   User management
 -   System configuration
 -   Audit logs access
--   System-wide reports
 
 ## 🛠️ Technologies Used
 
@@ -170,7 +168,6 @@ For testing the frontend application:
 -   [ ] Card management
 -   [ ] Admin panel features
 -   [ ] Real-time notifications
--   [ ] Report generation
 -   [ ] WebSocket integration
 -   [ ] Payment gateway integration
 

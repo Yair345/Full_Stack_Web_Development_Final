@@ -321,16 +321,16 @@ export const branchAPI = {
         return apiRequest(`/branches/${id}/customers${queryString ? `?${queryString}` : ''}`);
     },
 
-    // Get branch statistics
-    getBranchStats: (id, params = {}) => {
-        const queryString = new URLSearchParams(params).toString();
-        return apiRequest(`/branches/${id}/stats${queryString ? `?${queryString}` : ''}`);
-    },
-
     // Get branch loan applications
     getBranchLoans: (id, params = {}) => {
         const queryString = new URLSearchParams(params).toString();
         return apiRequest(`/branches/${id}/loans${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get branch performance metrics
+    getBranchPerformance: (id, params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/branches/${id}/performance${queryString ? `?${queryString}` : ''}`);
     },
 
     // Get pending users for branch approval

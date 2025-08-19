@@ -14,7 +14,7 @@ The AdminPanel provides comprehensive system administration capabilities includi
 ### AdminHeader.jsx
 
 -   Header component with title, description, and primary action buttons
--   Includes system settings and report generation buttons
+-   Includes system settings and configuration options
 -   Provides clear navigation and quick access to admin functions
 
 ### AdminTabs.jsx
@@ -94,7 +94,7 @@ The AdminPanel provides comprehensive system administration capabilities includi
 -   **Activity Logging**: Complete audit trail of system activities
 -   **Performance Metrics**: Detailed system performance monitoring
 -   **Security Oversight**: Risk assessment and security monitoring
--   **Data Export**: Report generation and log export capabilities
+-   **Data Management**: System configuration and data oversight
 -   **Role-based Access**: Different views based on administrative permissions
 
 ## Data Flow

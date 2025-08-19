@@ -1,10 +1,11 @@
-const { Branch, BranchStatistics, BranchReport, User, Account, Loan } = require('../models');
+const { Branch, User, Account, Loan, Transaction } = require('../models');
 const { AppError } = require('../utils/error.utils');
 const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
 const AuditService = require('../services/audit.service');
 const { Op } = require('sequelize');
 const { sequelize } = require('../config/database');
+const { LOAN_STATUS, TRANSACTION_STATUS, TRANSACTION_TYPES, ACCOUNT_TYPES } = require('../utils/constants');
 
 /**
  * @desc Get all branches
@@ -464,100 +465,6 @@ const getBranchCustomers = catchAsync(async (req, res, next) => {
 });
 
 /**
- * @desc Get branch statistics
- * @route GET /api/branches/:id/stats
- * @access Private (Manager/Admin)
- */
-const getBranchStats = catchAsync(async (req, res, next) => {
-    const { id } = req.params;
-    const { period = '30', start_date, end_date } = req.query;
-    const userId = req.user.id;
-
-    logger.info(`Getting statistics for branch ${id}`);
-
-    // Check branch exists and user has access
-    const branch = await Branch.findByPk(id);
-    if (!branch) {
-        throw new AppError('Branch not found', 404);
-    }
-
-    // Authorization check
-    if (req.user.role !== 'admin' && branch.manager_id !== userId) {
-        throw new AppError('Not authorized to view this branch statistics', 403);
-    }
-
-    // Calculate date range
-    let startDate, endDate;
-    if (start_date && end_date) {
-        startDate = new Date(start_date);
-        endDate = new Date(end_date);
-    } else {
-        endDate = new Date();
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - parseInt(period));
-    }
-
-    // Get statistics
-    const stats = await BranchStatistics.findAll({
-        where: {
-            branch_id: id,
-            date: {
-                [Op.between]: [startDate, endDate]
-            }
-        },
-        order: [['date', 'DESC']]
-    });
-
-    // Calculate totals and averages
-    const totals = stats.reduce((acc, stat) => ({
-        totalCustomers: Math.max(acc.totalCustomers, stat.total_customers),
-        newCustomers: acc.newCustomers + stat.new_customers_today,
-        totalAccounts: Math.max(acc.totalAccounts, stat.active_accounts),
-        totalDeposits: acc.totalDeposits + stat.total_deposits,
-        totalWithdrawals: acc.totalWithdrawals + stat.total_withdrawals,
-        totalLoans: acc.totalLoans + stat.total_loans,
-        pendingLoans: Math.max(acc.pendingLoans, stat.pending_loan_applications),
-        totalTransactions: acc.totalTransactions + stat.transactions_count,
-        totalRevenue: acc.totalRevenue + stat.revenue
-    }), {
-        totalCustomers: 0, newCustomers: 0, totalAccounts: 0,
-        totalDeposits: 0, totalWithdrawals: 0, totalLoans: 0,
-        pendingLoans: 0, totalTransactions: 0, totalRevenue: 0
-    });
-
-    // Calculate averages
-    const dayCount = stats.length || 1;
-    const averages = {
-        avgCustomersPerDay: totals.newCustomers / dayCount,
-        avgTransactionsPerDay: totals.totalTransactions / dayCount,
-        avgRevenuePerDay: totals.totalRevenue / dayCount,
-        avgSatisfactionScore: stats.reduce((sum, s) => sum + (s.customer_satisfaction_score || 0), 0) / dayCount
-    };
-
-    res.json({
-        success: true,
-        data: {
-            branch: {
-                id: branch.id,
-                name: branch.branch_name,
-                code: branch.branch_code
-            },
-            period: {
-                start_date: startDate,
-                end_date: endDate,
-                days: dayCount
-            },
-            statistics: stats,
-            summary: {
-                totals,
-                averages,
-                netCashFlow: totals.totalDeposits - totals.totalWithdrawals
-            }
-        }
-    });
-});
-
-/**
  * @desc Get branch loan applications
  * @route GET /api/branches/:id/loans
  * @access Private (Manager/Admin)
@@ -829,6 +736,101 @@ const rejectUser = catchAsync(async (req, res, next) => {
     });
 });
 
+/**
+ * @desc Get branch performance metrics
+ * @route GET /api/branches/:id/performance
+ * @access Private (Manager/Admin)
+ */
+const getBranchPerformance = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const { period = '30' } = req.query; // days - default to last 30 days
+    const userId = req.user.id;
+
+    logger.info(`Getting performance metrics for branch ${id}`);
+
+    // Check branch exists and user has access
+    const branch = await Branch.findByPk(id);
+    if (!branch) {
+        throw new AppError('Branch not found', 404);
+    }
+
+    // Authorization check
+    if (req.user.role !== 'admin' && branch.manager_id !== userId) {
+        throw new AppError('Not authorized to view this branch performance', 403);
+    }
+
+    // Calculate date range
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(period));
+
+    // Get all users associated with this branch
+    const branchUsers = await User.findAll({
+        where: { branch_id: id, is_active: true },
+        attributes: ['id']
+    });
+    const userIds = branchUsers.map(user => user.id);
+
+    // Get all account IDs for branch users
+    const branchAccounts = await Account.findAll({
+        where: { user_id: { [Op.in]: userIds }, is_active: true },
+        attributes: ['id']
+    });
+    const accountIds = branchAccounts.map(acc => acc.id);
+
+    // If no accounts, return zero metrics
+    if (accountIds.length === 0) {
+        return res.json({
+            success: true,
+            data: {
+                satisfaction: 4.5, // Mock data as requested
+                transactions: 0,
+                newAccounts: 0,
+                loanApplications: 0,
+                revenueGrowth: 12 // Mock data as requested
+            }
+        });
+    }
+
+    // Get transaction count for the period
+    const transactionCount = await Transaction.count({
+        where: {
+            [Op.or]: [
+                { from_account_id: { [Op.in]: accountIds } },
+                { to_account_id: { [Op.in]: accountIds } }
+            ],
+            status: TRANSACTION_STATUS.COMPLETED,
+            created_at: { [Op.gte]: startDate }
+        }
+    });
+
+    // Get new accounts count for the period
+    const newAccountsCount = await Account.count({
+        where: {
+            user_id: { [Op.in]: userIds },
+            created_at: { [Op.gte]: startDate }
+        }
+    });
+
+    // Get loan applications count for the period
+    const loanApplicationsCount = await Loan.count({
+        where: {
+            user_id: { [Op.in]: userIds },
+            created_at: { [Op.gte]: startDate }
+        }
+    });
+
+    res.json({
+        success: true,
+        data: {
+            satisfaction: 4.5, // Mock data as requested
+            transactions: transactionCount,
+            newAccounts: newAccountsCount,
+            loanApplications: loanApplicationsCount,
+            revenueGrowth: 12 // Mock data as requested
+        }
+    });
+});
+
 module.exports = {
     getBranches,
     getBranch,
@@ -836,8 +838,8 @@ module.exports = {
     updateBranch,
     deleteBranch,
     getBranchCustomers,
-    getBranchStats,
     getBranchLoans,
+    getBranchPerformance,
     getPendingUsers,
     approveUser,
     rejectUser
