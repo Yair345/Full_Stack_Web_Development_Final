@@ -23,11 +23,11 @@ import Profile from "./pages/Profile/Profile";
 import Stocks from "./pages/Stocks/Stocks.jsx";
 
 function AppContent() {
-	const { loading } = useAuthInitialization();
+	const { loading, isInitialized } = useAuthInitialization();
 
 	return (
 		<div className="App">
-			{loading && (
+			{!isInitialized && (
 				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
 					<div className="bg-white p-6 rounded-lg shadow-lg">
 						<div className="flex items-center space-x-3">

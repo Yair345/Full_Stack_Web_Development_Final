@@ -5,6 +5,7 @@ const initialState = {
     token: localStorage.getItem('token'),
     refreshToken: localStorage.getItem('refreshToken'),
     isAuthenticated: !!localStorage.getItem('token'),
+    isInitialized: false,
     loading: false,
     error: null,
 };
@@ -23,6 +24,7 @@ const authSlice = createSlice({
             state.user = action.payload.user;
             state.token = action.payload.token;
             state.refreshToken = action.payload.refreshToken;
+            state.isInitialized = true;
             state.error = null;
             localStorage.setItem('token', action.payload.token);
             if (action.payload.refreshToken) {
@@ -45,12 +47,14 @@ const authSlice = createSlice({
             state.token = null;
             state.refreshToken = null;
             state.error = null;
+            state.isInitialized = false;
             localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
         },
         setUser: (state, action) => {
             state.user = action.payload;
             state.isAuthenticated = true;
+            state.isInitialized = true;
         },
         clearError: (state) => {
             state.error = null;
@@ -73,6 +77,14 @@ const authSlice = createSlice({
             state.loading = false;
             state.error = action.payload;
         },
+        initializationComplete: (state) => {
+            state.isInitialized = true;
+            state.loading = false;
+        },
+        initializationStart: (state) => {
+            state.isInitialized = false;
+            state.loading = true;
+        },
     },
 });
 
@@ -85,6 +97,8 @@ export const {
     clearError,
     refreshTokenStart,
     refreshTokenSuccess,
-    refreshTokenFailure
+    refreshTokenFailure,
+    initializationComplete,
+    initializationStart
 } = authSlice.actions;
 export default authSlice.reducer;

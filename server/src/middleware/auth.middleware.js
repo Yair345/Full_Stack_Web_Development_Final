@@ -1,4 +1,4 @@
-const { verifyAccessToken, extractTokenFromHeader } = require('../utils/jwt.utils');
+const { verifyAccessToken, verifyRefreshToken, extractTokenFromHeader } = require('../utils/jwt.utils');
 const { ERROR_MESSAGES, HTTP_STATUS } = require('../utils/constants');
 const { User } = require('../models');
 
@@ -21,9 +21,7 @@ const authenticate = async (req, res, next) => {
         const decoded = verifyAccessToken(token);
 
         // Get user from database
-        const user = await User.findByPk(decoded.id, {
-            attributes: ['id', 'username', 'email', 'role', 'is_active', 'is_verified']
-        });
+        const user = await User.findByPk(decoded.id);
 
         if (!user) {
             return res.status(HTTP_STATUS.UNAUTHORIZED).json({
@@ -74,9 +72,7 @@ const optionalAuth = async (req, res, next) => {
         }
 
         const decoded = verifyAccessToken(token);
-        const user = await User.findByPk(decoded.id, {
-            attributes: ['id', 'username', 'email', 'role', 'is_active', 'is_verified']
-        });
+        const user = await User.findByPk(decoded.id);
 
         req.user = user && user.is_active ? user : null;
         next();

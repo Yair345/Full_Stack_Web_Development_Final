@@ -1,11 +1,16 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setUser, logout, refreshTokenStart, refreshTokenSuccess, refreshTokenFailure } from '../store/slices/authSlice';
+import { setUser, logout, refreshTokenStart, refreshTokenSuccess, refreshTokenFailure, initializationComplete, initializationStart } from '../store/slices/authSlice';
 
 export const useAuthInitialization = () => {
     const dispatch = useDispatch();
-    const { token, user, refreshToken, loading } = useSelector((state) => state.auth);
+    const { token, user, refreshToken, loading, isInitialized } = useSelector((state) => state.auth);
     const initializationAttempted = useRef(false);
+
+    // Reset initialization attempt flag when token changes
+    useEffect(() => {
+        initializationAttempted.current = false;
+    }, [token]);
 
     // Helper function to check if token is expired
     const isTokenExpired = useCallback((token) => {
@@ -78,13 +83,13 @@ export const useAuthInitialization = () => {
             }
 
             const userData = await response.json();
-            const user = userData.user || userData;
+            const user = userData.data?.user || userData.user || userData.data || userData;
 
             // Transform server field names to match client expectations
             const transformedUser = {
                 ...user,
-                firstName: user.first_name,
-                lastName: user.last_name
+                firstName: user.first_name || user.firstName,
+                lastName: user.last_name || user.lastName
             };
 
             dispatch(setUser(transformedUser));
@@ -99,30 +104,48 @@ export const useAuthInitialization = () => {
     useEffect(() => {
         const initializeUser = async () => {
             // Prevent multiple initialization attempts
-            if (initializationAttempted.current) return;
+            if (initializationAttempted.current || isInitialized) return;
             initializationAttempted.current = true;
 
-            // If no token, do nothing
+            // Start initialization process
+            dispatch(initializationStart());
+
+            // If no token, mark as initialized and return
             if (!token) {
+                dispatch(initializationComplete());
+                return;
+            }
+
+            // If we have a token and user, we're already initialized
+            if (token && user) {
+                dispatch(initializationComplete());
                 return;
             }
 
             // Always fetch user profile if we have a token but no user
-            if (!user) {
-                // Check if current token is expired
-                if (isTokenExpired(token)) {
-                    const newToken = await attemptTokenRefresh();
-                    if (newToken) {
-                        await getUserProfile(newToken);
+            if (token && !user) {
+                try {
+                    // Check if current token is expired
+                    if (isTokenExpired(token)) {
+                        const newToken = await attemptTokenRefresh();
+                        if (newToken) {
+                            await getUserProfile(newToken);
+                        }
+                    } else {
+                        await getUserProfile(token);
                     }
-                } else {
-                    await getUserProfile(token);
+                } catch (error) {
+                    console.error('Initialization error:', error);
+                } finally {
+                    dispatch(initializationComplete());
                 }
+            } else {
+                dispatch(initializationComplete());
             }
         };
 
         initializeUser();
-    }, [token, user, isTokenExpired, attemptTokenRefresh, getUserProfile]);
+    }, [token, user, isTokenExpired, attemptTokenRefresh, getUserProfile, dispatch]);
 
-    return { loading };
+    return { loading, isInitialized };
 };
