@@ -2,9 +2,9 @@ import { createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
     user: null,
-    token: localStorage.getItem('token'),
-    refreshToken: localStorage.getItem('refreshToken'),
-    isAuthenticated: !!localStorage.getItem('token'),
+    token: sessionStorage.getItem('token'),
+    refreshToken: sessionStorage.getItem('refreshToken'),
+    isAuthenticated: !!sessionStorage.getItem('token'),
     isInitialized: false,
     loading: false,
     error: null,
@@ -26,9 +26,9 @@ const authSlice = createSlice({
             state.refreshToken = action.payload.refreshToken;
             state.isInitialized = true;
             state.error = null;
-            localStorage.setItem('token', action.payload.token);
+            sessionStorage.setItem('token', action.payload.token);
             if (action.payload.refreshToken) {
-                localStorage.setItem('refreshToken', action.payload.refreshToken);
+                sessionStorage.setItem('refreshToken', action.payload.refreshToken);
             }
         },
         loginFailure: (state, action) => {
@@ -38,8 +38,8 @@ const authSlice = createSlice({
             state.token = null;
             state.refreshToken = null;
             state.error = action.payload;
-            localStorage.removeItem('token');
-            localStorage.removeItem('refreshToken');
+            sessionStorage.removeItem('token');
+            sessionStorage.removeItem('refreshToken');
         },
         logout: (state) => {
             state.isAuthenticated = false;
@@ -48,8 +48,8 @@ const authSlice = createSlice({
             state.refreshToken = null;
             state.error = null;
             state.isInitialized = false;
-            localStorage.removeItem('token');
-            localStorage.removeItem('refreshToken');
+            sessionStorage.removeItem('token');
+            sessionStorage.removeItem('refreshToken');
         },
         setUser: (state, action) => {
             state.user = action.payload;
@@ -68,9 +68,9 @@ const authSlice = createSlice({
             state.token = action.payload.token;
             state.refreshToken = action.payload.refreshToken;
             state.error = null;
-            localStorage.setItem('token', action.payload.token);
+            sessionStorage.setItem('token', action.payload.token);
             if (action.payload.refreshToken) {
-                localStorage.setItem('refreshToken', action.payload.refreshToken);
+                sessionStorage.setItem('refreshToken', action.payload.refreshToken);
             }
         },
         refreshTokenFailure: (state, action) => {

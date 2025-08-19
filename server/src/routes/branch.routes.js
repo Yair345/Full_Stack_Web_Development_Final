@@ -16,7 +16,10 @@ const {
     deleteBranch,
     getBranchCustomers,
     getBranchStats,
-    getBranchLoans
+    getBranchLoans,
+    getPendingUsers,
+    approveUser,
+    rejectUser
 } = require('../controllers/branch.controller');
 
 // Import validation schemas
@@ -141,6 +144,51 @@ router.get('/:id/loans',
     branchQueryValidation,
     handleValidationErrors,
     getBranchLoans
+);
+
+/**
+ * @route GET /api/branches/:id/pending-users
+ * @desc Get pending users for branch approval
+ * @access Private (Manager/Admin)
+ */
+router.get('/:id/pending-users',
+    authenticate,
+    requireRole(['manager', 'admin']),
+    branchParamsValidation,
+    handleValidationErrors,
+    getPendingUsers
+);
+
+/**
+ * @route PUT /api/branches/:id/approve-user/:userId
+ * @desc Approve a user for branch membership
+ * @access Private (Manager/Admin)
+ */
+router.put('/:id/approve-user/:userId',
+    authenticate,
+    requireRole(['manager', 'admin']),
+    [
+        param('id').isInt({ min: 1 }).withMessage('Branch ID must be a positive integer'),
+        param('userId').isInt({ min: 1 }).withMessage('User ID must be a positive integer')
+    ],
+    handleValidationErrors,
+    approveUser
+);
+
+/**
+ * @route PUT /api/branches/:id/reject-user/:userId
+ * @desc Reject a user's branch membership request
+ * @access Private (Manager/Admin)
+ */
+router.put('/:id/reject-user/:userId',
+    authenticate,
+    requireRole(['manager', 'admin']),
+    [
+        param('id').isInt({ min: 1 }).withMessage('Branch ID must be a positive integer'),
+        param('userId').isInt({ min: 1 }).withMessage('User ID must be a positive integer')
+    ],
+    handleValidationErrors,
+    rejectUser
 );
 
 module.exports = router;

@@ -177,7 +177,8 @@ Transaction.init({
             TRANSACTION_TYPES.WITHDRAWAL,
             TRANSACTION_TYPES.TRANSFER,
             TRANSACTION_TYPES.PAYMENT,
-            TRANSACTION_TYPES.FEE
+            TRANSACTION_TYPES.FEE,
+            TRANSACTION_TYPES.LOAN_DISBURSEMENT
         ),
         allowNull: false,
         validate: {

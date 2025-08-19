@@ -1,7 +1,9 @@
-const { Loan, User, Branch } = require('../models');
-const { LOAN_STATUS, LOAN_TYPES, HTTP_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } = require('../utils/constants');
+const { Loan, User, Branch, Account, Transaction } = require('../models');
+const { LOAN_STATUS, LOAN_TYPES, HTTP_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES, TRANSACTION_TYPES, TRANSACTION_STATUS, ACCOUNT_TYPES } = require('../utils/constants');
 const { ValidationError, NotFoundError, ForbiddenError } = require('../utils/error.utils');
 const { validateLoanApplication, validateLoanUpdate } = require('../utils/validation.utils');
+const { generateTransactionRef } = require('../utils/encryption.utils');
+const { sequelize } = require('../config/database');
 
 /**
  * Get all loans for a user
@@ -185,7 +187,7 @@ const createLoanApplication = async (req, res) => {
         } = req.body;
 
         // Create the loan application with branch information
-        const loan = await Loan.create({
+        const loanData = {
             user_id: userId,
             branch_id: user.branch_id, // Set branch from user's branch assignment
             loan_type,
@@ -200,12 +202,26 @@ const createLoanApplication = async (req, res) => {
             annual_income,
             status: LOAN_STATUS.PENDING,
             application_date: new Date()
-        });
+        };
+
+        const loan = await Loan.create(loanData);
+
+        // Calculate and update monthly payment after creation
+        const monthlyPayment = loan.calculateMonthlyPayment();
+        await loan.update({ monthly_payment: monthlyPayment });
+
+        // Return loan with calculated fields
+        const loanWithCalculations = {
+            ...loan.toJSON(),
+            monthlyPayment: monthlyPayment,
+            totalInterest: loan.calculateTotalInterest(),
+            remainingBalance: loan.calculateRemainingBalance()
+        };
 
         res.status(HTTP_STATUS.CREATED).json({
             success: true,
             message: 'Loan application submitted successfully',
-            data: loan
+            data: loanWithCalculations
         });
     } catch (error) {
         console.error('Error creating loan application:', error);
@@ -322,37 +338,100 @@ const makeLoanPayment = async (req, res) => {
             throw new ValidationError('Payment amount cannot exceed remaining balance');
         }
 
-        // Update loan payment information
-        const newPaymentsMade = (loan.payments_made || 0) + 1;
-        const newTotalPaid = (loan.total_paid || 0) + paymentAmount;
+        // Start database transaction for payment processing
+        const t = await sequelize.transaction();
 
-        await loan.update({
-            payments_made: newPaymentsMade,
-            total_paid: newTotalPaid,
-            status: paymentAmount >= currentBalance ? LOAN_STATUS.PAID_OFF : LOAN_STATUS.ACTIVE
-        });
+        try {
+            // Find user's checking account
+            const checkingAccount = await Account.findOne({
+                where: {
+                    user_id: userId,
+                    account_type: ACCOUNT_TYPES.CHECKING,
+                    is_active: true
+                },
+                transaction: t
+            });
 
-        // Add calculated fields for response
-        const loanData = loan.toJSON();
-        const loanWithCalculations = {
-            ...loanData,
-            remainingBalance: loan.calculateRemainingBalance(),
-            nextPaymentDue: loan.getNextPaymentDue(),
-            progressPercentage: loan.getProgressPercentage()
-        };
-
-        res.json({
-            success: true,
-            message: 'Payment processed successfully',
-            data: {
-                loan: loanWithCalculations,
-                payment: {
-                    amount: paymentAmount,
-                    remainingBalance: loan.calculateRemainingBalance(),
-                    paidOff: loan.status === LOAN_STATUS.PAID_OFF
-                }
+            if (!checkingAccount) {
+                throw new ValidationError('No active checking account found for loan payment');
             }
-        });
+
+            // Check if user has sufficient balance
+            if (checkingAccount.balance < paymentAmount) {
+                throw new ValidationError(`Insufficient balance in checking account. Available: $${checkingAccount.balance.toFixed(2)}, Required: $${paymentAmount.toFixed(2)}`);
+            }
+
+            // Deduct payment amount from checking account
+            await checkingAccount.update({
+                balance: checkingAccount.balance - paymentAmount
+            }, { transaction: t });
+
+            // Create loan payment transaction
+            const paymentTransaction = await Transaction.create({
+                transaction_ref: generateTransactionRef(),
+                from_account_id: checkingAccount.id,
+                amount: paymentAmount,
+                transaction_type: TRANSACTION_TYPES.PAYMENT,
+                description: `Loan payment - ${loan.loan_type} loan (Payment #${(loan.payments_made || 0) + 1})`,
+                status: TRANSACTION_STATUS.COMPLETED,
+                metadata: {
+                    loan_id: loan.id,
+                    loan_type: loan.loan_type,
+                    payment_number: (loan.payments_made || 0) + 1,
+                    recipient: 'Bank - Loan Department',
+                    payment_type: 'loan_payment'
+                }
+            }, { transaction: t });
+
+            // Update loan payment information
+            const newPaymentsMade = (loan.payments_made || 0) + 1;
+            const newTotalPaid = (loan.total_paid || 0) + paymentAmount;
+
+            await loan.update({
+                payments_made: newPaymentsMade,
+                total_paid: newTotalPaid,
+                status: paymentAmount >= currentBalance ? LOAN_STATUS.PAID_OFF : LOAN_STATUS.ACTIVE
+            }, { transaction: t });
+
+            // Commit transaction
+            await t.commit();
+
+            console.log(`💰 Loan payment processed successfully!`);
+            console.log(`   Loan ID: ${loan.id}`);
+            console.log(`   Payment Amount: $${paymentAmount}`);
+            console.log(`   From Account: ${checkingAccount.account_number}`);
+            console.log(`   New Account Balance: $${checkingAccount.balance - paymentAmount}`);
+            console.log(`   Remaining Loan Balance: $${loan.calculateRemainingBalance()}`);
+
+            // Add calculated fields for response
+            const loanData = loan.toJSON();
+            const loanWithCalculations = {
+                ...loanData,
+                remainingBalance: loan.calculateRemainingBalance(),
+                nextPaymentDue: loan.getNextPaymentDue(),
+                progressPercentage: loan.getProgressPercentage()
+            };
+
+            res.json({
+                success: true,
+                message: 'Payment processed successfully',
+                data: {
+                    loan: loanWithCalculations,
+                    payment: {
+                        amount: paymentAmount,
+                        remainingBalance: loan.calculateRemainingBalance(),
+                        paidOff: loan.status === LOAN_STATUS.PAID_OFF,
+                        newAccountBalance: checkingAccount.balance - paymentAmount,
+                        transactionRef: paymentTransaction.transaction_ref
+                    }
+                }
+            });
+
+        } catch (error) {
+            // Rollback transaction on error
+            await t.rollback();
+            throw error;
+        }
     } catch (error) {
         console.error('Error processing loan payment:', error);
 
@@ -611,11 +690,18 @@ const getBranchLoans = async (req, res) => {
             const loanData = loan.toJSON();
             return {
                 ...loanData,
+                monthlyPayment: loan.calculateMonthlyPayment(),
                 monthly_payment_calculated: loan.calculateMonthlyPayment(),
+                totalInterest: loan.calculateTotalInterest(),
                 total_interest: loan.calculateTotalInterest(),
+                remainingBalance: loan.calculateRemainingBalance(),
                 remaining_balance: loan.calculateRemainingBalance(),
+                nextPaymentDue: loan.getNextPaymentDue(),
                 next_payment_due: loan.getNextPaymentDue(),
-                is_overdue: loan.isOverdue()
+                isOverdue: loan.isOverdue(),
+                is_overdue: loan.isOverdue(),
+                daysOverdue: loan.getDaysOverdue(),
+                progressPercentage: loan.getProgressPercentage()
             };
         });
 
@@ -705,23 +791,98 @@ const approveBranchLoan = async (req, res) => {
 
         const updateData = { status };
 
-        if (status === LOAN_STATUS.APPROVED) {
-            updateData.approved_by = approverId;
-            updateData.approval_date = new Date();
-        } else if (status === LOAN_STATUS.REJECTED) {
-            if (!rejection_reason) {
-                throw new ValidationError('Rejection reason is required');
+        // Start database transaction for loan approval with disbursement
+        const t = await sequelize.transaction();
+
+        try {
+            if (status === LOAN_STATUS.APPROVED) {
+                updateData.approved_by = approverId;
+                updateData.approval_date = new Date();
+                // Set status to ACTIVE after disbursement so loan can receive payments
+                updateData.status = LOAN_STATUS.ACTIVE;
+
+                // Set first payment date to next month
+                const firstPaymentDate = new Date();
+                firstPaymentDate.setMonth(firstPaymentDate.getMonth() + 1);
+                firstPaymentDate.setDate(1); // Set to first of next month
+                updateData.first_payment_date = firstPaymentDate;
+
+                // Find the borrower's checking account for loan disbursement
+                const checkingAccount = await Account.findOne({
+                    where: {
+                        user_id: loan.user_id,
+                        account_type: ACCOUNT_TYPES.CHECKING,
+                        is_active: true
+                    },
+                    transaction: t
+                });
+
+                if (!checkingAccount) {
+                    throw new ValidationError('Borrower does not have an active checking account for loan disbursement');
+                }
+
+                // Create loan disbursement transaction
+                const disbursementTransaction = await Transaction.create({
+                    transaction_ref: generateTransactionRef(),
+                    to_account_id: checkingAccount.id,
+                    amount: parseFloat(loan.principal_amount),
+                    transaction_type: TRANSACTION_TYPES.LOAN_DISBURSEMENT,
+                    description: `Loan disbursement - ${loan.loan_type} loan approved`,
+                    status: TRANSACTION_STATUS.COMPLETED,
+                    metadata: {
+                        loan_id: loan.id,
+                        loan_type: loan.loan_type,
+                        source: 'Bank - Loan Department',
+                        disbursement_reason: 'Approved loan funds transfer'
+                    }
+                }, { transaction: t });
+
+                // Update checking account balance
+                await checkingAccount.update({
+                    balance: checkingAccount.balance + parseFloat(loan.principal_amount)
+                }, { transaction: t });
+
+                console.log(`💰 Loan disbursement completed successfully!`);
+                console.log(`   Loan ID: ${loan.id}`);
+                console.log(`   Amount: $${loan.principal_amount}`);
+                console.log(`   To Account: ${checkingAccount.account_number}`);
+                console.log(`   New Balance: $${checkingAccount.balance + parseFloat(loan.principal_amount)}`);
+
+            } else if (status === LOAN_STATUS.REJECTED) {
+                if (!rejection_reason) {
+                    throw new ValidationError('Rejection reason is required');
+                }
+                updateData.rejection_reason = rejection_reason;
             }
-            updateData.rejection_reason = rejection_reason;
+
+            // Update loan status
+            await loan.update(updateData, { transaction: t });
+
+            // Commit transaction
+            await t.commit();
+
+            // Reload loan to get updated data and add calculated fields
+            await loan.reload();
+            const loanData = loan.toJSON();
+            const enhancedLoanData = {
+                ...loanData,
+                remainingBalance: loan.calculateRemainingBalance(),
+                nextPaymentDue: loan.getNextPaymentDue(),
+                progressPercentage: loan.getProgressPercentage(),
+                monthlyPayment: loan.calculateMonthlyPayment()
+            };
+
+            res.json({
+                success: true,
+                message: `Loan ${status} successfully`,
+                data: enhancedLoanData
+            });
+
+        } catch (error) {
+            // Rollback transaction on error
+            await t.rollback();
+            throw error;
         }
-
-        await loan.update(updateData);
-
-        res.json({
-            success: true,
-            message: `Loan ${status} successfully`,
-            data: loan
-        });
     } catch (error) {
         console.error('Error approving branch loan:', error);
 

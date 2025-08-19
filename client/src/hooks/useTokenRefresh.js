@@ -46,13 +46,13 @@ export const useTokenRefresh = () => {
             isRefreshingRef.current = true;
             dispatch(refreshTokenStart());
 
-            // Use the refresh token from localStorage directly to avoid API service conflicts
-            const storedRefreshToken = localStorage.getItem('refreshToken');
+            // Use the refresh token from sessionStorage directly to avoid API service conflicts
+            const storedRefreshToken = sessionStorage.getItem('refreshToken');
             if (!storedRefreshToken) {
                 throw new Error('No refresh token available');
             }
 
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'}/auth/refresh`, {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1'}/auth/refresh`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

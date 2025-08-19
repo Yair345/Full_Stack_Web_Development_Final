@@ -1,12 +1,13 @@
-import { useSelector } from "react-redux";
+import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
 const ProtectedRoute = ({ children, requireApproval = true }) => {
-	const { isAuthenticated, token, user } = useSelector((state) => state.auth);
+	const { isAuthenticated, user } = useAuth();
 	const location = useLocation();
 
-	// Check if user is authenticated
-	if (!isAuthenticated && !token) {
+	// Not authenticated - redirect to login
+	if (!isAuthenticated) {
 		return <Navigate to="/login" state={{ from: location }} replace />;
 	}
 
@@ -17,29 +18,30 @@ const ProtectedRoute = ({ children, requireApproval = true }) => {
 
 	// If approval is required and user is not approved, redirect based on status
 	if (requireApproval && user?.approval_status !== "approved") {
-		if (
-			user?.approval_status === "pending" ||
-			user?.approval_status === "rejected"
-		) {
+		if (user?.approval_status === "pending") {
+			return <Navigate to="/waiting" replace />;
+		}
+
+		if (user?.approval_status === "rejected") {
+			// Could redirect to a rejection page or back to registration
 			return <Navigate to="/waiting" replace />;
 		}
 
 		// Unknown status - redirect to waiting
-		if (user?.approval_status !== "approved") {
-			return <Navigate to="/waiting" replace />;
-		}
+		return <Navigate to="/waiting" replace />;
 	}
 
+	// User is authenticated and approved (or approval not required)
 	return children;
 };
 
-// Component for waiting page - only allows users with pending/rejected status
+// Route component for waiting page - only allows pending users
 export const WaitingRoute = ({ children }) => {
-	const { isAuthenticated, token, user } = useSelector((state) => state.auth);
+	const { isAuthenticated, user } = useAuth();
 	const location = useLocation();
 
-	// Check if user is authenticated
-	if (!isAuthenticated && !token) {
+	// Not authenticated - redirect to login
+	if (!isAuthenticated) {
 		return <Navigate to="/login" state={{ from: location }} replace />;
 	}
 
@@ -54,6 +56,14 @@ export const WaitingRoute = ({ children }) => {
 	}
 
 	// Only pending or rejected users can access waiting page
+	if (
+		user?.approval_status === "pending" ||
+		user?.approval_status === "rejected"
+	) {
+		return children;
+	}
+
+	// Unknown status - allow access to waiting page
 	return children;
 };
 

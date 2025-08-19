@@ -27,7 +27,8 @@ const TRANSACTION_TYPES = {
     WITHDRAWAL: 'withdrawal',
     TRANSFER: 'transfer',
     PAYMENT: 'payment',
-    FEE: 'fee'
+    FEE: 'fee',
+    LOAN_DISBURSEMENT: 'loan_disbursement'
 };
 
 // Transaction statuses

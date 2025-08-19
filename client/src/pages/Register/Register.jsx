@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Navigate, useNavigate } from "react-router-dom";
 import {
@@ -15,12 +15,15 @@ import {
 	getInitialFormState,
 	generateUsername,
 } from "./registerUtils";
+import { authAPI } from "../../services/api";
 
 const Register = () => {
 	const [formData, setFormData] = useState(getInitialFormState());
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [errors, setErrors] = useState({});
+	const [branches, setBranches] = useState([]);
+	const [loadingBranches, setLoadingBranches] = useState(true);
 
 	const { loading, isAuthenticated } = useSelector((state) => state.auth);
 	const dispatch = useDispatch();
@@ -29,6 +32,24 @@ const Register = () => {
 
 	// Use loading state from both Redux and the register mutation
 	const isLoading = loading || register.loading;
+
+	// Fetch available branches
+	useEffect(() => {
+		const fetchBranches = async () => {
+			try {
+				setLoadingBranches(true);
+				const response = await authAPI.getBranches();
+				setBranches(response.data.branches || []);
+			} catch (error) {
+				console.error("Error fetching branches:", error);
+				// Don't fail registration if branches can't be loaded
+			} finally {
+				setLoadingBranches(false);
+			}
+		};
+
+		fetchBranches();
+	}, []);
 
 	// Redirect if already authenticated
 	if (isAuthenticated) {
@@ -89,6 +110,7 @@ const Register = () => {
 				date_of_birth: formData.dateOfBirth,
 				national_id: formData.nationalId,
 				address: formData.address,
+				branch_id: formData.branchId || null,
 			});
 
 			// Extract user and token from server response
@@ -109,6 +131,11 @@ const Register = () => {
 					refreshToken: tokens.refreshToken,
 				})
 			);
+
+			// If user is pending approval, redirect to waiting page
+			if (user.approval_status === "pending") {
+				navigate("/waiting");
+			}
 
 			// Show success message (optional)
 			console.log("Registration successful:", user);
@@ -185,6 +212,8 @@ const Register = () => {
 									showConfirmPassword={showConfirmPassword}
 									loading={isLoading}
 									errors={errors}
+									branches={branches}
+									loadingBranches={loadingBranches}
 									onFormChange={handleChange}
 									onPasswordToggle={handlePasswordToggle}
 									onConfirmPasswordToggle={

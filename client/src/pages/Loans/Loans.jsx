@@ -12,7 +12,7 @@ import { useLoans, useLoanApplications } from "../../hooks/useLoans";
 const Loans = () => {
 	const [activeTab, setActiveTab] = useState("overview");
 	const [selectedLoanForPayment, setSelectedLoanForPayment] = useState(null);
-	
+
 	// Use custom hooks for loan management
 	const {
 		loans,
@@ -23,13 +23,13 @@ const Loans = () => {
 		createLoanApplication,
 		getLoanById,
 		fetchLoans,
-		fetchLoanSummary
+		fetchLoanSummary,
 	} = useLoans();
 
 	const {
 		applications,
 		loading: applicationsLoading,
-		fetchApplications
+		fetchApplications,
 	} = useLoanApplications();
 
 	const handleMakePayment = async (loanId, amount) => {
@@ -43,7 +43,7 @@ const Loans = () => {
 			}
 		} else {
 			// Otherwise, open the payment modal
-			const loan = loans.find(l => l.id === loanId);
+			const loan = loans.find((l) => l.id === loanId);
 			if (loan) {
 				setSelectedLoanForPayment(loan);
 			}
@@ -51,8 +51,32 @@ const Loans = () => {
 	};
 
 	const handlePaymentModalSubmit = async (loanId, amount) => {
-		await makeLoanPayment(loanId, amount);
-		setSelectedLoanForPayment(null);
+		try {
+			const response = await makeLoanPayment(loanId, amount);
+			const paymentInfo = response.data.payment;
+
+			// Show success message with payment details
+			const successMessage = paymentInfo.paidOff
+				? `Payment successful! Loan has been fully paid off!`
+				: `Payment of ${new Intl.NumberFormat("en-US", {
+						style: "currency",
+						currency: "USD",
+				  }).format(
+						amount
+				  )} processed successfully! Remaining balance: ${new Intl.NumberFormat(
+						"en-US",
+						{ style: "currency", currency: "USD" }
+				  ).format(paymentInfo.remainingBalance)}`;
+
+			alert(successMessage);
+			setSelectedLoanForPayment(null);
+
+			// Force refresh loans to ensure UI is up to date
+			await fetchLoans();
+		} catch (err) {
+			alert(`Payment failed: ${err.message}`);
+			// Keep modal open on error so user can retry
+		}
 	};
 
 	const handleViewDetails = async (loanId) => {
@@ -74,7 +98,7 @@ const Loans = () => {
 			await Promise.all([
 				fetchLoans(),
 				fetchLoanSummary(),
-				fetchApplications()
+				fetchApplications(),
 			]);
 			// Switch to Applications tab to show the new application
 			setActiveTab("applications");
@@ -123,10 +147,7 @@ const Loans = () => {
 				{/* Overview Tab */}
 				{activeTab === "overview" && (
 					<>
-						<LoansSummary 
-							loans={loans} 
-							summary={loanSummary}
-						/>
+						<LoansSummary loans={loans} summary={loanSummary} />
 						<LoansList
 							loans={loans}
 							onMakePayment={handleMakePayment}
@@ -137,7 +158,7 @@ const Loans = () => {
 
 				{/* Apply for Loan Tab */}
 				{activeTab === "apply" && (
-					<LoanApplicationsTab 
+					<LoanApplicationsTab
 						onApplyLoan={handleApplyLoan}
 						loading={loading}
 					/>
@@ -148,8 +169,8 @@ const Loans = () => {
 
 				{/* Applications Tab */}
 				{activeTab === "applications" && (
-					<ApplicationsStatusTab 
-						applications={applications} 
+					<ApplicationsStatusTab
+						applications={applications}
 						loading={applicationsLoading}
 					/>
 				)}

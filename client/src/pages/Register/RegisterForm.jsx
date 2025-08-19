@@ -7,6 +7,8 @@ const RegisterForm = ({
 	showConfirmPassword,
 	loading,
 	errors,
+	branches,
+	loadingBranches,
 	onFormChange,
 	onPasswordToggle,
 	onConfirmPasswordToggle,
@@ -169,6 +171,47 @@ const RegisterForm = ({
 				{errors.address && (
 					<div className="invalid-feedback">{errors.address}</div>
 				)}
+			</div>
+
+			<div className="mb-3">
+				<label htmlFor="branchId" className="form-label">
+					Preferred Branch <span className="text-danger">*</span>
+				</label>
+				{loadingBranches ? (
+					<div className="form-control d-flex align-items-center">
+						<span
+							className="spinner-border spinner-border-sm me-2"
+							role="status"
+						></span>
+						Loading branches...
+					</div>
+				) : (
+					<select
+						id="branchId"
+						name="branchId"
+						className={`form-select ${
+							errors.branchId ? "is-invalid" : ""
+						}`}
+						required
+						value={formData.branchId || ""}
+						onChange={onFormChange}
+					>
+						<option value="">Select a branch</option>
+						{branches.map((branch) => (
+							<option key={branch.id} value={branch.id}>
+								{branch.branch_name} - {branch.city},{" "}
+								{branch.state}
+							</option>
+						))}
+					</select>
+				)}
+				{errors.branchId && (
+					<div className="invalid-feedback">{errors.branchId}</div>
+				)}
+				<small className="form-text text-muted">
+					Your account will require approval from the selected branch
+					manager.
+				</small>
 			</div>
 
 			<div className="mb-3">

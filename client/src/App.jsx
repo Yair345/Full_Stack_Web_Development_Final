@@ -8,9 +8,12 @@ import { Provider } from "react-redux";
 import { store } from "./store";
 import { useAuthInitialization } from "./hooks/useAuthInitialization";
 import Layout from "./components/layout/Layout";
-import ProtectedRoute from "./components/layout/ProtectedRoute";
+import ProtectedRoute, {
+	WaitingRoute,
+} from "./components/layout/ProtectedRoute";
 import Login from "./pages/Login/Login.jsx";
 import Register from "./pages/Register/Register.jsx";
+import WaitingPage from "./pages/Waiting/WaitingPage";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Accounts from "./pages/Accounts/Accounts.jsx";
 import Transactions from "./pages/Transactions/Transactions.jsx";
@@ -40,6 +43,14 @@ function AppContent() {
 			<Routes>
 				<Route path="/login" element={<Login />} />
 				<Route path="/register" element={<Register />} />
+				<Route
+					path="/waiting"
+					element={
+						<WaitingRoute>
+							<WaitingPage />
+						</WaitingRoute>
+					}
+				/>
 				<Route
 					path="/*"
 					element={

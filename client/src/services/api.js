@@ -4,7 +4,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001
 // Generic fetch wrapper
 export const apiRequest = async (endpoint, options = {}) => {
     const url = `${API_BASE_URL}${endpoint}`;
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
 
     const config = {
         headers: {
@@ -66,6 +66,10 @@ export const authAPI = {
     }),
 
     validateToken: () => apiRequest('/auth/validate'),
+
+    getApprovalStatus: () => apiRequest('/auth/approval-status'),
+
+    getBranches: () => apiRequest('/auth/branches'),
 };
 
 // Account API calls
@@ -188,6 +192,12 @@ export const loanAPI = {
     updateLoanStatus: (id, statusData) => apiRequest(`/loans/${id}/status`, {
         method: 'PUT',
         body: JSON.stringify(statusData),
+    }),
+
+    // Branch manager functions
+    approveBranchLoan: (id, approvalData) => apiRequest(`/loans/${id}/branch-approval`, {
+        method: 'PUT',
+        body: JSON.stringify(approvalData),
     }),
 };
 
@@ -322,6 +332,20 @@ export const branchAPI = {
         const queryString = new URLSearchParams(params).toString();
         return apiRequest(`/branches/${id}/loans${queryString ? `?${queryString}` : ''}`);
     },
+
+    // Get pending users for branch approval
+    getPendingUsers: (id) => apiRequest(`/branches/${id}/pending-users`),
+
+    // Approve a user for branch membership
+    approveUser: (branchId, userId) => apiRequest(`/branches/${branchId}/approve-user/${userId}`, {
+        method: 'PUT',
+    }),
+
+    // Reject a user's branch membership request
+    rejectUser: (branchId, userId, reason) => apiRequest(`/branches/${branchId}/reject-user/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ reason }),
+    }),
 };
 
 export default { apiRequest, authAPI, accountAPI, transactionAPI, standingOrderAPI, loanAPI, cardAPI, stockAPI, branchAPI };

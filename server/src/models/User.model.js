@@ -38,6 +38,30 @@ class User extends Model {
     }
 
     /**
+     * Check if user is pending approval
+     * @returns {Boolean} Is pending approval
+     */
+    isPending() {
+        return this.approval_status === 'pending';
+    }
+
+    /**
+     * Check if user is approved
+     * @returns {Boolean} Is approved
+     */
+    isApproved() {
+        return this.approval_status === 'approved';
+    }
+
+    /**
+     * Check if user is rejected
+     * @returns {Boolean} Is rejected
+     */
+    isRejected() {
+        return this.approval_status === 'rejected';
+    }
+
+    /**
      * Get user's full name
      * @returns {String} Full name
      */
@@ -227,6 +251,37 @@ User.init({
         // Note: No foreign key constraint - just a simple integer field
     },
 
+    // Pending branch assignment for users awaiting approval
+    pending_branch_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'Branch where the user wants to be assigned while pending approval'
+        // Note: No foreign key constraint - just a simple integer field
+    },
+
+    // Approval status fields
+    approval_status: {
+        type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+        allowNull: false,
+        defaultValue: 'pending',
+        comment: 'User approval status by branch manager'
+    },
+    approved_by: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: 'ID of the manager who approved/rejected the user'
+    },
+    approved_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        comment: 'When the user was approved/rejected'
+    },
+    rejection_reason: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        comment: 'Reason for rejection if applicable'
+    },
+
     is_active: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -302,6 +357,15 @@ User.init({
         },
         {
             fields: ['branch_id']
+        },
+        {
+            fields: ['pending_branch_id']
+        },
+        {
+            fields: ['approval_status']
+        },
+        {
+            fields: ['approved_by']
         },
         {
             fields: ['is_active']

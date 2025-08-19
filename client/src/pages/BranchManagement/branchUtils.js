@@ -199,6 +199,7 @@ export const getStatusBadge = (status) => {
         active: { class: "bg-success", text: "Active" },
         vip: { class: "bg-warning", text: "VIP" },
         inactive: { class: "bg-secondary", text: "Inactive" },
+        pending: { class: "bg-warning", text: "Pending" },
         pending_review: { class: "bg-info", text: "Pending Review" },
         pending_approval: { class: "bg-warning", text: "Pending Approval" },
         under_review: { class: "bg-primary", text: "Under Review" },

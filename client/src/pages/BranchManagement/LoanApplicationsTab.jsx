@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, Eye } from "lucide-react";
+import { CheckCircle, XCircle } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import {
@@ -10,20 +10,33 @@ import {
 
 const LoanApplicationCard = ({ application, onLoanAction }) => {
 	const statusInfo = getStatusBadge(application.status);
-	const priorityInfo = getPriorityBadge(application.priority);
-	const creditScoreColor = getCreditScoreColor(application.creditScore);
+	const priorityInfo = getPriorityBadge(application.priority || "medium");
+	const creditScoreColor = getCreditScoreColor(
+		application.creditScore || application.credit_score
+	);
+
+	// Handle different data structures - API vs Demo data
+	const customerName =
+		application.customerName ||
+		(application.borrower
+			? `${application.borrower.first_name} ${application.borrower.last_name}`
+			: "Unknown Customer");
+	const email =
+		application.email || application.borrower?.email || "No email";
+
+	const isPending =
+		application.status === "pending" ||
+		application.status === "pending_review";
+	const isApproved = application.status === "approved";
+	const isRejected = application.status === "rejected";
 
 	return (
 		<div className="col-lg-6">
 			<div className="border rounded p-4">
 				<div className="d-flex justify-content-between align-items-start mb-3">
 					<div>
-						<h6 className="fw-medium mb-1">
-							{application.customerName}
-						</h6>
-						<small className="text-muted">
-							{application.email}
-						</small>
+						<h6 className="fw-medium mb-1">{customerName}</h6>
+						<small className="text-muted">{email}</small>
 					</div>
 					<div className="d-flex gap-2">
 						<span className={`badge ${priorityInfo.class}`}>
@@ -41,7 +54,9 @@ const LoanApplicationCard = ({ application, onLoanAction }) => {
 					</div>
 					<div className="col-6">
 						<span className="fw-medium">
-							{application.loanType}
+							{application.loanType ||
+								application.loan_type ||
+								"N/A"}
 						</span>
 					</div>
 					<div className="col-6">
@@ -49,7 +64,11 @@ const LoanApplicationCard = ({ application, onLoanAction }) => {
 					</div>
 					<div className="col-6">
 						<span className="fw-medium">
-							{formatCurrency(application.requestedAmount)}
+							{formatCurrency(
+								application.requestedAmount ||
+									application.amount ||
+									0
+							)}
 						</span>
 					</div>
 					<div className="col-6">
@@ -57,7 +76,9 @@ const LoanApplicationCard = ({ application, onLoanAction }) => {
 					</div>
 					<div className="col-6">
 						<span className={`fw-medium text-${creditScoreColor}`}>
-							{application.creditScore}
+							{application.creditScore ||
+								application.credit_score ||
+								"N/A"}
 						</span>
 					</div>
 					<div className="col-6">
@@ -65,7 +86,38 @@ const LoanApplicationCard = ({ application, onLoanAction }) => {
 					</div>
 					<div className="col-6">
 						<span className="fw-medium">
-							{formatCurrency(application.monthlyIncome)}/mo
+							{formatCurrency(
+								application.monthlyIncome ||
+									application.annual_income / 12
+							)}
+							/mo
+						</span>
+					</div>
+					<div className="col-6">
+						<span className="text-muted">Monthly Payment:</span>
+					</div>
+					<div className="col-6">
+						<span className="fw-medium">
+							{formatCurrency(
+								application.monthlyPayment ||
+									application.monthly_payment_calculated ||
+									application.monthly_payment ||
+									0
+							)}
+						</span>
+					</div>
+					<div className="col-6">
+						<span className="text-muted">Interest Rate:</span>
+					</div>
+					<div className="col-6">
+						<span className="fw-medium">
+							{application.interest_rate
+								? (
+										parseFloat(application.interest_rate) *
+										100
+								  ).toFixed(2)
+								: "0.00"}
+							%
 						</span>
 					</div>
 					<div className="col-6">
@@ -79,36 +131,73 @@ const LoanApplicationCard = ({ application, onLoanAction }) => {
 					</div>
 					<div className="col-6">
 						<span className="fw-medium">
-							{application.submittedDate}
+							{application.submittedDate
+								? new Date(
+										application.submittedDate
+								  ).toLocaleDateString()
+								: application.application_date
+								? new Date(
+										application.application_date
+								  ).toLocaleDateString()
+								: "N/A"}
 						</span>
 					</div>
+					{isRejected && application.rejection_reason && (
+						<>
+							<div className="col-12">
+								<hr className="my-2" />
+							</div>
+							<div className="col-12">
+								<span className="text-muted">
+									Rejection Reason:
+								</span>
+								<div className="mt-1 p-2 bg-light rounded">
+									<small className="text-danger">
+										{application.rejection_reason}
+									</small>
+								</div>
+							</div>
+						</>
+					)}
 				</div>
 
 				<div className="d-flex gap-2">
-					<Button
-						variant="success"
-						size="sm"
-						onClick={() => onLoanAction("Approve", application.id)}
-					>
-						<CheckCircle size={14} className="me-1" />
-						Approve
-					</Button>
-					<Button
-						variant="danger"
-						size="sm"
-						onClick={() => onLoanAction("Reject", application.id)}
-					>
-						<XCircle size={14} className="me-1" />
-						Reject
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => onLoanAction("Review", application.id)}
-					>
-						<Eye size={14} className="me-1" />
-						Review
-					</Button>
+					{isPending && (
+						<>
+							<Button
+								variant="success"
+								size="sm"
+								onClick={() =>
+									onLoanAction("Approve", application.id)
+								}
+							>
+								<CheckCircle size={14} className="me-1" />
+								Approve
+							</Button>
+							<Button
+								variant="danger"
+								size="sm"
+								onClick={() =>
+									onLoanAction("Reject", application.id)
+								}
+							>
+								<XCircle size={14} className="me-1" />
+								Reject
+							</Button>
+						</>
+					)}
+					{isApproved && (
+						<span className="badge bg-success py-2 px-3">
+							<CheckCircle size={14} className="me-1" />
+							Approved
+						</span>
+					)}
+					{isRejected && (
+						<span className="badge bg-danger py-2 px-3">
+							<XCircle size={14} className="me-1" />
+							Rejected
+						</span>
+					)}
 				</div>
 			</div>
 		</div>
@@ -117,15 +206,62 @@ const LoanApplicationCard = ({ application, onLoanAction }) => {
 
 const LoanApplicationsTab = ({
 	loanApplications,
+	loading,
+	error,
 	onNewApplication,
 	onLoanAction,
+	onRefresh,
 }) => {
+	console.log("LoanApplicationsTab - loanApplications:", loanApplications); // Debug log
+
+	if (loading) {
+		return (
+			<div className="col-12">
+				<Card>
+					<div className="text-center py-4">
+						<div className="spinner-border" role="status">
+							<span className="visually-hidden">Loading...</span>
+						</div>
+						<p className="text-muted mt-2">
+							Loading loan applications...
+						</p>
+					</div>
+				</Card>
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="col-12">
+				<Card>
+					<div className="text-center py-4">
+						<span style={{ fontSize: "3rem" }}>⚠️</span>
+						<p className="text-muted mt-2">
+							Error loading loan applications
+						</p>
+						<p className="small text-muted">
+							{error.message || "Unknown error"}
+						</p>
+						<Button variant="primary" onClick={onRefresh}>
+							Try Again
+						</Button>
+					</div>
+				</Card>
+			</div>
+		);
+	}
+
 	return (
 		<div className="col-12">
 			<Card>
 				<div className="d-flex justify-content-between align-items-center mb-4">
 					<h5 className="fw-medium mb-0">Loan Applications</h5>
 					<div className="d-flex gap-2">
+						<Button variant="outline" onClick={onRefresh}>
+							<span className="me-2">🔄</span>
+							Refresh
+						</Button>
 						<Button variant="outline">
 							<span className="me-2">🔍</span>
 							Filter

@@ -1,4 +1,9 @@
-import { ArrowUpCircle, ArrowDownCircle, CreditCard } from "lucide-react";
+import {
+	ArrowUpCircle,
+	ArrowDownCircle,
+	CreditCard,
+	Banknote,
+} from "lucide-react";
 import { formatCurrency, formatDate } from "../../utils/helpers";
 import { categorizeTransaction, getTransactionFlow } from "./transactionUtils";
 
@@ -15,6 +20,8 @@ const TransactionItem = ({ transaction }) => {
 				return <ArrowDownCircle className="text-success" size={20} />;
 			case "withdrawal":
 				return <ArrowUpCircle className="text-danger" size={20} />;
+			case "loan_disbursement":
+				return <Banknote className="text-info" size={20} />;
 			default:
 				return <CreditCard className="text-muted" size={20} />;
 		}
@@ -32,6 +39,28 @@ const TransactionItem = ({ transaction }) => {
 				return "badge bg-secondary";
 			default:
 				return "badge bg-secondary";
+		}
+	};
+
+	// Get a more readable transaction type label
+	const getTransactionTypeLabel = (type) => {
+		switch (type) {
+			case "loan_disbursement":
+				return "Loan Disbursement";
+			case "deposit":
+				return "Deposit";
+			case "withdrawal":
+				return "Withdrawal";
+			case "transfer":
+				return "Transfer";
+			case "payment":
+				return "Payment";
+			case "fee":
+				return "Fee";
+			default:
+				return (
+					type?.charAt(0).toUpperCase() + type?.slice(1) || "Unknown"
+				);
 		}
 	};
 
@@ -96,7 +125,7 @@ const TransactionItem = ({ transaction }) => {
 			</td>
 			<td>
 				<span className="badge bg-light text-dark">
-					{transaction.transaction_type}
+					{getTransactionTypeLabel(transaction.transaction_type)}
 				</span>
 			</td>
 			<td className="text-muted small">

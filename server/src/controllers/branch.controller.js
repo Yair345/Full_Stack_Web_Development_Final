@@ -607,12 +607,32 @@ const getBranchLoans = catchAsync(async (req, res, next) => {
         offset: parseInt(offset)
     });
 
+    // Add calculated fields to each loan
+    const loansWithCalculations = loans.map(loan => {
+        const loanData = loan.toJSON();
+        return {
+            ...loanData,
+            monthlyPayment: loan.calculateMonthlyPayment(),
+            monthly_payment_calculated: loan.calculateMonthlyPayment(),
+            totalInterest: loan.calculateTotalInterest(),
+            total_interest: loan.calculateTotalInterest(),
+            remainingBalance: loan.calculateRemainingBalance(),
+            remaining_balance: loan.calculateRemainingBalance(),
+            nextPaymentDue: loan.getNextPaymentDue(),
+            next_payment_due: loan.getNextPaymentDue(),
+            isOverdue: loan.isOverdue(),
+            is_overdue: loan.isOverdue(),
+            daysOverdue: loan.getDaysOverdue(),
+            progressPercentage: loan.getProgressPercentage()
+        };
+    });
+
     const totalPages = Math.ceil(count / limit);
 
     res.json({
         success: true,
         data: {
-            loans,
+            loans: loansWithCalculations,
             pagination: {
                 current_page: parseInt(page),
                 total_pages: totalPages,
@@ -620,6 +640,192 @@ const getBranchLoans = catchAsync(async (req, res, next) => {
                 per_page: parseInt(limit)
             }
         }
+    });
+});
+
+/**
+ * @desc Get pending users for branch approval
+ * @route GET /api/branches/:id/pending-users
+ * @access Private (Manager/Admin)
+ */
+const getPendingUsers = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    logger.info(`Getting pending users for branch ${id}`);
+
+    // Check branch exists and user has access
+    const branch = await Branch.findByPk(id);
+    if (!branch) {
+        throw new AppError('Branch not found', 404);
+    }
+
+    // Authorization check
+    if (req.user.role !== 'admin' && branch.manager_id !== userId) {
+        throw new AppError('Not authorized to view pending users for this branch', 403);
+    }
+
+    // Get all pending users for this branch
+    const pendingUsers = await User.findAll({
+        where: {
+            approval_status: 'pending',
+            pending_branch_id: id
+        },
+        attributes: [
+            'id', 'username', 'first_name', 'last_name', 'email',
+            'phone', 'created_at', 'approval_status', 'pending_branch_id'
+        ],
+        order: [['created_at', 'ASC']]
+    });
+
+    logger.info(`Found ${pendingUsers.length} pending users for branch ${id}`);
+
+    res.json({
+        success: true,
+        data: {
+            pendingUsers,
+            count: pendingUsers.length
+        }
+    });
+});
+
+/**
+ * @desc Approve a user for branch membership
+ * @route PUT /api/branches/:id/approve-user/:userId
+ * @access Private (Manager/Admin)
+ */
+const approveUser = catchAsync(async (req, res, next) => {
+    const { id: branchId, userId } = req.params;
+    const managerId = req.user.id;
+
+    logger.info(`Approving user ${userId} for branch ${branchId} by manager ${managerId}`);
+
+    // Check branch exists and user has access
+    const branch = await Branch.findByPk(branchId);
+    if (!branch) {
+        throw new AppError('Branch not found', 404);
+    }
+
+    // Authorization check
+    if (req.user.role !== 'admin' && branch.manager_id !== managerId) {
+        throw new AppError('Not authorized to approve users for this branch', 403);
+    }
+
+    // Find the user
+    const user = await User.findByPk(userId);
+    if (!user) {
+        throw new AppError('User not found', 404);
+    }
+
+    // Check if user is pending for this branch
+    if (user.approval_status !== 'pending' || user.pending_branch_id !== parseInt(branchId)) {
+        throw new AppError('User is not pending approval for this branch', 400);
+    }
+
+    // Approve the user
+    await user.update({
+        branch_id: branchId,
+        approval_status: 'approved',
+        approved_by: managerId,
+        approved_at: new Date(),
+        pending_branch_id: null
+    });
+
+    logger.info(`User ${userId} approved for branch ${branchId}`);
+
+    // Log approval audit event
+    await AuditService.logSystem({
+        level: 'info',
+        message: `User approved for branch: ${user.username} approved by manager ${req.user.username}`,
+        service: 'user_approval',
+        meta: {
+            userId: user.id,
+            branchId: branchId,
+            approvedBy: managerId,
+            userEmail: user.email
+        }
+    });
+
+    res.json({
+        success: true,
+        message: 'User approved successfully',
+        data: {
+            user: {
+                id: user.id,
+                username: user.username,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                email: user.email,
+                branch_id: user.branch_id,
+                approval_status: user.approval_status,
+                approved_at: user.approved_at
+            }
+        }
+    });
+});
+
+/**
+ * @desc Reject a user's branch membership request
+ * @route PUT /api/branches/:id/reject-user/:userId
+ * @access Private (Manager/Admin)
+ */
+const rejectUser = catchAsync(async (req, res, next) => {
+    const { id: branchId, userId } = req.params;
+    const { reason } = req.body;
+    const managerId = req.user.id;
+
+    logger.info(`Rejecting user ${userId} for branch ${branchId} by manager ${managerId}`);
+
+    // Check branch exists and user has access
+    const branch = await Branch.findByPk(branchId);
+    if (!branch) {
+        throw new AppError('Branch not found', 404);
+    }
+
+    // Authorization check
+    if (req.user.role !== 'admin' && branch.manager_id !== managerId) {
+        throw new AppError('Not authorized to reject users for this branch', 403);
+    }
+
+    // Find the user
+    const user = await User.findByPk(userId);
+    if (!user) {
+        throw new AppError('User not found', 404);
+    }
+
+    // Check if user is pending for this branch
+    if (user.approval_status !== 'pending' || user.pending_branch_id !== parseInt(branchId)) {
+        throw new AppError('User is not pending approval for this branch', 400);
+    }
+
+    // Reject the user
+    await user.update({
+        approval_status: 'rejected',
+        rejected_by: managerId,
+        rejected_at: new Date(),
+        rejection_reason: reason || 'No reason provided',
+        pending_branch_id: null
+    });
+
+    logger.info(`User ${userId} rejected for branch ${branchId}`);
+
+    // Log rejection audit event
+    await AuditService.logSystem({
+        level: 'warning',
+        message: `User rejected for branch: ${user.username} rejected by manager ${req.user.username}`,
+        service: 'user_approval',
+        meta: {
+            userId: user.id,
+            branchId: branchId,
+            rejectedBy: managerId,
+            reason: reason,
+            userEmail: user.email
+        }
+    });
+
+    res.json({
+        success: true,
+        message: 'User rejected successfully'
     });
 });
 
@@ -631,5 +837,8 @@ module.exports = {
     deleteBranch,
     getBranchCustomers,
     getBranchStats,
-    getBranchLoans
+    getBranchLoans,
+    getPendingUsers,
+    approveUser,
+    rejectUser
 };

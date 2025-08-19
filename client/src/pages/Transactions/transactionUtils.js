@@ -39,6 +39,14 @@ export const categorizeTransaction = (transaction) => {
                 category: 'income'
             };
 
+        case "loan_disbursement":
+            // Loan disbursement is money coming into user's account = income
+            return {
+                amount: amount,
+                isIncome: true,
+                category: 'income'
+            };
+
         case "withdrawal":
         case "payment":
             // Money going out of user's account = expense
@@ -166,6 +174,14 @@ export const getTransactionFlow = (transaction) => {
                     from: 'External Deposit',
                     to: toName,
                     description: `External Deposit → ${toName}`
+                };
+            case 'loan_disbursement':
+                // Use metadata source if available, otherwise default to Bank
+                const source = transaction.metadata?.source || 'Bank - Loan Department';
+                return {
+                    from: source,
+                    to: toName,
+                    description: `${source} → ${toName}`
                 };
             default:
                 return {

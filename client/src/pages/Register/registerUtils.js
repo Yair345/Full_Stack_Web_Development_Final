@@ -91,6 +91,11 @@ export const validateRegisterForm = (formData) => {
         errors.acceptTerms = "You must accept the terms and conditions";
     }
 
+    // Branch selection validation
+    if (!formData.branchId) {
+        errors.branchId = "Please select a branch";
+    }
+
     return {
         isValid: Object.keys(errors).length === 0,
         errors,
@@ -164,6 +169,7 @@ export const getInitialFormState = () => ({
     dateOfBirth: "",
     nationalId: "",
     address: "",
+    branchId: "",
     password: "",
     confirmPassword: "",
     acceptTerms: false,

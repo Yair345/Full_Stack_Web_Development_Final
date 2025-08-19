@@ -10,7 +10,9 @@ const {
     forgotPassword,
     resetPassword,
     verifyEmail,
-    resendVerification
+    resendVerification,
+    getApprovalStatus,
+    getAvailableBranches
 } = require('../controllers/auth.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { handleValidationErrors } = require('../middleware/validation.middleware');
@@ -32,6 +34,7 @@ router.post('/refresh', refreshToken);
 router.post('/forgot-password', forgotPasswordValidation, handleValidationErrors, forgotPassword);
 router.post('/reset-password', resetPasswordValidation, handleValidationErrors, resetPassword);
 router.get('/verify-email/:token', verifyEmail);
+router.get('/branches', getAvailableBranches);
 
 // Protected routes
 router.use(authenticate);
@@ -41,5 +44,6 @@ router.put('/profile', updateProfileValidation, handleValidationErrors, updatePr
 router.post('/logout', logout);
 router.put('/change-password', changePasswordValidation, handleValidationErrors, changePassword);
 router.post('/resend-verification', resendVerification);
+router.get('/approval-status', getApprovalStatus);
 
 module.exports = router;

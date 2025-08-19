@@ -1,4 +1,4 @@
-const { User } = require('../models');
+const { User, Branch } = require('../models');
 const AuthService = require('../services/auth.service');
 const AuditService = require('../services/audit.service');
 const { AppError } = require('../utils/error.utils');
@@ -13,7 +13,7 @@ const { Op } = require('sequelize');
  * @access Public
  */
 const register = catchAsync(async (req, res, next) => {
-    const { username, email, password, first_name, last_name, phone, date_of_birth, national_id, address } = req.body;
+    const { username, email, password, first_name, last_name, phone, date_of_birth, national_id, address, branch_id } = req.body;
 
     logger.info(`Registration attempt for email: ${email}`);
 
@@ -55,7 +55,29 @@ const register = catchAsync(async (req, res, next) => {
         });
     }
 
-    // Create user with AuthService
+    // Validate that the branch exists if provided
+    if (branch_id) {
+        const branch = await Branch.findOne({
+            where: {
+                id: branch_id,
+                is_active: true
+            }
+        });
+
+        if (!branch) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid branch selected',
+                errors: [{
+                    field: 'branch_id',
+                    message: 'Selected branch does not exist or is not active',
+                    value: branch_id
+                }]
+            });
+        }
+    }
+
+    // Create user with AuthService - they will be in pending status
     const { user, tokens } = await AuthService.register({
         username,
         email,
@@ -65,10 +87,14 @@ const register = catchAsync(async (req, res, next) => {
         phone,
         date_of_birth,
         national_id,
-        address
+        address,
+        // Set approval status and pending branch
+        approval_status: 'pending',
+        pending_branch_id: branch_id || null,
+        branch_id: null // User gets no branch until approved
     });
 
-    logger.info(`User registered successfully: ${user.id}`);
+    logger.info(`User registered successfully with pending status: ${user.id}`);
 
     // Log audit event to MongoDB
     await AuditService.logAuth({
@@ -78,16 +104,19 @@ const register = catchAsync(async (req, res, next) => {
         success: true,
         details: {
             registrationMethod: 'email',
-            userRole: user.role
+            userRole: user.role,
+            approvalStatus: 'pending',
+            pendingBranchId: branch_id
         }
     });
 
     res.status(201).json({
         success: true,
-        message: 'User registered successfully',
+        message: 'Registration successful. Your account is pending approval by the branch manager.',
         data: {
             user: user.toSafeJSON(),
-            tokens
+            tokens,
+            approval_status: 'pending'
         }
     });
 });
@@ -383,6 +412,46 @@ const resendVerification = catchAsync(async (req, res, next) => {
     });
 });
 
+/**
+ * @desc Get available branches for registration
+ * @route GET /api/auth/branches
+ * @access Public
+ */
+const getAvailableBranches = catchAsync(async (req, res, next) => {
+    logger.info('Getting available branches for registration');
+
+    const branches = await Branch.findAll({
+        where: { is_active: true },
+        attributes: ['id', 'branch_name', 'city', 'state', 'address'],
+        order: [['branch_name', 'ASC']]
+    });
+
+    res.json({
+        success: true,
+        data: { branches }
+    });
+});
+
+/**
+ * @desc Check approval status for current user
+ * @route GET /api/auth/approval-status
+ * @access Private
+ */
+const getApprovalStatus = catchAsync(async (req, res, next) => {
+    const user = req.user;
+
+    res.json({
+        success: true,
+        data: {
+            approval_status: user.approval_status,
+            approved_at: user.approved_at,
+            rejection_reason: user.rejection_reason,
+            branch_id: user.branch_id,
+            pending_branch_id: user.pending_branch_id
+        }
+    });
+});
+
 module.exports = {
     register,
     login,
@@ -394,5 +463,7 @@ module.exports = {
     forgotPassword,
     resetPassword,
     verifyEmail,
-    resendVerification
+    resendVerification,
+    getApprovalStatus,
+    getAvailableBranches
 };

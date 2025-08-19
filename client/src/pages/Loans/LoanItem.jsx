@@ -12,10 +12,16 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 	// התאמה לנתונים האמיתיים מה-API
 	const originalAmount = parseFloat(loan.amount || loan.originalAmount || 0);
 	const currentBalance = parseFloat(
-		loan.remainingBalance || loan.currentBalance || originalAmount
+		loan.remainingBalance ||
+			loan.remaining_balance ||
+			loan.currentBalance ||
+			originalAmount
 	);
 	const monthlyPayment = parseFloat(
-		loan.monthlyPayment || loan.calculateMonthlyPayment || 0
+		loan.monthlyPayment ||
+			loan.monthly_payment_calculated ||
+			loan.monthly_payment ||
+			0
 	);
 	const interestRate = loan.interest_rate
 		? (parseFloat(loan.interest_rate) * 100).toFixed(2)
@@ -27,13 +33,38 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 		? `${loanType.charAt(0).toUpperCase() + loanType.slice(1)} Loan`
 		: loan.name ||
 		  `${loanType.charAt(0).toUpperCase() + loanType.slice(1)} Loan`;
-	const nextPaymentDate = loan.nextPaymentDue
-		? new Date(loan.nextPaymentDue).toLocaleDateString()
-		: loan.nextPaymentDate || null;
-	const remainingMonths = (loan.term_months || 0) - (loan.payments_made || 0);
 
+	// Enhanced next payment date handling
+	const nextPaymentDate = loan.nextPaymentDue
+		? new Date(loan.nextPaymentDue).toLocaleDateString("en-US", {
+				year: "numeric",
+				month: "short",
+				day: "numeric",
+		  })
+		: loan.nextPaymentDate
+		? new Date(loan.nextPaymentDate).toLocaleDateString("en-US", {
+				year: "numeric",
+				month: "short",
+				day: "numeric",
+		  })
+		: loan.nextPayment
+		? new Date(loan.nextPayment).toLocaleDateString("en-US", {
+				year: "numeric",
+				month: "short",
+				day: "numeric",
+		  })
+		: null;
+
+	const remainingMonths = Math.max(
+		0,
+		(loan.term_months || 0) - (loan.payments_made || 0)
+	);
+
+	// Use backend progress calculation if available, otherwise calculate locally
 	const progress =
-		originalAmount > 0
+		loan.progressPercentage !== undefined
+			? parseFloat(loan.progressPercentage)
+			: originalAmount > 0
 			? calculateProgress(originalAmount, currentBalance)
 			: 0;
 
@@ -49,8 +80,11 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 
 	// בדיקה אם הלוואה פעילה לתשלום
 	const canMakePayment =
-		loan.status === "active" || loan.status === "current";
+		(loan.status === "active" || loan.status === "current") &&
+		currentBalance > 0 &&
+		loan.status !== "paid_off";
 	const isOverdue = loan.isOverdue;
+	const isPaidOff = loan.status === "paid_off" || currentBalance <= 0;
 
 	return (
 		<Card>
@@ -62,10 +96,16 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 					<div>
 						<h6 className="fw-medium mb-1">{loanName}</h6>
 						<small className="text-muted">
-							{nextPaymentDate
-								? `Next payment: ${nextPaymentDate}`
-								: "No active payments"}
-							{isOverdue && (
+							{isPaidOff ? (
+								<span className="text-success fw-medium">
+									Loan Paid Off
+								</span>
+							) : nextPaymentDate ? (
+								`Next payment: ${nextPaymentDate}`
+							) : (
+								"No active payments"
+							)}
+							{isOverdue && !isPaidOff && (
 								<span className="text-danger ms-1">
 									(Overdue)
 								</span>
@@ -146,13 +186,19 @@ const LoanItem = ({ loan, onMakePayment, onViewDetails }) => {
 
 			<div className="d-flex gap-2">
 				<Button
-					variant={isOverdue ? "danger" : "primary"}
+					variant={
+						isPaidOff ? "success" : isOverdue ? "danger" : "primary"
+					}
 					size="sm"
 					className="flex-grow-1"
 					onClick={() => onMakePayment(loan.id, monthlyPayment)}
 					disabled={!canMakePayment}
 				>
-					{isOverdue ? "Pay Overdue" : "Make Payment"}
+					{isPaidOff
+						? "Paid Off"
+						: isOverdue
+						? "Pay Overdue"
+						: "Make Payment"}
 				</Button>
 				<Button
 					variant="outline"

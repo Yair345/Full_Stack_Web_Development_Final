@@ -51,10 +51,10 @@ export const useLoans = () => {
             setLoading(true);
             setError(null);
             const response = await loanAPI.createLoanApplication(loanData);
-            
+
             // Refresh loans after creating application
             await fetchLoans();
-            
+
             return response;
         } catch (err) {
             setError(err.message);
@@ -72,14 +72,14 @@ export const useLoans = () => {
             setLoading(true);
             setError(null);
             const response = await loanAPI.updateLoanApplication(loanId, loanData);
-            
+
             // Update local state
-            setLoans(prevLoans => 
-                prevLoans.map(loan => 
+            setLoans(prevLoans =>
+                prevLoans.map(loan =>
                     loan.id === loanId ? { ...loan, ...response.data } : loan
                 )
             );
-            
+
             return response;
         } catch (err) {
             setError(err.message);
@@ -97,17 +97,39 @@ export const useLoans = () => {
             setLoading(true);
             setError(null);
             const response = await loanAPI.makeLoanPayment(loanId, { amount });
-            
-            // Update local state with new loan data
-            setLoans(prevLoans => 
-                prevLoans.map(loan => 
-                    loan.id === loanId ? { ...loan, ...response.data.loan } : loan
-                )
+
+            // Extract the updated loan data from the response
+            const updatedLoan = response.data.loan;
+            const paymentInfo = response.data.payment;
+
+            // Update local state with comprehensive loan data
+            setLoans(prevLoans =>
+                prevLoans.map(loan => {
+                    if (loan.id === loanId) {
+                        return {
+                            ...loan,
+                            ...updatedLoan,
+                            // Ensure key fields are properly updated
+                            remaining_balance: updatedLoan.remainingBalance || paymentInfo.remainingBalance,
+                            remainingBalance: updatedLoan.remainingBalance || paymentInfo.remainingBalance,
+                            currentBalance: updatedLoan.remainingBalance || paymentInfo.remainingBalance,
+                            nextPaymentDue: updatedLoan.nextPaymentDue,
+                            nextPaymentDate: updatedLoan.nextPaymentDue,
+                            payments_made: updatedLoan.payments_made,
+                            total_paid: updatedLoan.total_paid,
+                            status: updatedLoan.status,
+                            progressPercentage: updatedLoan.progressPercentage,
+                            // Calculate next payment date if not provided
+                            nextPayment: updatedLoan.nextPaymentDue || calculateNextPaymentDate(loan)
+                        };
+                    }
+                    return loan;
+                })
             );
-            
-            // Refresh summary after payment
+
+            // Refresh summary after payment to update totals
             await fetchLoanSummary();
-            
+
             return response;
         } catch (err) {
             setError(err.message);
@@ -116,6 +138,16 @@ export const useLoans = () => {
             setLoading(false);
         }
     }, [fetchLoanSummary]);
+
+    /**
+     * Helper function to calculate next payment date (fallback)
+     */
+    const calculateNextPaymentDate = (loan) => {
+        const today = new Date();
+        const nextMonth = new Date(today);
+        nextMonth.setMonth(today.getMonth() + 1);
+        return nextMonth.toISOString().split('T')[0]; // Return YYYY-MM-DD format
+    };
 
     /**
      * Calculate loan payment (for calculator)
@@ -146,6 +178,37 @@ export const useLoans = () => {
     }, []);
 
     /**
+     * Approve or reject a branch loan (for managers and admins)
+     */
+    const approveBranchLoan = useCallback(async (loanId, status, rejectionReason = null) => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const approvalData = { status };
+            if (status === 'rejected' && rejectionReason) {
+                approvalData.rejection_reason = rejectionReason;
+            }
+
+            const response = await loanAPI.approveBranchLoan(loanId, approvalData);
+
+            // Update local state
+            setLoans(prevLoans =>
+                prevLoans.map(loan =>
+                    loan.id === loanId ? { ...loan, status, ...(rejectionReason && { rejection_reason: rejectionReason }) } : loan
+                )
+            );
+
+            return response;
+        } catch (err) {
+            setError(err.message);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    /**
      * Initialize loan data on hook mount
      */
     useEffect(() => {
@@ -159,7 +222,7 @@ export const useLoans = () => {
         loanSummary,
         loading,
         error,
-        
+
         // Actions
         fetchLoans,
         fetchLoanSummary,
@@ -168,7 +231,8 @@ export const useLoans = () => {
         makeLoanPayment,
         calculateLoanPayment,
         getLoanById,
-        
+        approveBranchLoan,
+
         // Utilities
         clearError: () => setError(null)
     };
