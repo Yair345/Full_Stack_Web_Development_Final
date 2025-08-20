@@ -842,7 +842,20 @@ const createBranchDeposit = catchAsync(async (req, res, next) => {
     const { account_id, amount, description } = req.body;
     const managerId = req.user.id;
 
-    logger.info(`Branch manager ${managerId} creating deposit for account ${account_id} in branch ${id}`);
+    // Log branch deposit request to system logs (money-related)
+    await AuditService.logSystem({
+        level: 'info',
+        message: `Branch manager ${managerId} creating deposit for account ${account_id} in branch ${id}`,
+        service: 'branch_deposit',
+        meta: {
+            branchId: id,
+            managerId,
+            accountId: account_id,
+            requestedAmount: amount,
+            description,
+            operationType: 'branch_deposit_request'
+        }
+    });
 
     // Validate required fields
     if (!account_id || !amount) {
@@ -923,7 +936,25 @@ const createBranchDeposit = catchAsync(async (req, res, next) => {
         // Commit transaction
         await dbTransaction.commit();
 
-        logger.info(`Branch deposit completed: $${amount} to account ${account.account_number}`);
+        // Log successful branch deposit to system logs (money-related)
+        await AuditService.logSystem({
+            level: 'info',
+            message: `Branch deposit completed: $${amount} to account ${account.account_number}`,
+            service: 'branch_deposit',
+            meta: {
+                branchId: id,
+                branchName: branch.branch_name,
+                managerId,
+                transactionId: transaction.id,
+                accountId: account_id,
+                accountNumber: account.account_number,
+                amount: parseFloat(amount),
+                previousBalance,
+                newBalance: account.balance + parseFloat(amount),
+                description,
+                operationType: 'branch_deposit_completed'
+            }
+        });
 
         // Log audit event
         await AuditService.logSystem({

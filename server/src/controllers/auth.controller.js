@@ -18,7 +18,20 @@ const path = require('path');
 const register = catchAsync(async (req, res, next) => {
     const { username, email, password, first_name, last_name, phone, date_of_birth, national_id, address, branch_id } = req.body;
 
-    logger.info(`Registration attempt for email: ${email}`);
+    // Log registration attempt to audit logs
+    await AuditService.logAuth({
+        action: 'registration_attempt',
+        req,
+        user: null,
+        success: false, // Will update on success
+        details: {
+            email,
+            username,
+            branch_id,
+            userAgent: req.get('User-Agent'),
+            ipAddress: req.ip
+        }
+    });
 
     // Check if user already exists - check each field separately for specific error messages
     const existingEmailUser = await User.findOne({ where: { email } });
@@ -97,7 +110,20 @@ const register = catchAsync(async (req, res, next) => {
         branch_id: null // User gets no branch until approved
     });
 
-    logger.info(`User registered successfully with pending status: ${user.id}`);
+    // Log successful registration to audit logs
+    await AuditService.logAuth({
+        action: 'registration_success',
+        req,
+        user,
+        success: true,
+        details: {
+            userId: user.id,
+            email: user.email,
+            username: user.username,
+            approvalStatus: user.approval_status,
+            pendingBranchId: user.pending_branch_id
+        }
+    });
 
     // Log audit event to MongoDB
     await AuditService.logAuth({
@@ -132,7 +158,18 @@ const register = catchAsync(async (req, res, next) => {
 const login = catchAsync(async (req, res, next) => {
     const { email, password } = req.body;
 
-    logger.info(`Login attempt for email: ${email}`);
+    // Log login attempt to audit logs
+    await AuditService.logAuth({
+        action: 'login_attempt',
+        req,
+        user: null,
+        success: false, // Will update on success
+        details: {
+            email,
+            userAgent: req.get('User-Agent'),
+            ipAddress: req.ip
+        }
+    });
 
     try {
         // Login with AuthService
@@ -141,7 +178,20 @@ const login = catchAsync(async (req, res, next) => {
         // Update last login
         await user.update({ last_login: new Date() });
 
-        logger.info(`User logged in successfully: ${user.id}`);
+        // Log successful login to audit logs
+        await AuditService.logAuth({
+            action: 'login_success',
+            req,
+            user,
+            success: true,
+            details: {
+                userId: user.id,
+                email: user.email,
+                username: user.username,
+                lastLogin: user.last_login,
+                loginMethod: 'email_password'
+            }
+        });
 
         // Log successful login audit event to MongoDB
         await AuditService.logAuth({
@@ -164,7 +214,7 @@ const login = catchAsync(async (req, res, next) => {
             }
         });
     } catch (error) {
-        // Log failed login attempt to MongoDB
+        // Log failed login attempt to audit logs
         await AuditService.logAuth({
             action: 'login_failed',
             req,
@@ -191,12 +241,33 @@ const logout = catchAsync(async (req, res, next) => {
     const { refreshToken } = req.body;
     const userId = req.user.id;
 
-    logger.info(`Logout request for user: ${userId}`);
+    // Log logout request to audit logs
+    await AuditService.logAuth({
+        action: 'logout_requested',
+        req,
+        user: req.user,
+        success: true,
+        details: {
+            userId,
+            logoutMethod: 'manual'
+        }
+    });
 
     // Logout with AuthService
     await AuthService.logout(refreshToken, userId);
 
-    logger.info(`User logged out successfully: ${userId}`);
+    // Log successful logout to audit logs
+    await AuditService.logAuth({
+        action: 'logout_success',
+        req,
+        user: req.user,
+        success: true,
+        details: {
+            userId,
+            logoutMethod: 'manual',
+            sessionDuration: req.user.last_login ? Date.now() - new Date(req.user.last_login).getTime() : null
+        }
+    });
 
     // Log logout audit event to MongoDB
     await AuditService.logAuth({
@@ -228,12 +299,33 @@ const refreshToken = catchAsync(async (req, res, next) => {
         throw new AppError('Refresh token is required', 400);
     }
 
-    logger.info('Token refresh request');
+    // Log token refresh request to audit logs
+    await AuditService.logAuth({
+        action: 'token_refresh_requested',
+        req,
+        user: null,
+        success: false, // Will update on success
+        details: {
+            hasRefreshToken: !!refreshToken,
+            userAgent: req.get('User-Agent'),
+            ipAddress: req.ip
+        }
+    });
 
     // Refresh token with AuthService
     const tokens = await AuthService.refreshToken(refreshToken);
 
-    logger.info('Token refreshed successfully');
+    // Log successful token refresh to audit logs
+    await AuditService.logAuth({
+        action: 'token_refresh_success',
+        req,
+        user: null, // We don't have user context in token refresh
+        success: true,
+        details: {
+            tokenRefreshed: true,
+            newTokenGenerated: !!tokens
+        }
+    });
 
     res.json({
         success: true,
@@ -267,7 +359,18 @@ const updateProfile = catchAsync(async (req, res, next) => {
     const { username, phone, address } = req.body;
     const userId = req.user.id;
 
-    logger.info(`Profile update request for user: ${userId}`);
+    // Log profile update request to audit logs
+    await AuditService.logAuth({
+        action: 'profile_update_requested',
+        req,
+        user: req.user,
+        success: true,
+        details: {
+            userId,
+            fieldsToUpdate: { username: !!username, phone: !!phone, address: !!address },
+            currentUsername: req.user.username
+        }
+    });
 
     // Check if username is taken by another user
     if (username && username !== req.user.username) {
@@ -287,7 +390,21 @@ const updateProfile = catchAsync(async (req, res, next) => {
         address: address || req.user.address
     });
 
-    logger.info(`Profile updated successfully for user: ${userId}`);
+    // Log successful profile update to audit logs
+    await AuditService.logAuth({
+        action: 'profile_updated_successfully',
+        req,
+        user: updatedUser,
+        success: true,
+        details: {
+            userId,
+            updatedFields: {
+                username: username !== req.user.username ? { from: req.user.username, to: username } : null,
+                phone: phone !== req.user.phone ? { from: req.user.phone, to: phone } : null,
+                address: address !== req.user.address ? { from: req.user.address, to: address } : null
+            }
+        }
+    });
 
     res.json({
         success: true,
@@ -307,12 +424,33 @@ const changePassword = catchAsync(async (req, res, next) => {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user.id;
 
-    logger.info(`Password change request for user: ${userId}`);
+    // Log password change request to audit logs
+    await AuditService.logAuth({
+        action: 'password_change_requested',
+        req,
+        user: req.user,
+        success: true,
+        details: {
+            userId,
+            hasCurrentPassword: !!currentPassword,
+            hasNewPassword: !!newPassword
+        }
+    });
 
     // Change password with AuthService
     await AuthService.changePassword(userId, currentPassword, newPassword);
 
-    logger.info(`Password changed successfully for user: ${userId}`);
+    // Log successful password change to audit logs
+    await AuditService.logAuth({
+        action: 'password_changed_successfully',
+        req,
+        user: req.user,
+        success: true,
+        details: {
+            userId,
+            passwordChangeMethod: 'authenticated_change'
+        }
+    });
 
     res.json({
         success: true,
@@ -328,12 +466,32 @@ const changePassword = catchAsync(async (req, res, next) => {
 const forgotPassword = catchAsync(async (req, res, next) => {
     const { email } = req.body;
 
-    logger.info(`Password reset request for email: ${email}`);
+    // Log password reset request to audit logs
+    await AuditService.logAuth({
+        action: 'password_reset_requested',
+        req,
+        user: null,
+        success: true,
+        details: {
+            email,
+            resetMethod: 'email'
+        }
+    });
 
     // Request reset with AuthService
     await AuthService.forgotPassword(email);
 
-    logger.info(`Password reset email sent to: ${email}`);
+    // Log password reset email sent to audit logs
+    await AuditService.logAuth({
+        action: 'password_reset_email_sent',
+        req,
+        user: null,
+        success: true,
+        details: {
+            email,
+            resetMethod: 'email'
+        }
+    });
 
     res.json({
         success: true,
@@ -349,12 +507,33 @@ const forgotPassword = catchAsync(async (req, res, next) => {
 const resetPassword = catchAsync(async (req, res, next) => {
     const { token, newPassword } = req.body;
 
-    logger.info('Password reset attempt');
+    // Log password reset attempt to audit logs
+    await AuditService.logAuth({
+        action: 'password_reset_attempted',
+        req,
+        user: null,
+        success: false, // Will update on success
+        details: {
+            hasToken: !!token,
+            hasNewPassword: !!newPassword,
+            resetMethod: 'token'
+        }
+    });
 
     // Reset password with AuthService
     await AuthService.resetPassword(token, newPassword);
 
-    logger.info('Password reset successfully');
+    // Log successful password reset to audit logs
+    await AuditService.logAuth({
+        action: 'password_reset_successfully',
+        req,
+        user: null,
+        success: true,
+        details: {
+            resetMethod: 'token',
+            tokenUsed: true
+        }
+    });
 
     res.json({
         success: true,
@@ -370,12 +549,34 @@ const resetPassword = catchAsync(async (req, res, next) => {
 const verifyEmail = catchAsync(async (req, res, next) => {
     const { token } = req.params;
 
-    logger.info('Email verification attempt');
+    // Log email verification attempt to audit logs
+    await AuditService.logAuth({
+        action: 'email_verification_attempted',
+        req,
+        user: null,
+        success: false, // Will update on success
+        details: {
+            hasToken: !!token,
+            verificationMethod: 'email_token'
+        }
+    });
 
     // Verify email with AuthService
     const user = await AuthService.verifyEmail(token);
 
-    logger.info(`Email verified successfully for user: ${user.id}`);
+    // Log successful email verification to audit logs
+    await AuditService.logAuth({
+        action: 'email_verified_successfully',
+        req,
+        user,
+        success: true,
+        details: {
+            userId: user.id,
+            email: user.email,
+            verificationMethod: 'email_token',
+            verifiedAt: user.email_verified_at
+        }
+    });
 
     res.json({
         success: true,
@@ -402,12 +603,34 @@ const resendVerification = catchAsync(async (req, res, next) => {
         throw new AppError('Email is already verified', 400);
     }
 
-    logger.info(`Resend verification request for user: ${user.id}`);
+    // Log resend verification request to audit logs
+    await AuditService.logAuth({
+        action: 'resend_verification_requested',
+        req,
+        user,
+        success: true,
+        details: {
+            userId: user.id,
+            email: user.email,
+            alreadyVerified: !!user.email_verified_at
+        }
+    });
 
     // Resend verification with AuthService
     await AuthService.resendVerification(user.id);
 
-    logger.info(`Verification email resent to user: ${user.id}`);
+    // Log verification email resent to audit logs
+    await AuditService.logAuth({
+        action: 'verification_email_resent',
+        req,
+        user,
+        success: true,
+        details: {
+            userId: user.id,
+            email: user.email,
+            resentMethod: 'email'
+        }
+    });
 
     res.json({
         success: true,
@@ -421,7 +644,17 @@ const resendVerification = catchAsync(async (req, res, next) => {
  * @access Public
  */
 const getAvailableBranches = catchAsync(async (req, res, next) => {
-    logger.info('Getting available branches for registration');
+    // Log branches request to audit logs
+    await AuditService.logAuth({
+        action: 'available_branches_requested',
+        req,
+        user: null,
+        success: true,
+        details: {
+            requestType: 'public_branch_list',
+            purpose: 'registration'
+        }
+    });
 
     const branches = await Branch.findAll({
         where: { is_active: true },
@@ -490,7 +723,21 @@ const uploadIdPicture = catchAsync(async (req, res, next) => {
         id_picture_path: `mongodb://${mongoFilename}` // Use a special format to indicate MongoDB storage
     });
 
-    logger.info(`ID picture uploaded successfully to MongoDB for user: ${userId}`);
+    // Log successful ID picture upload to audit logs
+    await AuditService.logAuth({
+        action: 'id_picture_uploaded_successfully',
+        req,
+        user,
+        success: true,
+        details: {
+            userId,
+            filename: mongoFilename,
+            originalName: req.mongoFile.originalname,
+            fileSize: req.mongoFile.size,
+            storage: 'mongodb',
+            purpose: 'identity_verification'
+        }
+    });
 
     // Log audit event
     await AuditService.logAuth({
