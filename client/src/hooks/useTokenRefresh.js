@@ -56,8 +56,10 @@ export const useTokenRefresh = () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${storedRefreshToken}`,
                 },
+                body: JSON.stringify({
+                    refreshToken: storedRefreshToken
+                }),
             });
 
             if (!response.ok) {
@@ -67,9 +69,14 @@ export const useTokenRefresh = () => {
 
             const data = await response.json();
 
+            // Extract tokens from the nested response structure
+            const tokens = data.data?.tokens || data.tokens || data;
+            const newAccessToken = tokens.accessToken || tokens.token || data.accessToken || data.token;
+            const newRefreshToken = tokens.refreshToken || data.refreshToken || refreshToken;
+
             dispatch(refreshTokenSuccess({
-                token: data.accessToken,
-                refreshToken: data.refreshToken
+                token: newAccessToken,
+                refreshToken: newRefreshToken
             }));
 
             alertShownRef.current = false; // Reset alert flag on successful refresh

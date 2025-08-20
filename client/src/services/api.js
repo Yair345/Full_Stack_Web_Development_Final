@@ -45,8 +45,9 @@ export const authAPI = {
         body: JSON.stringify(userData),
     }),
 
-    refreshToken: () => apiRequest('/auth/refresh', {
+    refreshToken: (refreshToken) => apiRequest('/auth/refresh', {
         method: 'POST',
+        body: JSON.stringify({ refreshToken }),
     }),
 
     logout: () => apiRequest('/auth/logout', {

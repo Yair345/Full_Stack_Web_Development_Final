@@ -2,12 +2,28 @@ import { useSelector } from "react-redux";
 import { Navigate, useLocation } from "react-router-dom";
 
 const ProtectedRoute = ({ children, requireApproval = true }) => {
-	const { isAuthenticated, token, user } = useSelector((state) => state.auth);
+	const { isAuthenticated, token, user, isInitialized } = useSelector(
+		(state) => state.auth
+	);
 	const location = useLocation();
 
 	// Check if user is authenticated
 	if (!isAuthenticated && !token) {
 		return <Navigate to="/login" state={{ from: location }} replace />;
+	}
+
+	// Wait for initialization to complete before making routing decisions
+	if (!isInitialized) {
+		return (
+			<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+				<div className="bg-white p-6 rounded-lg shadow-lg">
+					<div className="flex items-center space-x-3">
+						<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+						<span>Loading...</span>
+					</div>
+				</div>
+			</div>
+		);
 	}
 
 	// Always check for rejected users first - they should NEVER access any protected route
@@ -40,12 +56,28 @@ const ProtectedRoute = ({ children, requireApproval = true }) => {
 
 // Component for waiting page - only allows users with pending status
 export const WaitingRoute = ({ children }) => {
-	const { isAuthenticated, token, user } = useSelector((state) => state.auth);
+	const { isAuthenticated, token, user, isInitialized } = useSelector(
+		(state) => state.auth
+	);
 	const location = useLocation();
 
 	// Check if user is authenticated
 	if (!isAuthenticated && !token) {
 		return <Navigate to="/login" state={{ from: location }} replace />;
+	}
+
+	// Wait for initialization to complete before making routing decisions
+	if (!isInitialized) {
+		return (
+			<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+				<div className="bg-white p-6 rounded-lg shadow-lg">
+					<div className="flex items-center space-x-3">
+						<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+						<span>Loading...</span>
+					</div>
+				</div>
+			</div>
+		);
 	}
 
 	// Admin and managers should go to dashboard
@@ -77,12 +109,28 @@ export const WaitingRoute = ({ children }) => {
 
 // Component for rejected page - only allows rejected users
 export const RejectedRoute = ({ children }) => {
-	const { isAuthenticated, token, user } = useSelector((state) => state.auth);
+	const { isAuthenticated, token, user, isInitialized } = useSelector(
+		(state) => state.auth
+	);
 	const location = useLocation();
 
 	// Check if user is authenticated
 	if (!isAuthenticated && !token) {
 		return <Navigate to="/login" state={{ from: location }} replace />;
+	}
+
+	// Wait for initialization to complete before making routing decisions
+	if (!isInitialized) {
+		return (
+			<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+				<div className="bg-white p-6 rounded-lg shadow-lg">
+					<div className="flex items-center space-x-3">
+						<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+						<span>Loading...</span>
+					</div>
+				</div>
+			</div>
+		);
 	}
 
 	// Admin and managers should go to dashboard

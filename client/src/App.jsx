@@ -17,6 +17,7 @@ import Register from "./pages/Register/Register.jsx";
 import WaitingPage from "./pages/Waiting/WaitingPage";
 import RejectedPage from "./pages/Rejected";
 import Dashboard from "./pages/Dashboard/Dashboard";
+import AuthDebug from "./components/debug/AuthDebug";
 import Accounts from "./pages/Accounts/Accounts.jsx";
 import Transactions from "./pages/Transactions/Transactions.jsx";
 import Transfer from "./pages/Transfer/Transfer";
@@ -125,6 +126,7 @@ function App() {
 		<Provider store={store}>
 			<Router>
 				<AppContent />
+				<AuthDebug />
 			</Router>
 		</Provider>
 	);

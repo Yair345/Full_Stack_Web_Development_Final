@@ -47,7 +47,8 @@ const authSlice = createSlice({
             state.token = null;
             state.refreshToken = null;
             state.error = null;
-            state.isInitialized = false;
+            state.loading = false;
+            state.isInitialized = true; // Keep initialized as true to prevent re-initialization loops
             sessionStorage.removeItem('token');
             sessionStorage.removeItem('refreshToken');
         },
