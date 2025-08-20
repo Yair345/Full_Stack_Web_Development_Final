@@ -10,11 +10,11 @@ const Dialog = ({ open, onOpenChange, children }) => {
 	};
 
 	return (
-		<div 
-			className="modal fade show d-block" 
-			tabIndex="-1" 
-			role="dialog" 
-			style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+		<div
+			className="modal fade show d-block"
+			tabIndex="-1"
+			role="dialog"
+			style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
 			onClick={handleBackdropClick}
 		>
 			<div className="modal-dialog modal-dialog-centered modal-lg">
@@ -26,9 +26,9 @@ const Dialog = ({ open, onOpenChange, children }) => {
 
 const DialogContent = ({ children, className = "", ...props }) => {
 	return (
-		<div 
-			className={`modal-content ${className}`} 
-			{...props} 
+		<div
+			className={`modal-content ${className}`}
+			{...props}
 			onClick={(e) => e.stopPropagation()}
 		>
 			{children}
@@ -38,10 +38,7 @@ const DialogContent = ({ children, className = "", ...props }) => {
 
 const DialogHeader = ({ children, className = "", ...props }) => {
 	return (
-		<div
-			className={`modal-header ${className}`}
-			{...props}
-		>
+		<div className={`modal-header ${className}`} {...props}>
 			{children}
 		</div>
 	);
@@ -49,10 +46,7 @@ const DialogHeader = ({ children, className = "", ...props }) => {
 
 const DialogTitle = ({ children, className = "", ...props }) => {
 	return (
-		<h4
-			className={`modal-title ${className}`}
-			{...props}
-		>
+		<h4 className={`modal-title ${className}`} {...props}>
 			{children}
 		</h4>
 	);
@@ -68,10 +62,7 @@ const DialogDescription = ({ children, className = "", ...props }) => {
 
 const DialogFooter = ({ children, className = "", ...props }) => {
 	return (
-		<div
-			className={`modal-footer ${className}`}
-			{...props}
-		>
+		<div className={`modal-footer ${className}`} {...props}>
 			{children}
 		</div>
 	);

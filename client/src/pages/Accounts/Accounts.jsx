@@ -26,18 +26,21 @@ const Accounts = () => {
 	// Listen for account creation events and force refresh
 	useEffect(() => {
 		const handleAccountCreated = async () => {
-			console.log('Account created event received, forcing refresh...');
+			console.log("Account created event received, forcing refresh...");
 			try {
 				await refetch({ shouldRevalidate: true });
-				console.log('Auto-refresh after account creation completed');
+				console.log("Auto-refresh after account creation completed");
 			} catch (error) {
-				console.warn('Auto-refresh after account creation failed:', error);
+				console.warn(
+					"Auto-refresh after account creation failed:",
+					error
+				);
 			}
 		};
 
-		window.addEventListener('account-created', handleAccountCreated);
+		window.addEventListener("account-created", handleAccountCreated);
 		return () => {
-			window.removeEventListener('account-created', handleAccountCreated);
+			window.removeEventListener("account-created", handleAccountCreated);
 		};
 	}, [refetch]);
 
@@ -92,8 +95,9 @@ const Accounts = () => {
 			setTimeout(() => setSuccessMessage(""), 5000);
 
 			// The refresh will be handled automatically by the account-created event
-			console.log("Account creation completed, waiting for auto-refresh...");
-
+			console.log(
+				"Account creation completed, waiting for auto-refresh..."
+			);
 		} catch (error) {
 			console.error("Failed to create account:", error);
 			// Error will be displayed through createError state or modal
@@ -102,12 +106,14 @@ const Accounts = () => {
 	};
 
 	const handleAccountDeleted = async (deletedAccountId) => {
-		console.log(`Account ${deletedAccountId} deleted, refreshing accounts...`);
+		console.log(
+			`Account ${deletedAccountId} deleted, refreshing accounts...`
+		);
 		setSuccessMessage("Account deleted successfully!");
-		
+
 		// Auto-hide success message after 5 seconds
 		setTimeout(() => setSuccessMessage(""), 5000);
-		
+
 		// Refresh accounts to remove the deleted account
 		try {
 			await refetch({ shouldRevalidate: true });

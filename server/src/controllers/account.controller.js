@@ -249,11 +249,11 @@ const createAccount = catchAsync(async (req, res, next) => {
                 // For non-checking accounts, transfer from checking account
                 const withdrawalRef = `TRF-OUT-${uuidv4()}`;
                 const depositRef = `TRF-IN-${uuidv4()}`;
-                
+
                 // Deduct from checking account
                 const checkingBalanceBefore = parseFloat(checkingAccount.balance);
                 const checkingBalanceAfter = checkingBalanceBefore - depositAmount;
-                
+
                 await checkingAccount.update({ balance: checkingBalanceAfter }, { transaction: t });
 
                 // Create withdrawal transaction for checking account
@@ -299,7 +299,7 @@ const createAccount = catchAsync(async (req, res, next) => {
 
     // Account creation completed successfully - emit WebSocket updates outside transaction
     const account = result;
-    
+
     // Emit balance updates after transaction is committed
     if (depositAmount > 0 && account_type !== 'checking' && checkingAccount) {
         const checkingBalanceAfter = parseFloat(checkingAccount.balance) - depositAmount;

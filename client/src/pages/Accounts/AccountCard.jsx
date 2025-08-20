@@ -1,4 +1,13 @@
-import { CreditCard, MoreVertical, Eye, Settings, DollarSign, TrendingUp, Calendar, Shield } from "lucide-react";
+import {
+	CreditCard,
+	MoreVertical,
+	Eye,
+	Settings,
+	DollarSign,
+	TrendingUp,
+	Calendar,
+	Shield,
+} from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import { formatCurrency } from "../../utils/helpers";
@@ -34,9 +43,13 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 	};
 
 	const getStatusBadge = (status) => {
-		return status === 'active' || status === true || status === undefined
-			? <span className="badge bg-success-subtle text-success">Active</span>
-			: <span className="badge bg-danger-subtle text-danger">Inactive</span>;
+		return status === "active" ||
+			status === true ||
+			status === undefined ? (
+			<span className="badge bg-success-subtle text-success">Active</span>
+		) : (
+			<span className="badge bg-danger-subtle text-danger">Inactive</span>
+		);
 	};
 
 	const handleViewDetails = () => {
@@ -49,8 +62,8 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 
 	// Create a masked account number for display on card
 	const getMaskedAccountNumber = () => {
-		if (!account.number) return '****-****-0000';
-		if (account.number.includes('*')) return account.number;
+		if (!account.number) return "****-****-0000";
+		if (account.number.includes("*")) return account.number;
 		return `****-****-${account.number.slice(-4)}`;
 	};
 
@@ -60,15 +73,15 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 		number: account.number, // Full number for details modal
 		type: account.type || account.account_type,
 		balance: account.balance,
-		currency: account.currency || 'USD',
-		status: account.is_active ? 'active' : 'inactive',
+		currency: account.currency || "USD",
+		status: account.is_active ? "active" : "inactive",
 		openDate: account.created_at || account.createdAt,
 		updatedAt: account.updated_at || account.updatedAt,
 		limit: account.overdraft_limit,
 		interestRate: account.interest_rate,
 		monthlyFee: account.monthly_fee,
 		minimumBalance: account.minimum_balance,
-		name: account.account_name || account.name
+		name: account.account_name || account.name,
 	};
 
 	const typeBadge = getAccountTypeBadge(account.account_type || account.type);
@@ -82,8 +95,13 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 					<div className="d-flex align-items-center">
 						{accountIcon}
 						<div>
-							<h5 className="fw-semibold mb-1 text-truncate" style={{maxWidth: '200px'}}>
-								{account.account_name || account.name || `${typeBadge.label} Account`}
+							<h5
+								className="fw-semibold mb-1 text-truncate"
+								style={{ maxWidth: "200px" }}
+							>
+								{account.account_name ||
+									account.name ||
+									`${typeBadge.label} Account`}
 							</h5>
 							<p className="small text-muted mb-0 font-monospace">
 								{getMaskedAccountNumber()}
@@ -117,7 +135,7 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 								<hr className="dropdown-divider" />
 							</li>
 							<li>
-								<button 
+								<button
 									className="dropdown-item d-flex align-items-center"
 									onClick={handleAccountSettings}
 								>
@@ -131,9 +149,7 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 
 				{/* Account Status */}
 				<div className="d-flex justify-content-between align-items-center mb-3">
-					<span className={typeBadge.class}>
-						{typeBadge.label}
-					</span>
+					<span className={typeBadge.class}>{typeBadge.label}</span>
 					{getStatusBadge(account.is_active)}
 				</div>
 
@@ -156,53 +172,67 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 					</div>
 
 					{/* Available Balance for checking accounts with overdraft */}
-					{account.account_type === "checking" && account.overdraft_limit > 0 && (
-						<div className="d-flex justify-content-between align-items-center mb-2">
-							<span className="small text-muted">
-								Available Balance
-							</span>
-							<span className="small fw-medium text-success">
-								{formatCurrency(account.balance + account.overdraft_limit, account.currency)}
-							</span>
-						</div>
-					)}
+					{account.account_type === "checking" &&
+						account.overdraft_limit > 0 && (
+							<div className="d-flex justify-content-between align-items-center mb-2">
+								<span className="small text-muted">
+									Available Balance
+								</span>
+								<span className="small fw-medium text-success">
+									{formatCurrency(
+										account.balance +
+											account.overdraft_limit,
+										account.currency
+									)}
+								</span>
+							</div>
+						)}
 
 					{/* Overdraft Limit for checking accounts */}
-					{account.account_type === "checking" && account.overdraft_limit > 0 && (
-						<div className="d-flex justify-content-between align-items-center mb-2">
-							<span className="small text-muted">
-								Overdraft Limit
-							</span>
-							<span className="small fw-medium">
-								{formatCurrency(account.overdraft_limit, account.currency)}
-							</span>
-						</div>
-					)}
+					{account.account_type === "checking" &&
+						account.overdraft_limit > 0 && (
+							<div className="d-flex justify-content-between align-items-center mb-2">
+								<span className="small text-muted">
+									Overdraft Limit
+								</span>
+								<span className="small fw-medium">
+									{formatCurrency(
+										account.overdraft_limit,
+										account.currency
+									)}
+								</span>
+							</div>
+						)}
 
 					{/* Interest Rate for savings accounts */}
-					{account.account_type === "savings" && account.interest_rate && (
-						<div className="d-flex justify-content-between align-items-center mb-2">
-							<span className="small text-muted d-flex align-items-center">
-								<TrendingUp size={14} className="me-1" />
-								Interest Rate
-							</span>
-							<span className="small fw-medium text-success">
-								{account.interest_rate.toFixed(2)}% APY
-							</span>
-						</div>
-					)}
+					{account.account_type === "savings" &&
+						account.interest_rate && (
+							<div className="d-flex justify-content-between align-items-center mb-2">
+								<span className="small text-muted d-flex align-items-center">
+									<TrendingUp size={14} className="me-1" />
+									Interest Rate
+								</span>
+								<span className="small fw-medium text-success">
+									{account.interest_rate.toFixed(2)}% APY
+								</span>
+							</div>
+						)}
 
 					{/* Credit Limit for credit accounts */}
-					{account.account_type === "credit" && account.overdraft_limit && (
-						<div className="d-flex justify-content-between align-items-center mb-2">
-							<span className="small text-muted">
-								Credit Limit
-							</span>
-							<span className="small fw-medium">
-								{formatCurrency(account.overdraft_limit, account.currency)}
-							</span>
-						</div>
-					)}
+					{account.account_type === "credit" &&
+						account.overdraft_limit && (
+							<div className="d-flex justify-content-between align-items-center mb-2">
+								<span className="small text-muted">
+									Credit Limit
+								</span>
+								<span className="small fw-medium">
+									{formatCurrency(
+										account.overdraft_limit,
+										account.currency
+									)}
+								</span>
+							</div>
+						)}
 
 					{/* Monthly Fee */}
 					{account.monthly_fee > 0 && (
@@ -211,7 +241,10 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 								Monthly Fee
 							</span>
 							<span className="small fw-medium text-warning">
-								{formatCurrency(account.monthly_fee, account.currency)}
+								{formatCurrency(
+									account.monthly_fee,
+									account.currency
+								)}
 							</span>
 						</div>
 					)}
@@ -223,7 +256,10 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 								Minimum Balance
 							</span>
 							<span className="small fw-medium">
-								{formatCurrency(account.minimum_balance, account.currency)}
+								{formatCurrency(
+									account.minimum_balance,
+									account.currency
+								)}
 							</span>
 						</div>
 					)}
@@ -238,7 +274,9 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 								<span>Opened</span>
 							</div>
 							<div className="fw-medium">
-								{new Date(account.created_at || account.createdAt).toLocaleDateString()}
+								{new Date(
+									account.created_at || account.createdAt
+								).toLocaleDateString()}
 							</div>
 						</div>
 						<div className="col-6">
@@ -247,7 +285,7 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 								<span>Currency</span>
 							</div>
 							<div className="fw-medium">
-								{account.currency || 'USD'}
+								{account.currency || "USD"}
 							</div>
 						</div>
 						{/* Account ID */}
@@ -277,15 +315,26 @@ const AccountCard = ({ account, onAccountDeleted }) => {
 
 				{/* Balance Indicator Bar */}
 				{account.minimum_balance > 0 && (
-					<div className="position-absolute bottom-0 start-0 w-100" style={{height: '4px'}}>
-						<div 
+					<div
+						className="position-absolute bottom-0 start-0 w-100"
+						style={{ height: "4px" }}
+					>
+						<div
 							className={`h-100 ${
-								account.balance >= account.minimum_balance 
-									? 'bg-success' 
-									: 'bg-warning'
+								account.balance >= account.minimum_balance
+									? "bg-success"
+									: "bg-warning"
 							}`}
 							style={{
-								width: `${Math.min(100, Math.max(10, (account.balance / account.minimum_balance) * 100))}%`
+								width: `${Math.min(
+									100,
+									Math.max(
+										10,
+										(account.balance /
+											account.minimum_balance) *
+											100
+									)
+								)}%`,
 							}}
 						></div>
 					</div>
