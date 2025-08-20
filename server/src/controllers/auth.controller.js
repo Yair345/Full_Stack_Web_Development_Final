@@ -6,6 +6,7 @@ const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
 const { encryptData } = require('../utils/encryption.utils');
 const { deleteFile } = require('../middleware/upload.middleware');
+const fileService = require('../services/file.service');
 const { Op } = require('sequelize');
 const path = require('path');
 
@@ -472,23 +473,24 @@ const uploadIdPicture = catchAsync(async (req, res, next) => {
         return next(new AppError('ID picture can only be uploaded for pending users', 400));
     }
 
-    if (!req.file) {
+    if (!req.mongoFile) {
         return next(new AppError('Please select an ID picture to upload', 400));
     }
 
     // Delete old ID picture if it exists
     if (user.id_picture_path) {
-        const oldPicturePath = path.join(__dirname, '../../uploads/id-pictures', path.basename(user.id_picture_path));
-        deleteFile(oldPicturePath);
+        // Extract filename from the old path and delete from MongoDB
+        const oldFilename = user.id_picture_path.split('/').pop();
+        await deleteFile(oldFilename);
     }
 
-    // Save the file path to user record
-    const relativePath = `uploads/id-pictures/${req.file.filename}`;
+    // Save the MongoDB filename to user record
+    const mongoFilename = req.mongoFile.filename;
     await user.update({
-        id_picture_path: relativePath
+        id_picture_path: `mongodb://${mongoFilename}` // Use a special format to indicate MongoDB storage
     });
 
-    logger.info(`ID picture uploaded successfully for user: ${userId}`);
+    logger.info(`ID picture uploaded successfully to MongoDB for user: ${userId}`);
 
     // Log audit event
     await AuditService.logAuth({
@@ -497,18 +499,20 @@ const uploadIdPicture = catchAsync(async (req, res, next) => {
         ipAddress: req.ip,
         userAgent: req.get('User-Agent'),
         details: {
-            filename: req.file.filename,
-            originalName: req.file.originalname,
-            size: req.file.size
+            filename: mongoFilename,
+            originalName: req.mongoFile.originalname,
+            size: req.mongoFile.size,
+            storage: 'mongodb'
         }
     });
 
     res.status(200).json({
         success: true,
-        message: 'ID picture uploaded successfully',
+        message: 'ID picture uploaded successfully to MongoDB',
         data: {
-            filename: req.file.filename,
-            path: relativePath
+            filename: mongoFilename,
+            path: `mongodb://${mongoFilename}`,
+            storage: 'mongodb'
         }
     });
 });

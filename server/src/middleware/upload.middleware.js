@@ -1,34 +1,10 @@
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const { AppError } = require('../utils/error.utils');
+const fileService = require('../services/file.service');
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, '../../uploads');
-const idPicturesDir = path.join(uploadsDir, 'id-pictures');
-
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-if (!fs.existsSync(idPicturesDir)) {
-    fs.mkdirSync(idPicturesDir, { recursive: true });
-}
-
-// Storage configuration for ID pictures
-const idPictureStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, idPicturesDir);
-    },
-    filename: (req, file, cb) => {
-        // Generate unique filename: userId-timestamp.extension
-        const userId = req.user?.id || 'anonymous';
-        const timestamp = Date.now();
-        const extension = path.extname(file.originalname);
-        const filename = `${userId}-${timestamp}${extension}`;
-        cb(null, filename);
-    }
-});
+// Use memory storage instead of disk storage for MongoDB upload
+const memoryStorage = multer.memoryStorage();
 
 // File filter for ID pictures (only jpg, jpeg allowed)
 const idPictureFilter = (req, file, cb) => {
@@ -46,7 +22,7 @@ const idPictureFilter = (req, file, cb) => {
 
 // Multer configuration for ID pictures
 const uploadIdPicture = multer({
-    storage: idPictureStorage,
+    storage: memoryStorage,
     fileFilter: idPictureFilter,
     limits: {
         fileSize: 5 * 1024 * 1024, // 5MB limit
@@ -54,9 +30,9 @@ const uploadIdPicture = multer({
     }
 }).single('idPicture'); // Field name will be 'idPicture'
 
-// Middleware wrapper to handle multer errors
+// Middleware wrapper to handle multer errors and store in MongoDB
 const handleIdPictureUpload = (req, res, next) => {
-    uploadIdPicture(req, res, (err) => {
+    uploadIdPicture(req, res, async (err) => {
         if (err instanceof multer.MulterError) {
             if (err.code === 'LIMIT_FILE_SIZE') {
                 return next(new AppError('File size too large. Maximum size is 5MB', 400));
@@ -71,18 +47,54 @@ const handleIdPictureUpload = (req, res, next) => {
         } else if (err) {
             return next(err);
         }
+
+        // If file was uploaded, store it in MongoDB
+        if (req.file) {
+            try {
+                // Generate unique filename
+                const userId = req.user?.id || 'anonymous';
+                const timestamp = Date.now();
+                const extension = path.extname(req.file.originalname);
+                const filename = `${userId}-${timestamp}${extension}`;
+
+                // Store file in MongoDB
+                const result = await fileService.storeFile(req.file.buffer, {
+                    filename,
+                    originalName: req.file.originalname,
+                    contentType: req.file.mimetype,
+                    uploadedBy: userId,
+                    fileType: 'id-picture'
+                });
+
+                // Attach MongoDB file info to request
+                req.mongoFile = {
+                    filename: result.filename,
+                    fileId: result.fileId,
+                    gridFSFileId: result.gridFSFileId,
+                    size: result.size,
+                    originalname: req.file.originalname,
+                    mimetype: req.file.mimetype
+                };
+
+                // Remove the buffer from memory as it's now stored in MongoDB
+                delete req.file.buffer;
+
+            } catch (mongoError) {
+                console.error('MongoDB storage error:', mongoError);
+                return next(new AppError('Failed to store file in database', 500));
+            }
+        }
+
         next();
     });
 };
 
-// Utility function to delete uploaded file
-const deleteFile = (filePath) => {
+// Utility function to delete uploaded file from MongoDB
+const deleteFile = async (filename) => {
     try {
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
+        await fileService.deleteFile(filename);
     } catch (error) {
-        console.error('Error deleting file:', error);
+        console.error('Error deleting file from MongoDB:', error);
     }
 };
 
@@ -92,15 +104,15 @@ const cleanupOnError = (req, res, next) => {
     const originalJson = res.json;
 
     res.send = function (data) {
-        if (res.statusCode >= 400 && req.file) {
-            deleteFile(req.file.path);
+        if (res.statusCode >= 400 && req.mongoFile) {
+            deleteFile(req.mongoFile.filename);
         }
         originalSend.call(this, data);
     };
 
     res.json = function (data) {
-        if (res.statusCode >= 400 && req.file) {
-            deleteFile(req.file.path);
+        if (res.statusCode >= 400 && req.mongoFile) {
+            deleteFile(req.mongoFile.filename);
         }
         originalJson.call(this, data);
     };

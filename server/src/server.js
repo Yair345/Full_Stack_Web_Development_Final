@@ -6,6 +6,7 @@ const { initConfig } = require('./config/config');
 const { connectDB, closeDB } = require('./config/database');
 const { connectMongoDB } = require('./config/mongodb');
 const { initSocketIO } = require('./websocket/socket');
+const fileService = require('./services/file.service');
 
 // Initialize configuration
 const config = initConfig();
@@ -103,12 +104,18 @@ const startServer = async () => {
             const mongoConnection = await connectMongoDB();
             if (mongoConnection) {
                 console.log('✅ MongoDB connected successfully - Audit logging enabled');
+
+                // Initialize file service after MongoDB connection
+                console.log('🔄 Initializing file service...');
+                await fileService.initialize();
+                console.log('✅ File service initialized - MongoDB file storage ready');
             } else {
                 console.warn('⚠️ MongoDB connection failed - Audit logging disabled');
+                console.warn('⚠️ File uploads will not work without MongoDB connection');
             }
         } catch (mongoError) {
             console.error('❌ MongoDB connection error:', mongoError.message);
-            console.warn('⚠️ Continuing without audit logs');
+            console.warn('⚠️ Continuing without audit logs and file storage');
         }
 
         // Start the server
