@@ -5,7 +5,9 @@ const { AppError } = require('../utils/error.utils');
 const { catchAsync } = require('../middleware/error.middleware');
 const { requestLogger: logger } = require('../middleware/logger.middleware');
 const { encryptData } = require('../utils/encryption.utils');
+const { deleteFile } = require('../middleware/upload.middleware');
 const { Op } = require('sequelize');
+const path = require('path');
 
 /**
  * @desc Register new user
@@ -452,6 +454,65 @@ const getApprovalStatus = catchAsync(async (req, res, next) => {
     });
 });
 
+/**
+ * @desc Upload ID picture for pending user
+ * @route POST /api/auth/upload-id-picture
+ * @access Private (Pending Users Only)
+ */
+const uploadIdPicture = catchAsync(async (req, res, next) => {
+    const userId = req.user.id;
+
+    // Check if user is pending approval
+    const user = await User.findByPk(userId);
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+
+    if (user.approval_status !== 'pending') {
+        return next(new AppError('ID picture can only be uploaded for pending users', 400));
+    }
+
+    if (!req.file) {
+        return next(new AppError('Please select an ID picture to upload', 400));
+    }
+
+    // Delete old ID picture if it exists
+    if (user.id_picture_path) {
+        const oldPicturePath = path.join(__dirname, '../../uploads/id-pictures', path.basename(user.id_picture_path));
+        deleteFile(oldPicturePath);
+    }
+
+    // Save the file path to user record
+    const relativePath = `uploads/id-pictures/${req.file.filename}`;
+    await user.update({
+        id_picture_path: relativePath
+    });
+
+    logger.info(`ID picture uploaded successfully for user: ${userId}`);
+
+    // Log audit event
+    await AuditService.logAuth({
+        action: 'upload_id_picture',
+        userId: user.id,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        details: {
+            filename: req.file.filename,
+            originalName: req.file.originalname,
+            size: req.file.size
+        }
+    });
+
+    res.status(200).json({
+        success: true,
+        message: 'ID picture uploaded successfully',
+        data: {
+            filename: req.file.filename,
+            path: relativePath
+        }
+    });
+});
+
 module.exports = {
     register,
     login,
@@ -465,5 +526,6 @@ module.exports = {
     verifyEmail,
     resendVerification,
     getApprovalStatus,
-    getAvailableBranches
+    getAvailableBranches,
+    uploadIdPicture
 };

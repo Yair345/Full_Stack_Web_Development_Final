@@ -8,9 +8,9 @@ export const apiRequest = async (endpoint, options = {}) => {
 
     const config = {
         headers: {
-            'Content-Type': 'application/json',
-            ...(token && { Authorization: `Bearer ${token}` }),
+            ...(!(options.body instanceof FormData) && { 'Content-Type': 'application/json' }),
             ...options.headers,
+            ...(token && { Authorization: `Bearer ${token}` }), // Keep Authorization last to avoid override
         },
         ...options,
     };
@@ -70,6 +70,12 @@ export const authAPI = {
     getApprovalStatus: () => apiRequest('/auth/approval-status'),
 
     getBranches: () => apiRequest('/auth/branches'),
+
+    uploadIdPicture: (formData) => apiRequest('/auth/upload-id-picture', {
+        method: 'POST',
+        body: formData,
+        // Don't set Content-Type header, let the browser set it with the boundary for FormData
+    }),
 };
 
 // Account API calls

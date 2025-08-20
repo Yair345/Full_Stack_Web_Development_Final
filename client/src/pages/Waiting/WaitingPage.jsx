@@ -10,7 +10,15 @@ import {
 } from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import { Alert, AlertDescription } from "../../components/ui/alert";
-import { Loader2, RefreshCw, Clock, Building } from "lucide-react";
+import {
+	Loader2,
+	RefreshCw,
+	Clock,
+	Building,
+	Upload,
+	FileImage,
+	CheckCircle,
+} from "lucide-react";
 import { authAPI } from "../../services/api";
 
 const WaitingPage = () => {
@@ -18,6 +26,9 @@ const WaitingPage = () => {
 	const [approvalStatus, setApprovalStatus] = useState(null);
 	const [lastChecked, setLastChecked] = useState(new Date());
 	const [error, setError] = useState("");
+	const [uploadSuccess, setUploadSuccess] = useState("");
+	const [isUploading, setIsUploading] = useState(false);
+	const [selectedFile, setSelectedFile] = useState(null);
 	const { user, logout } = useAuth();
 	const navigate = useNavigate();
 
@@ -67,6 +78,76 @@ const WaitingPage = () => {
 	const handleLogout = () => {
 		logout();
 		navigate("/login");
+	};
+
+	const handleFileSelect = (event) => {
+		const file = event.target.files[0];
+		if (file) {
+			// Validate file type
+			const allowedTypes = ["image/jpeg", "image/jpg"];
+			if (!allowedTypes.includes(file.type)) {
+				setError("Please select a JPG or JPEG image file");
+				event.target.value = "";
+				return;
+			}
+
+			// Validate file size (5MB max)
+			const maxSize = 5 * 1024 * 1024;
+			if (file.size > maxSize) {
+				setError("File size must be less than 5MB");
+				event.target.value = "";
+				return;
+			}
+
+			setError("");
+			setSelectedFile(file);
+		}
+	};
+
+	const handleUploadIdPicture = async () => {
+		if (!selectedFile) {
+			setError("Please select a file first");
+			return;
+		}
+
+		setIsUploading(true);
+		setError("");
+		setUploadSuccess("");
+
+		try {
+			const formData = new FormData();
+			formData.append("idPicture", selectedFile);
+
+			// Debug: Check if token exists
+			const token = sessionStorage.getItem("token");
+			console.log("Token exists:", !!token);
+			console.log(
+				"Token preview:",
+				token ? token.substring(0, 20) + "..." : "No token"
+			);
+
+			await authAPI.uploadIdPicture(formData);
+
+			setUploadSuccess("ID picture uploaded successfully!");
+			setSelectedFile(null);
+
+			// Clear file input
+			const fileInput = document.getElementById("id-picture-input");
+			if (fileInput) {
+				fileInput.value = "";
+			}
+
+			// Clear success message after 5 seconds
+			setTimeout(() => setUploadSuccess(""), 5000);
+
+			// Refresh approval status to get updated info
+			await checkApprovalStatus();
+		} catch (err) {
+			setError(err.message || "Failed to upload ID picture");
+			console.error("Error uploading ID picture:", err);
+		} finally {
+			setIsUploading(false);
+		}
 	};
 
 	const getStatusColor = (status) => {
@@ -182,6 +263,85 @@ const WaitingPage = () => {
 						)}
 					</CardContent>
 				</Card>
+
+				{/* ID Picture Upload Section */}
+				{approvalStatus?.approval_status === "pending" && (
+					<Card>
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<FileImage className="h-5 w-5" />
+								Upload ID Picture
+							</CardTitle>
+							<CardDescription>
+								Upload a clear photo of your ID document
+								(JPG/JPEG format, max 5MB)
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{uploadSuccess && (
+								<Alert>
+									<CheckCircle className="h-4 w-4" />
+									<AlertDescription className="text-green-700">
+										{uploadSuccess}
+									</AlertDescription>
+								</Alert>
+							)}
+
+							<div className="space-y-3">
+								<div>
+									<label
+										htmlFor="id-picture-input"
+										className="block text-sm font-medium text-gray-700 mb-2"
+									>
+										Select ID Picture
+									</label>
+									<input
+										id="id-picture-input"
+										type="file"
+										accept="image/jpeg,image/jpg"
+										onChange={handleFileSelect}
+										className="block w-full text-sm text-gray-500 
+											file:mr-4 file:py-2 file:px-4 
+											file:rounded-full file:border-0 
+											file:text-sm file:font-semibold 
+											file:bg-blue-50 file:text-blue-700 
+											hover:file:bg-blue-100"
+									/>
+								</div>
+
+								{selectedFile && (
+									<div className="text-sm text-gray-600">
+										Selected file: {selectedFile.name} (
+										{(
+											selectedFile.size /
+											1024 /
+											1024
+										).toFixed(2)}{" "}
+										MB)
+									</div>
+								)}
+
+								<Button
+									onClick={handleUploadIdPicture}
+									disabled={isUploading || !selectedFile}
+									className="w-full"
+								>
+									{isUploading ? (
+										<>
+											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											Uploading...
+										</>
+									) : (
+										<>
+											<Upload className="mr-2 h-4 w-4" />
+											Upload ID Picture
+										</>
+									)}
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
+				)}
 
 				<div className="space-y-3">
 					<Button

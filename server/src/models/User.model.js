@@ -231,6 +231,11 @@ User.init({
             }
         }
     },
+    id_picture_path: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        comment: 'Path to the uploaded ID picture'
+    },
     role: {
         type: DataTypes.ENUM(USER_ROLES.CUSTOMER, USER_ROLES.MANAGER, USER_ROLES.ADMIN),
         allowNull: false,

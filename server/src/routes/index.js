@@ -8,6 +8,7 @@ const cardRoutes = require('./card.routes');
 const auditRoutes = require('./audit.routes');
 const stockRoutes = require('./stock.routes');
 const branchRoutes = require('./branch.routes');
+const uploadsRoutes = require('./uploads.routes');
 
 const router = express.Router();
 
@@ -31,6 +32,7 @@ router.use('/cards', cardRoutes);
 router.use('/stocks', stockRoutes);
 router.use('/branches', branchRoutes);
 router.use('/audit', auditRoutes);
+router.use('/uploads', uploadsRoutes);
 
 // 404 handler for API routes
 router.use('*', (req, res) => {

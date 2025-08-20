@@ -580,7 +580,7 @@ const getPendingUsers = catchAsync(async (req, res, next) => {
         },
         attributes: [
             'id', 'username', 'first_name', 'last_name', 'email',
-            'phone', 'created_at', 'approval_status', 'pending_branch_id'
+            'phone', 'created_at', 'approval_status', 'pending_branch_id', 'id_picture_path'
         ],
         order: [['created_at', 'ASC']]
     });

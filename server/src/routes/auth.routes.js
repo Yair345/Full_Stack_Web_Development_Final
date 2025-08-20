@@ -12,10 +12,12 @@ const {
     verifyEmail,
     resendVerification,
     getApprovalStatus,
-    getAvailableBranches
+    getAvailableBranches,
+    uploadIdPicture
 } = require('../controllers/auth.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { handleValidationErrors } = require('../middleware/validation.middleware');
+const { handleIdPictureUpload, cleanupOnError } = require('../middleware/upload.middleware');
 const {
     registerValidation,
     loginValidation,
@@ -45,5 +47,6 @@ router.post('/logout', logout);
 router.put('/change-password', changePasswordValidation, handleValidationErrors, changePassword);
 router.post('/resend-verification', resendVerification);
 router.get('/approval-status', getApprovalStatus);
+router.post('/upload-id-picture', handleIdPictureUpload, cleanupOnError, uploadIdPicture);
 
 module.exports = router;

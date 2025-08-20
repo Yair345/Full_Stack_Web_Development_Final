@@ -36,6 +36,8 @@ import {
 	AlertCircle,
 	CheckCircle,
 	XCircle,
+	FileImage,
+	Eye,
 } from "lucide-react";
 import { branchAPI } from "../../services/api";
 
@@ -48,10 +50,25 @@ const PendingUsersTab = ({ branchId }) => {
 	const [rejectionReason, setRejectionReason] = useState("");
 	const [showRejectDialog, setShowRejectDialog] = useState(false);
 	const [selectedUser, setSelectedUser] = useState(null);
+	const [showIdPictureDialog, setShowIdPictureDialog] = useState(false);
+	const [idPictureUser, setIdPictureUser] = useState(null);
+	const [imageUrls, setImageUrls] = useState({});
 
 	useEffect(() => {
 		fetchPendingUsers();
 	}, [branchId]);
+
+	// Cleanup blob URLs when component unmounts
+	useEffect(() => {
+		return () => {
+			// Revoke all blob URLs to prevent memory leaks
+			Object.values(imageUrls).forEach((url) => {
+				if (url && url.startsWith("blob:")) {
+					URL.revokeObjectURL(url);
+				}
+			});
+		};
+	}, [imageUrls]);
 
 	const fetchPendingUsers = async () => {
 		try {
@@ -125,6 +142,59 @@ const PendingUsersTab = ({ branchId }) => {
 		setSelectedUser(user);
 		setRejectionReason("");
 		setShowRejectDialog(true);
+	};
+
+	const openIdPictureDialog = (user) => {
+		setIdPictureUser(user);
+		setShowIdPictureDialog(true);
+	};
+
+	const fetchImageWithAuth = async (filename) => {
+		try {
+			const token = sessionStorage.getItem("token");
+			const response = await fetch(
+				`${
+					import.meta.env.VITE_API_BASE_URL ||
+					"http://localhost:5001/api/v1"
+				}/uploads/id-pictures/${filename}`,
+				{
+					headers: {
+						Authorization: `Bearer ${token}`,
+					},
+				}
+			);
+
+			if (!response.ok) {
+				throw new Error("Failed to load image");
+			}
+
+			const blob = await response.blob();
+			return URL.createObjectURL(blob);
+		} catch (error) {
+			console.error("Error fetching image:", error);
+			return null;
+		}
+	};
+
+	const getIdPictureUrl = (user) => {
+		if (!user.id_picture_path) return null;
+
+		// Extract filename from path
+		const filename = user.id_picture_path.split("/").pop();
+
+		// If we already have a blob URL for this image, return it
+		if (imageUrls[filename]) {
+			return imageUrls[filename];
+		}
+
+		// Fetch the image with authentication
+		fetchImageWithAuth(filename).then((url) => {
+			if (url) {
+				setImageUrls((prev) => ({ ...prev, [filename]: url }));
+			}
+		});
+
+		return null; // Return null initially while loading
 	};
 
 	const formatDate = (dateString) => {
@@ -218,6 +288,7 @@ const PendingUsersTab = ({ branchId }) => {
 										<TableHead>Email</TableHead>
 										<TableHead>Phone</TableHead>
 										<TableHead>Registration Date</TableHead>
+										<TableHead>ID Picture</TableHead>
 										<TableHead>Status</TableHead>
 										<TableHead className="text-right">
 											Actions
@@ -237,6 +308,31 @@ const PendingUsersTab = ({ branchId }) => {
 											</TableCell>
 											<TableCell>
 												{formatDate(user.created_at)}
+											</TableCell>
+											<TableCell>
+												{user.id_picture_path ? (
+													<Button
+														size="sm"
+														variant="outline"
+														onClick={() =>
+															openIdPictureDialog(
+																user
+															)
+														}
+														className="flex items-center gap-1"
+													>
+														<Eye className="h-3 w-3" />
+														View ID
+													</Button>
+												) : (
+													<Badge
+														variant="secondary"
+														className="text-xs"
+													>
+														<FileImage className="h-3 w-3 mr-1" />
+														Not uploaded
+													</Badge>
+												)}
 											</TableCell>
 											<TableCell>
 												<Badge
@@ -352,6 +448,65 @@ const PendingUsersTab = ({ branchId }) => {
 							) : (
 								"Reject User"
 							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* ID Picture Dialog */}
+			<Dialog
+				open={showIdPictureDialog}
+				onOpenChange={setShowIdPictureDialog}
+			>
+				<DialogContent className="max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>ID Picture</DialogTitle>
+						<DialogDescription>
+							{idPictureUser?.first_name}{" "}
+							{idPictureUser?.last_name}'s uploaded ID document
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-4">
+						{idPictureUser?.id_picture_path ? (
+							<div className="flex justify-center">
+								{getIdPictureUrl(idPictureUser) ? (
+									<img
+										src={getIdPictureUrl(idPictureUser)}
+										alt={`${idPictureUser.first_name} ${idPictureUser.last_name}'s ID`}
+										className="max-w-full h-auto rounded-lg border"
+										style={{ maxHeight: "500px" }}
+										onError={(e) => {
+											e.target.src =
+												"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+CiAgPHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIG5vdCBhdmFpbGFibGU8L3RleHQ+Cjwvc3ZnPg==";
+										}}
+									/>
+								) : (
+									<div className="flex flex-col items-center py-8">
+										<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+										<p className="text-gray-600">
+											Loading image...
+										</p>
+									</div>
+								)}
+							</div>
+						) : (
+							<div className="text-center py-8">
+								<FileImage className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+								<p className="text-gray-600">
+									No ID picture available for this user
+								</p>
+							</div>
+						)}
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => {
+								setShowIdPictureDialog(false);
+								setIdPictureUser(null);
+							}}
+						>
+							Close
 						</Button>
 					</DialogFooter>
 				</DialogContent>
