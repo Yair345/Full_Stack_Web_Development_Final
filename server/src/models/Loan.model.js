@@ -536,16 +536,7 @@ Loan.init({
             fields: ['application_date']
         },
         {
-            fields: ['approval_date']
-        },
-        {
-            fields: ['amount']
-        },
-        {
             fields: ['approved_by']
-        },
-        {
-            fields: ['first_payment_date']
         }
     ],
     validate: {

@@ -1,7 +1,6 @@
 const express = require('express');
 const {
     getAvailableStocks,
-    getStockQuote,
     buyStock,
     sellStock,
     getStockTransactions,
@@ -33,13 +32,6 @@ router.get('/', getAvailableStocks);
  * @access  Private
  */
 router.get('/search', searchStocks);
-
-/**
- * @route   GET /api/v1/stocks/:symbol/quote
- * @desc    Get stock quote by symbol
- * @access  Private
- */
-router.get('/:symbol/quote', getStockQuote);
 
 /**
  * @route   POST /api/v1/stocks/buy

@@ -8,6 +8,8 @@ import PendingUsersTab from "./PendingUsersTab";
 import LoanApplicationsTab from "./LoanApplicationsTab";
 import CashDepositTab from "./CashDepositTab";
 import RejectionModal from "./RejectionModal";
+import ViewUserModal from "../../components/ui/ViewUserModal";
+import EditUserModal from "../../components/ui/EditUserModal";
 import {
 	useBranch,
 	useBranchCustomers,
@@ -15,12 +17,19 @@ import {
 } from "../../hooks/api/apiHooks";
 import { useAuth } from "../../hooks";
 import { useLoans } from "../../hooks/useLoans";
+import adminService from "../../services/adminService";
 
 const BranchManagement = () => {
 	const [activeTab, setActiveTab] = useState("overview");
 	const [showRejectionModal, setShowRejectionModal] = useState(false);
 	const [selectedLoan, setSelectedLoan] = useState(null);
 	const [notification, setNotification] = useState(null);
+
+	// Customer modal states
+	const [showViewUserModal, setShowViewUserModal] = useState(false);
+	const [showEditUserModal, setShowEditUserModal] = useState(false);
+	const [selectedCustomer, setSelectedCustomer] = useState(null);
+
 	const { user } = useAuth();
 	const { approveBranchLoan } = useLoans();
 
@@ -70,9 +79,80 @@ const BranchManagement = () => {
 		}, 5000);
 	};
 
-	const handleCustomerAction = (action, customerId) => {
+	const handleCustomerAction = async (action, customerId) => {
 		console.log(`${action} customer:`, customerId);
-		alert(`${action} customer action will be implemented soon!`);
+
+		if (action === "View") {
+			try {
+				const response = await adminService.getUserById(customerId);
+				setSelectedCustomer(response.data.user);
+				setShowViewUserModal(true);
+			} catch (error) {
+				console.error("Error viewing customer:", error);
+				showNotification(
+					"danger",
+					"Failed to load customer details. Please try again."
+				);
+			}
+		} else if (action === "Edit") {
+			try {
+				const response = await adminService.getUserById(customerId);
+				setSelectedCustomer(response.data.user);
+				setShowEditUserModal(true);
+			} catch (error) {
+				console.error("Error loading customer for edit:", error);
+				showNotification(
+					"danger",
+					"Failed to load customer details. Please try again."
+				);
+			}
+		} else if (action === "Contact") {
+			try {
+				const response = await adminService.getUserById(customerId);
+				const customer = response.data.user;
+
+				// Create a formatted contact information display
+				const contactInfo = `
+Customer Contact Information:
+
+Name: ${customer.first_name} ${customer.last_name}
+Email: ${customer.email}
+Phone: ${customer.phone || "Not provided"}
+Address: ${customer.address || "Not provided"}
+
+Account Details:
+Username: ${customer.username}
+Branch: ${customer.branchName || "No branch assigned"}
+Status: ${customer.is_active ? "Active" : "Inactive"}
+				`.trim();
+
+				alert(contactInfo);
+			} catch (error) {
+				console.error("Error loading customer contact info:", error);
+				showNotification(
+					"danger",
+					"Failed to load customer contact information. Please try again."
+				);
+			}
+		} else {
+			// Handle other actions
+			showNotification(
+				"info",
+				`${action} customer action will be implemented soon!`
+			);
+		}
+	};
+
+	const handleSaveCustomer = async (userId, userData) => {
+		try {
+			await adminService.updateUser(userId, userData);
+			await refetchCustomers(); // Refresh the customers list
+			showNotification("success", "Customer updated successfully!");
+		} catch (error) {
+			console.error("Error updating customer:", error);
+			alert("Failed to update customer. Please try again.");
+			throw error;
+		}
 	};
 
 	const handleLoanAction = async (action, applicationId) => {
@@ -307,6 +387,29 @@ const BranchManagement = () => {
 				onConfirm={handleRejectConfirm}
 				loanData={selectedLoan}
 			/>
+
+			{/* Customer Modals */}
+			{showViewUserModal && (
+				<ViewUserModal
+					user={selectedCustomer}
+					onClose={() => {
+						setShowViewUserModal(false);
+						setSelectedCustomer(null);
+					}}
+				/>
+			)}
+
+			{showEditUserModal && (
+				<EditUserModal
+					user={selectedCustomer}
+					onClose={() => {
+						setShowEditUserModal(false);
+						setSelectedCustomer(null);
+					}}
+					onSave={handleSaveCustomer}
+					canChangeRole={false}
+				/>
+			)}
 		</div>
 	);
 };

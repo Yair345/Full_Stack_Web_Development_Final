@@ -10,7 +10,6 @@ const StandingOrder = require('./StandingOrder.model');
 const StockTransaction = require('./StockTransaction.model');
 const Portfolio = require('./Portfolio.model');
 const Watchlist = require('./Watchlist.model');
-const StockQuote = require('./StockQuote.model');
 const Branch = require('./Branch.model');
 
 // Define model associations
@@ -229,7 +228,6 @@ module.exports = {
     StockTransaction,
     Portfolio,
     Watchlist,
-    StockQuote,
     Branch,
 
     // Helper function to sync all models

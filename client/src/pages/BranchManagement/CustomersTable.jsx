@@ -1,4 +1,4 @@
-import { MoreVertical, Eye, Edit3, Phone, FileText } from "lucide-react";
+import { Eye, Edit3, Phone } from "lucide-react";
 import {
 	formatCurrency,
 	getStatusBadge,
@@ -6,64 +6,52 @@ import {
 	getAccountTypeColor,
 } from "./branchUtils";
 
-const CustomerActionDropdown = ({ customer, onCustomerAction }) => {
+const CustomerActionButtons = ({ customer, onCustomerAction }) => {
+	const handleAction = (action) => {
+		onCustomerAction(action, customer.id);
+	};
+
 	return (
-		<div className="dropdown">
+		<div className="btn-group" role="group" aria-label="Customer actions">
+			{/* View Button - Always Available */}
 			<button
-				className="btn btn-outline-secondary btn-sm"
-				data-bs-toggle="dropdown"
-				aria-expanded="false"
+				className="btn btn-outline-info btn-sm"
+				onClick={() => handleAction("View")}
+				title="View Customer Profile"
 			>
-				<MoreVertical size={14} />
+				<Eye size={14} />
 			</button>
-			<ul className="dropdown-menu">
-				<li>
-					<button
-						className="dropdown-item"
-						onClick={() => onCustomerAction("View", customer.id)}
-					>
-						<Eye size={14} className="me-2" />
-						View Profile
-					</button>
-				</li>
-				<li>
-					<button
-						className="dropdown-item"
-						onClick={() => onCustomerAction("Edit", customer.id)}
-					>
-						<Edit3 size={14} className="me-2" />
-						Edit Details
-					</button>
-				</li>
-				<li>
-					<button
-						className="dropdown-item"
-						onClick={() => onCustomerAction("Contact", customer.id)}
-					>
-						<Phone size={14} className="me-2" />
-						Contact Customer
-					</button>
-				</li>
-				<li>
-					<hr className="dropdown-divider" />
-				</li>
-				<li>
-					<button
-						className="dropdown-item"
-						onClick={() =>
-							onCustomerAction("Account History", customer.id)
-						}
-					>
-						<FileText size={14} className="me-2" />
-						Account History
-					</button>
-				</li>
-			</ul>
+
+			{/* Edit Button - Available for active customers */}
+			{(customer.approval_status === "approved" ||
+				customer.is_active) && (
+				<button
+					className="btn btn-outline-primary btn-sm"
+					onClick={() => handleAction("Edit")}
+					title="Edit Customer Details"
+				>
+					<Edit3 size={14} />
+				</button>
+			)}
+
+			{/* Contact Button */}
+			{customer.phone && (
+				<button
+					className="btn btn-outline-success btn-sm"
+					onClick={() => handleAction("Contact")}
+					title="Contact Customer"
+				>
+					<Phone size={14} />
+				</button>
+			)}
 		</div>
 	);
 };
 
 const CustomersTable = ({ customers, onCustomerAction }) => {
+	// Debug: Log customers to see their structure
+	console.log("CustomersTable received customers:", customers);
+
 	return (
 		<div className="table-responsive">
 			<table className="table table-hover">
@@ -173,7 +161,7 @@ const CustomersTable = ({ customers, onCustomerAction }) => {
 									</small>
 								</td>
 								<td>
-									<CustomerActionDropdown
+									<CustomerActionButtons
 										customer={customer}
 										onCustomerAction={onCustomerAction}
 									/>

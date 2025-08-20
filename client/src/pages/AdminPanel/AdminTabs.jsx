@@ -1,4 +1,4 @@
-import { Activity, Users, Shield, Database } from "lucide-react";
+import { Activity, Users, Shield, Building2 } from "lucide-react";
 
 const AdminTabs = ({ activeTab, onTabChange }) => {
 	const tabs = [
@@ -13,14 +13,14 @@ const AdminTabs = ({ activeTab, onTabChange }) => {
 			icon: Users,
 		},
 		{
+			id: "branches",
+			label: "Branch Management",
+			icon: Building2,
+		},
+		{
 			id: "activity",
 			label: "Activity Log",
 			icon: Shield,
-		},
-		{
-			id: "system",
-			label: "System Health",
-			icon: Database,
 		},
 	];
 

@@ -3,41 +3,48 @@ import Card from "../../components/ui/Card";
 import { formatCurrency, formatNumber } from "./adminUtils";
 
 const SystemStatsCards = ({ systemStats }) => {
-	const stats = [
+	// Safely handle undefined systemStats
+	const stats = systemStats || {};
+
+	const cardStats = [
 		{
 			id: 1,
 			title: "Total Users",
-			value: formatNumber(systemStats.totalUsers),
+			value: formatNumber(stats.totalUsers || 0),
 			icon: Users,
 			color: "primary",
-			trend: `+${systemStats.newUsersToday} today`,
+			trend: `${formatNumber(stats.activeUsers || 0)} active`,
 			trendColor: "success",
 		},
 		{
 			id: 2,
 			title: "Active Users",
-			value: formatNumber(systemStats.activeUsers),
+			value: formatNumber(stats.activeUsers || 0),
 			icon: Activity,
 			color: "success",
-			trend: `${(
-				(systemStats.activeUsers / systemStats.totalUsers) *
-				100
-			).toFixed(1)}% of total`,
+			trend:
+				stats.totalUsers > 0
+					? `${(
+							((stats.activeUsers || 0) /
+								(stats.totalUsers || 1)) *
+							100
+					  ).toFixed(1)}% of total`
+					: "0% of total",
 			trendColor: "muted",
 		},
 		{
 			id: 3,
 			title: "Transactions",
-			value: formatNumber(systemStats.totalTransactions),
+			value: formatNumber(stats.todayTransactions || 0),
 			icon: TrendingUp,
 			color: "info",
-			trend: `+${systemStats.transactionsToday} today`,
+			trend: "Today",
 			trendColor: "success",
 		},
 		{
 			id: 4,
 			title: "Total Volume",
-			value: formatCurrency(systemStats.totalVolume),
+			value: formatCurrency(stats.totalTransactionVolume || 0),
 			icon: DollarSign,
 			color: "warning",
 			trend: "All time",
@@ -48,7 +55,7 @@ const SystemStatsCards = ({ systemStats }) => {
 	return (
 		<div className="col-12">
 			<div className="row g-3">
-				{stats.map((stat) => {
+				{cardStats.map((stat) => {
 					const IconComponent = stat.icon;
 					return (
 						<div key={stat.id} className="col-md-3">

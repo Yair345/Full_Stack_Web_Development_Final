@@ -1,5 +1,5 @@
 import SystemStatsCards from "./SystemStatsCards";
-import SystemHealthCard from "./SystemHealthCard";
+import BranchesOverviewCard from "./BranchesOverviewCard";
 import RecentAlertsCard from "./RecentAlertsCard";
 
 const OverviewTab = ({ systemStats, services, alerts }) => {
@@ -7,11 +7,11 @@ const OverviewTab = ({ systemStats, services, alerts }) => {
 		<>
 			<SystemStatsCards systemStats={systemStats} />
 
-			<SystemHealthCard systemStats={systemStats} services={services} />
+			<BranchesOverviewCard systemStats={systemStats} />
 
 			<RecentAlertsCard
 				alerts={alerts}
-				alertsCount={systemStats.alertsCount}
+				alertsCount={systemStats?.alertsCount}
 			/>
 		</>
 	);

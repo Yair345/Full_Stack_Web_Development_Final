@@ -2,7 +2,6 @@ const {
     StockTransaction,
     Portfolio,
     Watchlist,
-    StockQuote,
     Account,
     Transaction,
     sequelize
@@ -106,46 +105,6 @@ const getAvailableStocks = async (req, res) => {
 };
 
 /**
- * Get stock quote by symbol
- */
-const getStockQuote = async (req, res) => {
-    try {
-        const { symbol } = req.params;
-
-        console.log(`Fetching real-time quote for ${symbol}`);
-
-        // Get real stock data from external API
-        const stockData = await stockService.getStockQuote(symbol.toUpperCase());
-
-        if (!stockData) {
-            return res.status(404).json({
-                success: false,
-                message: `Stock quote not found for symbol: ${symbol}`
-            });
-        }
-
-        console.log(`Successfully fetched quote for ${symbol}:`, {
-            price: stockData.price,
-            change: stockData.change,
-            source: stockData.source
-        });
-
-        res.json({
-            success: true,
-            data: stockData,
-            source: 'EXTERNAL_API'
-        });
-    } catch (error) {
-        console.error('Error fetching stock quote:', error);
-        res.status(500).json({
-            success: false,
-            message: `Failed to fetch stock quote for ${req.params.symbol}`,
-            error: error.message
-        });
-    }
-};
-
-/**
  * Buy stocks
  */
 const buyStock = async (req, res) => {
@@ -176,19 +135,23 @@ const buyStock = async (req, res) => {
             });
         }
 
-        // Get real stock info and verify current price
-        let stockInfo;
-        try {
-            stockInfo = await stockService.getStockQuote(stockSymbol.toUpperCase());
-            console.log('Real-time stock data:', stockInfo);
-        } catch (error) {
-            await dbTransaction.rollback();
-            console.error('Failed to fetch real-time stock data:', error);
+        // Validate stock symbol and price
+        if (!stockSymbol || !pricePerShare || pricePerShare <= 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Failed to fetch current stock price. Please try again.'
+                message: 'Valid stock symbol and price are required'
             });
         }
+
+        // For demo purposes, accept the price from client
+        // In production, you would validate against real-time market data
+        const stockInfo = {
+            symbol: stockSymbol.toUpperCase(),
+            price: parseFloat(pricePerShare),
+            name: stockSymbol.toUpperCase() + ' Corporation'
+        };
+
+        console.log('Using stock data:', stockInfo);
 
         // Validate price against current market price (allow 5% tolerance)
         const currentMarketPrice = stockInfo.price;
@@ -421,29 +384,15 @@ const sellStock = async (req, res) => {
             });
         }
 
-        // Get real stock info and current market price
-        let stockInfo;
-        try {
-            stockInfo = await stockService.getStockQuote(stockSymbol.toUpperCase());
-            console.log('Real-time stock data for sale:', stockInfo);
+        // For demo purposes, accept the price from client
+        // In production, you would validate against real-time market data
+        const stockInfo = {
+            symbol: stockSymbol.toUpperCase(),
+            price: parseFloat(pricePerShare),
+            name: stockSymbol.toUpperCase() + ' Corporation'
+        };
 
-            // Validate price against current market price (allow 5% tolerance)
-            if (stockInfo.price && Math.abs(pricePerShare - stockInfo.price) / stockInfo.price > 0.05) {
-                await dbTransaction.rollback();
-                return res.status(400).json({
-                    success: false,
-                    message: `Price has changed. Current market price: $${stockInfo.price.toFixed(2)}`,
-                    data: {
-                        requestedPrice: pricePerShare,
-                        currentPrice: stockInfo.price,
-                        symbol: stockSymbol.toUpperCase()
-                    }
-                });
-            }
-        } catch (error) {
-            console.warn('Failed to fetch real-time stock data, using provided price:', error);
-            stockInfo = { price: pricePerShare }; // Fallback to provided price
-        }
+        console.log('Using stock data for sale:', stockInfo);
 
         const totalAmount = quantity * pricePerShare;
         const fees = 2.99; // Fixed trading fee
@@ -719,18 +668,15 @@ const addToWatchlist = async (req, res) => {
             });
         }
 
-        // Get real stock info from external API
-        let stockInfo;
-        try {
-            stockInfo = await stockService.getStockQuote(stockSymbol.toUpperCase());
-            console.log('Real-time stock data for watchlist:', stockInfo);
-        } catch (error) {
-            console.error('Failed to fetch real-time stock data:', error);
-            return res.status(404).json({
-                success: false,
-                message: 'Stock not found or unable to fetch current data'
-            });
-        }
+        // For demo purposes, create basic stock info
+        // In production, you would fetch from real market data
+        const stockInfo = {
+            symbol: stockSymbol.toUpperCase(),
+            name: stockSymbol.toUpperCase() + ' Corporation',
+            price: 100 + Math.random() * 200 // Random price between 100-300
+        };
+
+        console.log('Using stock data for watchlist:', stockInfo);
 
         const watchlistItem = await Watchlist.addToWatchlist(
             userId,
@@ -874,7 +820,6 @@ const searchStocks = async (req, res) => {
 
 module.exports = {
     getAvailableStocks,
-    getStockQuote,
     buyStock,
     sellStock,
     getStockTransactions,
