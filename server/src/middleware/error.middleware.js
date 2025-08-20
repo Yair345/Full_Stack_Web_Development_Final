@@ -1,5 +1,6 @@
 const { HTTP_STATUS, ERROR_MESSAGES } = require('../utils/constants');
 const winston = require('winston');
+const AuditService = require('../services/audit.service');
 
 // Configure Winston logger
 const logger = winston.createLogger({
@@ -165,11 +166,30 @@ const sendErrorProd = (err, res) => {
 /**
  * Global error handling middleware
  */
-const globalErrorHandler = (err, req, res, next) => {
+const globalErrorHandler = async (err, req, res, next) => {
     err.statusCode = err.statusCode || HTTP_STATUS.INTERNAL_SERVER_ERROR;
     err.status = err.status || 'error';
 
-    // Log error
+    // Log error to MongoDB system logs
+    await AuditService.logSystem({
+        level: 'error',
+        message: `Error occurred: ${err.message}`,
+        service: 'error_handling',
+        meta: {
+            errorName: err.name,
+            errorMessage: err.message,
+            errorStack: err.stack,
+            url: req.originalUrl,
+            method: req.method,
+            statusCode: err.statusCode,
+            ip: req.ip,
+            userAgent: req.get('User-Agent'),
+            userId: req.user?.id,
+            timestamp: new Date().toISOString()
+        }
+    });
+
+    // Also log error to file system (keeping existing functionality)
     logger.error({
         message: err.message,
         stack: err.stack,
@@ -223,7 +243,23 @@ const notFoundHandler = (req, res, next) => {
 /**
  * Handle unhandled promise rejections
  */
-process.on('unhandledRejection', (err, promise) => {
+process.on('unhandledRejection', async (err, promise) => {
+    // Log to MongoDB system logs
+    await AuditService.logSystem({
+        level: 'critical',
+        message: `Unhandled Promise Rejection: ${err.message}`,
+        service: 'system_error',
+        meta: {
+            errorName: err.name,
+            errorMessage: err.message,
+            errorStack: err.stack,
+            errorType: 'unhandled_rejection',
+            promise: promise.toString(),
+            timestamp: new Date().toISOString()
+        }
+    });
+
+    // Keep original file logging
     logger.error('Unhandled Promise Rejection:', err);
     console.log('Unhandled Promise Rejection! 💥 Shutting down...');
     process.exit(1);
@@ -232,7 +268,22 @@ process.on('unhandledRejection', (err, promise) => {
 /**
  * Handle uncaught exceptions
  */
-process.on('uncaughtException', (err) => {
+process.on('uncaughtException', async (err) => {
+    // Log to MongoDB system logs
+    await AuditService.logSystem({
+        level: 'critical',
+        message: `Uncaught Exception: ${err.message}`,
+        service: 'system_error',
+        meta: {
+            errorName: err.name,
+            errorMessage: err.message,
+            errorStack: err.stack,
+            errorType: 'uncaught_exception',
+            timestamp: new Date().toISOString()
+        }
+    });
+
+    // Keep original file logging
     logger.error('Uncaught Exception:', err);
     console.log('Uncaught Exception! 💥 Shutting down...');
     process.exit(1);

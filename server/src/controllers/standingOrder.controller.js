@@ -163,7 +163,23 @@ const createStandingOrder = catchAsync(async (req, res, next) => {
     } = req.body;
     const userId = req.user.id;
 
-    logger.info(`Creating standing order: ${amount} from account ${from_account_id}`);
+    // Log standing order creation request to system logs (money-related)
+    await AuditService.logSystem({
+        level: 'info',
+        message: `Creating standing order: ${amount} from account ${from_account_id}`,
+        service: 'standing_order_management',
+        meta: {
+            userId,
+            fromAccountId: from_account_id,
+            toAccountId: to_account_id,
+            amount: parseFloat(amount),
+            frequency,
+            startDate: start_date,
+            endDate: end_date,
+            maxExecutions: max_executions,
+            operationType: 'standing_order_creation_request'
+        }
+    });
 
     // Start transaction
     const t = await sequelize.transaction();

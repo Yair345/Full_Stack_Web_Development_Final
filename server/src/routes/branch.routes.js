@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { query, param } = require('express-validator');
+const { query, param, body } = require('express-validator');
 
 // Import middleware
 const { authenticate } = require('../middleware/auth.middleware');
@@ -20,7 +20,9 @@ const {
     getPendingUsers,
     approveUser,
     rejectUser,
-    createBranchDeposit
+    createBranchDeposit,
+    getBranchCustomerById,
+    updateBranchCustomer
 } = require('../controllers/branch.controller');
 
 // Import validation schemas
@@ -208,6 +210,63 @@ router.post('/:id/deposit',
     ],
     handleValidationErrors,
     createBranchDeposit
+);
+
+/**
+ * @route GET /api/branches/:id/customers/:userId
+ * @desc Get specific customer details
+ * @access Private (Manager/Admin)
+ */
+router.get('/:id/customers/:userId',
+    authenticate,
+    requireRole(['manager', 'admin']),
+    [
+        param('id').isInt({ min: 1 }).withMessage('Branch ID must be a positive integer'),
+        param('userId').isInt({ min: 1 }).withMessage('User ID must be a positive integer')
+    ],
+    handleValidationErrors,
+    getBranchCustomerById
+);
+
+/**
+ * @route PUT /api/branches/:id/customers/:userId
+ * @desc Update customer information (limited fields for branch managers)
+ * @access Private (Manager/Admin)
+ */
+router.put('/:id/customers/:userId',
+    authenticate,
+    requireRole(['manager', 'admin']),
+    [
+        param('id').isInt({ min: 1 }).withMessage('Branch ID must be a positive integer'),
+        param('userId').isInt({ min: 1 }).withMessage('User ID must be a positive integer'),
+        body('first_name')
+            .optional()
+            .isLength({ min: 1, max: 50 })
+            .withMessage('First name must be between 1 and 50 characters'),
+        body('last_name')
+            .optional()
+            .isLength({ min: 1, max: 50 })
+            .withMessage('Last name must be between 1 and 50 characters'),
+        body('email')
+            .optional()
+            .isEmail()
+            .normalizeEmail()
+            .withMessage('Email must be valid'),
+        body('phone')
+            .optional()
+            .matches(/^\+?[\d\s\-\(\)]{10,15}$/)
+            .withMessage('Phone must be a valid phone number'),
+        body('address')
+            .optional()
+            .isLength({ min: 1, max: 200 })
+            .withMessage('Address must be between 1 and 200 characters'),
+        body('branch_id')
+            .optional()
+            .isInt()
+            .withMessage('Branch ID must be a valid integer')
+    ],
+    handleValidationErrors,
+    updateBranchCustomer
 );
 
 module.exports = router;

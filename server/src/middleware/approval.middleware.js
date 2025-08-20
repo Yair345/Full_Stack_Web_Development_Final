@@ -1,11 +1,11 @@
 const { AppError } = require('../utils/error.utils');
-const { requestLogger: logger } = require('./logger.middleware');
+const AuditService = require('../services/audit.service');
 
 /**
  * Middleware to check if user is approved by branch manager
  * Users with pending or rejected status cannot access protected resources
  */
-const requireApproval = (req, res, next) => {
+const requireApproval = async (req, res, next) => {
     const user = req.user;
 
     if (!user) {
@@ -19,7 +19,19 @@ const requireApproval = (req, res, next) => {
 
     // Check approval status for regular users
     if (user.approval_status === 'pending') {
-        logger.warn(`User ${user.id} attempted to access protected resource while pending approval`);
+        // Log security event for unauthorized access attempt
+        await AuditService.logSecurity({
+            event: 'unauthorized_access_pending',
+            req,
+            details: {
+                userId: user.id,
+                userEmail: user.email,
+                approvalStatus: user.approval_status,
+                attemptedResource: req.originalUrl,
+                reason: 'pending_approval'
+            }
+        });
+
         return res.status(403).json({
             success: false,
             message: 'Your account is pending approval by the branch manager.',
@@ -32,7 +44,20 @@ const requireApproval = (req, res, next) => {
     }
 
     if (user.approval_status === 'rejected') {
-        logger.warn(`User ${user.id} attempted to access protected resource after rejection`);
+        // Log security event for rejected user access attempt
+        await AuditService.logSecurity({
+            event: 'unauthorized_access_rejected',
+            req,
+            details: {
+                userId: user.id,
+                userEmail: user.email,
+                approvalStatus: user.approval_status,
+                rejectionReason: user.rejection_reason,
+                attemptedResource: req.originalUrl,
+                reason: 'account_rejected'
+            }
+        });
+
         return res.status(403).json({
             success: false,
             message: 'Your account has been rejected by the branch manager.',
@@ -45,7 +70,19 @@ const requireApproval = (req, res, next) => {
     }
 
     if (user.approval_status !== 'approved') {
-        logger.warn(`User ${user.id} has unknown approval status: ${user.approval_status}`);
+        // Log security event for unknown approval status
+        await AuditService.logSecurity({
+            event: 'unauthorized_access_unknown_status',
+            req,
+            details: {
+                userId: user.id,
+                userEmail: user.email,
+                approvalStatus: user.approval_status,
+                attemptedResource: req.originalUrl,
+                reason: 'unknown_approval_status'
+            }
+        });
+
         return res.status(403).json({
             success: false,
             message: 'Your account status is unclear. Please contact support.',

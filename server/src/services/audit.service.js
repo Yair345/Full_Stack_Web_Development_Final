@@ -271,6 +271,98 @@ class AuditService {
     }
 
     /**
+     * Get recent activity for admin dashboard
+     * @param {number} limit - Number of recent activities to retrieve
+     */
+    static async getRecentActivity(limit = 50) {
+        try {
+            // Check if MongoDB is connected
+            const mongoose = require('mongoose');
+            if (mongoose.connection.readyState !== 1) {
+                console.warn('⚠️ MongoDB not connected, returning empty activity');
+                return [];
+            }
+
+            // Get recent audit logs and system logs
+            const [auditLogs, systemLogs] = await Promise.all([
+                AuditLog.find({})
+                    .sort({ timestamp: -1 })
+                    .limit(Math.floor(limit / 2))
+                    .lean(),
+                SystemLog.find({})
+                    .sort({ timestamp: -1 })
+                    .limit(Math.floor(limit / 2))
+                    .lean()
+            ]);
+
+            // Combine and format the activities
+            const activities = [];
+
+            // Process audit logs
+            auditLogs.forEach(log => {
+                activities.push({
+                    id: log._id,
+                    type: log.action,
+                    description: this.formatAuditDescription(log),
+                    timestamp: log.timestamp,
+                    severity: log.level || 'info',
+                    userId: log.userId,
+                    ipAddress: log.ipAddress
+                });
+            });
+
+            // Process system logs
+            systemLogs.forEach(log => {
+                activities.push({
+                    id: log._id,
+                    type: 'system_' + (log.service || 'general'),
+                    description: log.message,
+                    timestamp: log.timestamp,
+                    severity: log.level || 'info',
+                    service: log.service,
+                    meta: log.meta
+                });
+            });
+
+            // Sort by timestamp and return limited results
+            return activities
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .slice(0, limit);
+
+        } catch (error) {
+            console.error('❌ Failed to get recent activity:', error.message);
+            return [];
+        }
+    }
+
+    /**
+     * Format audit log description for display
+     * @param {Object} log - Audit log object
+     */
+    static formatAuditDescription(log) {
+        const { action, details } = log;
+
+        switch (action) {
+            case 'auth_login':
+                return `User login: ${details.username || details.email}`;
+            case 'auth_logout':
+                return `User logout: ${details.username || details.email}`;
+            case 'auth_register':
+                return `New user registration: ${details.email}`;
+            case 'transaction_created':
+                return `Transaction created: $${details.amount} (${details.type})`;
+            case 'loan_applied':
+                return `Loan application: $${details.amount} (${details.loanType})`;
+            case 'loan_approved':
+                return `Loan approved: $${details.amount}`;
+            case 'account_created':
+                return `Account created: ${details.accountType}`;
+            default:
+                return log.details?.message || `Action: ${action}`;
+        }
+    }
+
+    /**
      * Clean up old logs (for maintenance)
      * @param {number} daysToKeep - Number of days to keep logs
      */

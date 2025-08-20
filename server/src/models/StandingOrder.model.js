@@ -407,22 +407,10 @@ StandingOrder.init({
             fields: ['status']
         },
         {
-            fields: ['frequency']
-        },
-        {
             fields: ['next_execution_date']
         },
         {
-            fields: ['start_date']
-        },
-        {
-            fields: ['end_date']
-        },
-        {
             fields: ['created_by']
-        },
-        {
-            fields: ['beneficiary_name']
         }
     ],
     validate: {

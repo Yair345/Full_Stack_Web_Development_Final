@@ -17,7 +17,13 @@ const { v4: uuidv4 } = require('uuid');
 const getAccounts = catchAsync(async (req, res, next) => {
     const userId = req.user.id;
 
-    logger.info(`Getting accounts for user: ${userId}`);
+    // Log to MongoDB audit logs
+    await AuditService.logAccount({
+        action: 'get_accounts_requested',
+        req,
+        account: null,
+        details: { userId, requestType: 'list_accounts' }
+    });
 
     const accounts = await Account.findAll({
         where: { user_id: userId },
@@ -39,12 +45,18 @@ const getAccounts = catchAsync(async (req, res, next) => {
         order: [['created_at', 'DESC']]
     });
 
-    logger.info(`Found ${accounts.length} accounts for user ${userId}:`, accounts.map(acc => ({
-        id: acc.id,
-        name: acc.account_name,
-        type: acc.account_type,
-        balance: acc.balance
-    })));
+    // Log successful account retrieval to audit logs
+    await AuditService.logAccount({
+        action: 'accounts_retrieved',
+        req,
+        account: null,
+        details: {
+            userId,
+            accountCount: accounts.length,
+            accountTypes: accounts.map(acc => acc.account_type),
+            accountIds: accounts.map(acc => acc.id)
+        }
+    });
 
     res.json({
         success: true,
@@ -103,8 +115,21 @@ const createAccount = catchAsync(async (req, res, next) => {
     } = req.body;
     const userId = req.user.id;
 
-    logger.info(`Account creation request - Raw body: ${JSON.stringify(req.body)}`);
-    logger.info(`Account creation request for user: ${userId}, type: ${account_type}, name: "${account_name}", initial_deposit: ${initial_deposit}, overdraft_limit: ${overdraft_limit}, currency: ${currency}`);
+    // Log account creation request to audit logs
+    await AuditService.logAccount({
+        action: 'account_creation_requested',
+        req,
+        account: null,
+        details: {
+            userId,
+            requestedAccountType: account_type,
+            requestedAccountName: account_name,
+            requestedInitialDeposit: initial_deposit,
+            requestedOverdraftLimit: overdraft_limit,
+            requestedCurrency: currency,
+            rawBody: req.body
+        }
+    });
 
     // Validate required fields
     if (!account_name || account_name.trim().length < 2 || account_name.trim().length > 100) {
@@ -216,14 +241,46 @@ const createAccount = catchAsync(async (req, res, next) => {
         minimum_balance: account_type === 'savings' ? 500 : 0
     };
 
-    logger.info(`Creating account with data: ${JSON.stringify(accountData)}`);
+    // Log account data preparation to system logs (money-related)
+    await AuditService.logSystem({
+        level: 'info',
+        message: `Account data prepared for creation - User ${userId}`,
+        service: 'account_creation',
+        meta: {
+            userId,
+            accountData: {
+                accountType: account_type,
+                accountName: account_name.trim(),
+                initialBalance: depositAmount,
+                currency,
+                overdraftLimit: overdraftAmount,
+                interestRate: accountData.interest_rate,
+                monthlyFee: accountData.monthly_fee,
+                minimumBalance: accountData.minimum_balance
+            }
+        }
+    });
 
     // Use database transaction to ensure atomicity
     const result = await sequelize.transaction(async (t) => {
         // Create account with all parameters
         const account = await Account.create(accountData, { transaction: t });
 
-        logger.info(`Account created with ID: ${account.id}, Name: "${account.account_name}"`);
+        // Log account creation to system logs
+        await AuditService.logSystem({
+            level: 'info',
+            message: `New bank account created - ID: ${account.id}, Name: "${account.account_name}"`,
+            service: 'account_management',
+            meta: {
+                accountId: account.id,
+                accountNumber: account.account_number,
+                accountName: account.account_name,
+                accountType: account.account_type,
+                balance: account.balance,
+                currency: account.currency,
+                userId: userId
+            }
+        });
 
         // Handle deposit transactions
         if (depositAmount > 0) {
@@ -244,11 +301,25 @@ const createAccount = catchAsync(async (req, res, next) => {
                     completed_at: new Date()
                 }, { transaction: t });
 
-                logger.info(`Initial deposit transaction created for checking account: ${account.id}, amount: ${depositAmount}, transaction ID: ${transaction.id}`);
+                // Log initial deposit transaction to system logs (money-related)
+                await AuditService.logSystem({
+                    level: 'info',
+                    message: `Initial deposit transaction created for checking account: ${account.id}, amount: ${depositAmount}`,
+                    service: 'transaction_management',
+                    meta: {
+                        transactionId: transaction.id,
+                        transactionRef: transaction.transaction_ref,
+                        accountId: account.id,
+                        amount: depositAmount,
+                        currency: currency,
+                        transactionType: 'initial_deposit',
+                        userId: userId,
+                        balanceAfter: depositAmount
+                    }
+                });
             } else {
                 // For non-checking accounts, transfer from checking account
-                const withdrawalRef = `TRF-OUT-${uuidv4()}`;
-                const depositRef = `TRF-IN-${uuidv4()}`;
+                const transferRef = `TRF-${uuidv4()}`;
 
                 // Deduct from checking account
                 const checkingBalanceBefore = parseFloat(checkingAccount.balance);
@@ -256,41 +327,42 @@ const createAccount = catchAsync(async (req, res, next) => {
 
                 await checkingAccount.update({ balance: checkingBalanceAfter }, { transaction: t });
 
-                // Create withdrawal transaction for checking account
-                const withdrawalTransaction = await Transaction.create({
-                    transaction_ref: withdrawalRef,
+                // Create a single transfer transaction that shows in both accounts
+                const transferTransaction = await Transaction.create({
+                    transaction_ref: transferRef,
                     from_account_id: checkingAccount.id,
                     to_account_id: account.id,
                     transaction_type: 'transfer',
                     amount: depositAmount,
                     currency: currency,
                     status: 'completed',
-                    description: `Transfer to new ${account_type} account: ${account.account_name}`,
+                    description: `Initial deposit to new ${account_type} account: ${account.account_name}`,
                     initiated_by: userId,
                     authorized_by: userId,
-                    balance_before: checkingBalanceBefore,
-                    balance_after: checkingBalanceAfter,
+                    balance_before: checkingBalanceBefore, // This will be the checking account's balance before
+                    balance_after: checkingBalanceAfter,   // This will be the checking account's balance after
                     completed_at: new Date()
                 }, { transaction: t });
 
-                // Create deposit transaction for new account
-                const depositTransaction = await Transaction.create({
-                    transaction_ref: depositRef,
-                    from_account_id: checkingAccount.id,
-                    to_account_id: account.id,
-                    transaction_type: 'transfer',
-                    amount: depositAmount,
-                    currency: currency,
-                    status: 'completed',
-                    description: `Initial deposit from checking account: ${checkingAccount.account_name}`,
-                    initiated_by: userId,
-                    authorized_by: userId,
-                    balance_before: 0,
-                    balance_after: depositAmount,
-                    completed_at: new Date()
-                }, { transaction: t });
-
-                logger.info(`Transfer transactions created - From checking (${checkingAccount.id}): ${withdrawalTransaction.id}, To new account (${account.id}): ${depositTransaction.id}`);
+                // Log transfer transaction to system logs (money-related)
+                await AuditService.logSystem({
+                    level: 'info',
+                    message: `Transfer transaction created for account opening - From checking (${checkingAccount.id}) to new account (${account.id})`,
+                    service: 'transaction_management',
+                    meta: {
+                        transactionId: transferTransaction.id,
+                        transactionRef: transferRef,
+                        fromAccountId: checkingAccount.id,
+                        toAccountId: account.id,
+                        amount: depositAmount,
+                        currency: currency,
+                        transactionType: 'account_opening_transfer',
+                        userId: userId,
+                        checkingBalanceBefore,
+                        checkingBalanceAfter,
+                        newAccountBalance: depositAmount
+                    }
+                });
             }
         }
 
@@ -307,7 +379,23 @@ const createAccount = catchAsync(async (req, res, next) => {
         emitBalanceUpdate(account.id, depositAmount);
     }
 
-    logger.info(`Account created successfully: ${account.id} with name: "${account.account_name}", balance: ${account.balance}, overdraft: ${account.overdraft_limit}, currency: ${account.currency}`);
+    // Log account creation completion to system logs (money-related)
+    await AuditService.logSystem({
+        level: 'info',
+        message: `Account created successfully: ${account.id} with name: "${account.account_name}"`,
+        service: 'account_management',
+        meta: {
+            accountId: account.id,
+            accountName: account.account_name,
+            balance: account.balance,
+            overdraftLimit: account.overdraft_limit,
+            currency: account.currency,
+            accountType: account.account_type,
+            userId: userId,
+            hasInitialDeposit: depositAmount > 0,
+            initialDepositAmount: depositAmount
+        }
+    });
 
     // Log account creation to SystemLog (system-level operation)
     await AuditService.logSystem({
@@ -380,7 +468,17 @@ const updateAccount = catchAsync(async (req, res, next) => {
     const { account_type } = req.body;
     const userId = req.user.id;
 
-    logger.info(`Account update request for account: ${id}`);
+    // Log account update request to audit logs
+    await AuditService.logAccount({
+        action: 'account_update_requested',
+        req,
+        account: null,
+        details: {
+            accountId: id,
+            userId,
+            requestedUpdates: { account_type }
+        }
+    });
 
     // Find account
     const account = await Account.findOne({
@@ -410,7 +508,19 @@ const updateAccount = catchAsync(async (req, res, next) => {
 
     const updatedAccount = await account.update(updateData);
 
-    logger.info(`Account updated successfully: ${id}`);
+    // Log successful account update to audit logs
+    await AuditService.logAccount({
+        action: 'account_updated_successfully',
+        req,
+        account: updatedAccount,
+        details: {
+            accountId: id,
+            userId,
+            updatedFields: updateData,
+            previousAccountType: account.account_type,
+            newAccountType: updatedAccount.account_type
+        }
+    });
 
     // Log account update audit event to MongoDB
     await AuditService.logAccount({
@@ -450,7 +560,17 @@ const deleteAccount = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    logger.info(`Account soft delete request for account: ${id}`);
+    // Log account deletion request to audit logs
+    await AuditService.logAccount({
+        action: 'account_deletion_requested',
+        req,
+        account: null,
+        details: {
+            accountId: id,
+            userId,
+            deletionType: 'soft_delete'
+        }
+    });
 
     // Find account
     const account = await Account.findOne({
@@ -491,7 +611,19 @@ const deleteAccount = catchAsync(async (req, res, next) => {
     // Use soft delete (paranoid: true sets deleted_at timestamp)
     await account.destroy();
 
-    logger.info(`Account soft deleted successfully: ${id}`);
+    // Log successful account deletion to audit logs
+    await AuditService.logAccount({
+        action: 'account_deleted_successfully',
+        req,
+        account,
+        details: {
+            accountId: id,
+            userId,
+            finalBalance: account.balance,
+            deletionType: 'soft_delete',
+            pendingTransactionsChecked: true
+        }
+    });
 
     // Log account deletion audit event to MongoDB
     await AuditService.logAccount({
@@ -521,7 +653,16 @@ const deactivateAccount = catchAsync(async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    logger.info(`Account deactivation request for account: ${id}`);
+    // Log account deactivation request to audit logs
+    await AuditService.logAccount({
+        action: 'account_deactivation_requested',
+        req,
+        account: null,
+        details: {
+            accountId: id,
+            userId
+        }
+    });
 
     // Find account
     const account = await Account.findOne({
@@ -562,7 +703,18 @@ const deactivateAccount = catchAsync(async (req, res, next) => {
     // Deactivate account
     await account.update({ is_active: false });
 
-    logger.info(`Account deactivated successfully: ${id}`);
+    // Log successful account deactivation to audit logs
+    await AuditService.logAccount({
+        action: 'account_deactivated_successfully',
+        req,
+        account,
+        details: {
+            accountId: id,
+            userId,
+            finalBalance: account.balance,
+            pendingTransactionsChecked: true
+        }
+    });
 
     // Log account deactivation audit event to MongoDB
     await AuditService.logAccount({
@@ -824,7 +976,16 @@ const getAccountStatement = catchAsync(async (req, res, next) => {
 const checkExistingAccounts = catchAsync(async (req, res, next) => {
     const userId = req.user.id;
 
-    logger.info(`Checking existing accounts for user: ${userId}`);
+    // Log account existence check to audit logs
+    await AuditService.logAccount({
+        action: 'checking_existing_accounts',
+        req,
+        account: null,
+        details: {
+            userId,
+            requestType: 'check_existing_accounts'
+        }
+    });
 
     // Check for existing checking account
     const hasCheckingAccount = await Account.findOne({

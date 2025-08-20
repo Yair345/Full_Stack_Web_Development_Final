@@ -10,10 +10,12 @@ import { useAuthInitialization } from "./hooks/useAuthInitialization";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute, {
 	WaitingRoute,
+	RejectedRoute,
 } from "./components/layout/ProtectedRoute";
 import Login from "./pages/Login/Login.jsx";
 import Register from "./pages/Register/Register.jsx";
 import WaitingPage from "./pages/Waiting/WaitingPage";
+import RejectedPage from "./pages/Rejected";
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Accounts from "./pages/Accounts/Accounts.jsx";
 import Transactions from "./pages/Transactions/Transactions.jsx";
@@ -24,6 +26,7 @@ import AdminPanel from "./pages/AdminPanel/AdminPanel";
 import BranchManagement from "./pages/BranchManagement/BranchManagement";
 import Profile from "./pages/Profile/Profile";
 import Stocks from "./pages/Stocks/Stocks.jsx";
+import NotFound from "./pages/NotFound/NotFound";
 
 function AppContent() {
 	const { loading, isInitialized } = useAuthInitialization();
@@ -49,6 +52,14 @@ function AppContent() {
 						<WaitingRoute>
 							<WaitingPage />
 						</WaitingRoute>
+					}
+				/>
+				<Route
+					path="/rejected"
+					element={
+						<RejectedRoute>
+							<RejectedPage />
+						</RejectedRoute>
 					}
 				/>
 				<Route
@@ -97,6 +108,8 @@ function AppContent() {
 										path="/branch"
 										element={<BranchManagement />}
 									/>
+									{/* Catch-all route for unknown paths - show 404 page */}
+									<Route path="*" element={<NotFound />} />
 								</Routes>
 							</Layout>
 						</ProtectedRoute>

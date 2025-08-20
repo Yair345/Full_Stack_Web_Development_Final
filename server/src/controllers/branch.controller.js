@@ -434,7 +434,7 @@ const getBranchCustomers = catchAsync(async (req, res, next) => {
         where: whereClause,
         attributes: [
             'id', 'username', 'first_name', 'last_name', 'email',
-            'phone', 'is_active', 'last_login', 'created_at'
+            'phone', 'is_active', 'approval_status', 'last_login', 'created_at'
         ],
         include: [
             {
@@ -711,7 +711,8 @@ const rejectUser = catchAsync(async (req, res, next) => {
         rejected_by: managerId,
         rejected_at: new Date(),
         rejection_reason: reason || 'No reason provided',
-        pending_branch_id: null
+        pending_branch_id: null,
+        is_active: false // Deactivate rejected users to prevent any access
     });
 
     logger.info(`User ${userId} rejected for branch ${branchId}`);
@@ -841,7 +842,20 @@ const createBranchDeposit = catchAsync(async (req, res, next) => {
     const { account_id, amount, description } = req.body;
     const managerId = req.user.id;
 
-    logger.info(`Branch manager ${managerId} creating deposit for account ${account_id} in branch ${id}`);
+    // Log branch deposit request to system logs (money-related)
+    await AuditService.logSystem({
+        level: 'info',
+        message: `Branch manager ${managerId} creating deposit for account ${account_id} in branch ${id}`,
+        service: 'branch_deposit',
+        meta: {
+            branchId: id,
+            managerId,
+            accountId: account_id,
+            requestedAmount: amount,
+            description,
+            operationType: 'branch_deposit_request'
+        }
+    });
 
     // Validate required fields
     if (!account_id || !amount) {
@@ -922,7 +936,25 @@ const createBranchDeposit = catchAsync(async (req, res, next) => {
         // Commit transaction
         await dbTransaction.commit();
 
-        logger.info(`Branch deposit completed: $${amount} to account ${account.account_number}`);
+        // Log successful branch deposit to system logs (money-related)
+        await AuditService.logSystem({
+            level: 'info',
+            message: `Branch deposit completed: $${amount} to account ${account.account_number}`,
+            service: 'branch_deposit',
+            meta: {
+                branchId: id,
+                branchName: branch.branch_name,
+                managerId,
+                transactionId: transaction.id,
+                accountId: account_id,
+                accountNumber: account.account_number,
+                amount: parseFloat(amount),
+                previousBalance,
+                newBalance: account.balance + parseFloat(amount),
+                description,
+                operationType: 'branch_deposit_completed'
+            }
+        });
 
         // Log audit event
         await AuditService.logSystem({
@@ -969,6 +1001,168 @@ const createBranchDeposit = catchAsync(async (req, res, next) => {
     }
 });
 
+/**
+ * @desc Get specific customer details for branch
+ * @route GET /api/branches/:id/customers/:userId  
+ * @access Private (Manager/Admin)
+ */
+const getBranchCustomerById = catchAsync(async (req, res, next) => {
+    const { id, userId } = req.params;
+    const currentUserId = req.user.id;
+
+    logger.info(`Getting customer ${userId} details for branch ${id}`);
+
+    // Check branch exists and user has access
+    const branch = await Branch.findByPk(id);
+    if (!branch) {
+        throw new AppError('Branch not found', 404);
+    }
+
+    // Authorization check
+    if (req.user.role !== 'admin' && branch.manager_id !== currentUserId) {
+        throw new AppError('Not authorized to view this branch customer', 403);
+    }
+
+    // Get customer details
+    const customer = await User.findOne({
+        where: {
+            id: userId,
+            branch_id: id
+        },
+        attributes: [
+            'id', 'username', 'first_name', 'last_name', 'email',
+            'phone', 'address', 'date_of_birth', 'is_active',
+            'last_login', 'created_at', 'branch_id'
+        ],
+        include: [
+            {
+                model: Account,
+                as: 'accounts',
+                attributes: ['id', 'account_number', 'account_type', 'balance', 'is_active']
+            },
+            {
+                model: Branch,
+                as: 'branch',
+                attributes: ['id', 'branch_name', 'city', 'state']
+            }
+        ]
+    });
+
+    if (!customer) {
+        throw new AppError('Customer not found in this branch', 404);
+    }
+
+    logger.info(`Found customer ${userId} in branch ${id}`);
+
+    res.json({
+        success: true,
+        data: customer
+    });
+});
+
+/**
+ * @desc Update customer information (limited fields for branch managers)
+ * @route PUT /api/branches/:id/customers/:userId
+ * @access Private (Manager/Admin)
+ */
+const updateBranchCustomer = catchAsync(async (req, res, next) => {
+    const { id, userId } = req.params;
+    const currentUserId = req.user.id;
+    const updateData = req.body;
+
+    logger.info(`Updating customer ${userId} for branch ${id}`, updateData);
+
+    // Check branch exists and user has access
+    const branch = await Branch.findByPk(id);
+    if (!branch) {
+        throw new AppError('Branch not found', 404);
+    }
+
+    // Authorization check
+    if (req.user.role !== 'admin' && branch.manager_id !== currentUserId) {
+        throw new AppError('Not authorized to update customers in this branch', 403);
+    }
+
+    // Find customer
+    const customer = await User.findOne({
+        where: {
+            id: userId,
+            branch_id: id
+        }
+    });
+
+    if (!customer) {
+        throw new AppError('Customer not found in this branch', 404);
+    }
+
+    // Validate that the branch_id in updateData (if provided) matches the current branch
+    if (updateData.branch_id && parseInt(updateData.branch_id) !== parseInt(id)) {
+        // Only allow moving customers to other branches if user is admin
+        if (req.user.role !== 'admin') {
+            throw new AppError('Branch managers cannot transfer customers to other branches', 403);
+        }
+
+        // Verify the target branch exists
+        const targetBranch = await Branch.findByPk(updateData.branch_id);
+        if (!targetBranch) {
+            throw new AppError('Target branch not found', 404);
+        }
+    }
+
+    // Remove role from updateData - branch managers cannot change roles
+    if (req.user.role !== 'admin' && updateData.role) {
+        delete updateData.role;
+    }
+
+    // Update customer
+    const updatedCustomer = await customer.update(updateData);
+
+    // Get updated customer with associations
+    const customerWithDetails = await User.findOne({
+        where: { id: userId },
+        attributes: [
+            'id', 'username', 'first_name', 'last_name', 'email',
+            'phone', 'address', 'date_of_birth', 'is_active',
+            'last_login', 'created_at', 'updated_at', 'branch_id'
+        ],
+        include: [
+            {
+                model: Account,
+                as: 'accounts',
+                attributes: ['id', 'account_number', 'account_type', 'balance', 'is_active']
+            },
+            {
+                model: Branch,
+                as: 'branch',
+                attributes: ['id', 'branch_name', 'city', 'state']
+            }
+        ]
+    });
+
+    // Log the update
+    await AuditService.logAction({
+        userId: currentUserId,
+        action: 'update_customer',
+        resource: 'customer',
+        resourceId: userId,
+        details: {
+            branchId: id,
+            updatedFields: Object.keys(updateData),
+            changes: updateData
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+    });
+
+    logger.info(`Customer ${userId} updated successfully`);
+
+    res.json({
+        success: true,
+        message: 'Customer updated successfully',
+        data: customerWithDetails
+    });
+});
+
 module.exports = {
     getBranches,
     getBranch,
@@ -981,5 +1175,7 @@ module.exports = {
     getPendingUsers,
     approveUser,
     rejectUser,
-    createBranchDeposit
+    createBranchDeposit,
+    getBranchCustomerById,
+    updateBranchCustomer
 };

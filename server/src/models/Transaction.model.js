@@ -399,18 +399,6 @@ Transaction.init({
         },
         {
             fields: ['created_at']
-        },
-        {
-            fields: ['completed_at']
-        },
-        {
-            fields: ['amount']
-        },
-        {
-            fields: ['external_reference']
-        },
-        {
-            fields: ['initiated_by']
         }
     ],
     validate: {

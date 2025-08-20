@@ -151,14 +151,24 @@ export const mockAdminData = {
 };
 
 export const formatCurrency = (amount) => {
+    // Handle null, undefined, NaN, and non-numeric values
+    const numericAmount = Number(amount);
+    if (!isFinite(numericAmount)) {
+        return "$0.00";
+    }
     return new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
-    }).format(amount);
+    }).format(numericAmount);
 };
 
 export const formatNumber = (number) => {
-    return new Intl.NumberFormat("en-US").format(number);
+    // Handle null, undefined, NaN, and non-numeric values
+    const numericValue = Number(number);
+    if (!isFinite(numericValue)) {
+        return "0";
+    }
+    return new Intl.NumberFormat("en-US").format(numericValue);
 };
 
 export const formatDateTime = (dateTimeString) => {

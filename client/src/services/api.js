@@ -76,6 +76,11 @@ export const authAPI = {
         body: formData,
         // Don't set Content-Type header, let the browser set it with the boundary for FormData
     }),
+
+    getUserFiles: (fileType) => {
+        const queryString = fileType ? `?fileType=${fileType}` : '';
+        return apiRequest(`/uploads/my-files${queryString}`);
+    },
 };
 
 // Account API calls
@@ -254,9 +259,6 @@ export const stockAPI = {
 
     // Search stocks by symbol or name
     searchStocks: (query) => apiRequest(`/stocks/search?q=${encodeURIComponent(query)}`),
-
-    // Get stock quote by symbol
-    getStockQuote: (symbol) => apiRequest(`/stocks/${symbol}/quote`),
 
     // Buy stock
     buyStock: (orderData) => apiRequest('/stocks/buy', {
