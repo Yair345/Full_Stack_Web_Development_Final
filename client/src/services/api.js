@@ -93,6 +93,10 @@ export const accountAPI = {
         method: 'PUT',
         body: JSON.stringify(accountData),
     }),
+
+    deleteAccount: (id) => apiRequest(`/accounts/${id}`, {
+        method: 'DELETE',
+    }),
 };
 
 // Transaction API calls

@@ -101,6 +101,21 @@ const Accounts = () => {
 		}
 	};
 
+	const handleAccountDeleted = async (deletedAccountId) => {
+		console.log(`Account ${deletedAccountId} deleted, refreshing accounts...`);
+		setSuccessMessage("Account deleted successfully!");
+		
+		// Auto-hide success message after 5 seconds
+		setTimeout(() => setSuccessMessage(""), 5000);
+		
+		// Refresh accounts to remove the deleted account
+		try {
+			await refetch({ shouldRevalidate: true });
+		} catch (error) {
+			console.error("Failed to refresh accounts after deletion:", error);
+		}
+	};
+
 	return (
 		<div className="row g-4">
 			{/* Success Message */}
@@ -156,6 +171,7 @@ const Accounts = () => {
 				accounts={accounts}
 				loading={loading || creatingAccount || isRefreshing}
 				error={error}
+				onAccountDeleted={handleAccountDeleted}
 			/>
 
 			{/* Create Account Modal */}

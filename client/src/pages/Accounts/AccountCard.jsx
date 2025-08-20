@@ -1,9 +1,14 @@
-import { CreditCard, MoreVertical, Eye, FileText, Settings, DollarSign, TrendingUp, Calendar, Shield } from "lucide-react";
+import { CreditCard, MoreVertical, Eye, Settings, DollarSign, TrendingUp, Calendar, Shield } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import { formatCurrency } from "../../utils/helpers";
+import { useState } from "react";
+import AccountDetailsModal from "./AccountDetailsModal";
+import AccountSettingsModal from "./AccountSettingsModal";
 
-const AccountCard = ({ account }) => {
+const AccountCard = ({ account, onAccountDeleted }) => {
+	const [showDetailsModal, setShowDetailsModal] = useState(false);
+	const [showSettingsModal, setShowSettingsModal] = useState(false);
 	const getAccountTypeBadge = (type) => {
 		switch (type) {
 			case "checking":
@@ -29,28 +34,45 @@ const AccountCard = ({ account }) => {
 	};
 
 	const getStatusBadge = (status) => {
-		return status === 'active' 
+		return status === 'active' || status === true || status === undefined
 			? <span className="badge bg-success-subtle text-success">Active</span>
 			: <span className="badge bg-danger-subtle text-danger">Inactive</span>;
 	};
 
 	const handleViewDetails = () => {
-		// TODO: Navigate to account details page
-		console.log("View details for account:", account.id);
-	};
-
-	const handleViewStatements = () => {
-		// TODO: Navigate to statements page
-		console.log("View statements for account:", account.id);
+		setShowDetailsModal(true);
 	};
 
 	const handleAccountSettings = () => {
-		// TODO: Open account settings modal
-		console.log("Account settings for:", account.id);
+		setShowSettingsModal(true);
 	};
 
-	const typeBadge = getAccountTypeBadge(account.type);
-	const accountIcon = getAccountIcon(account.type);
+	// Create a masked account number for display on card
+	const getMaskedAccountNumber = () => {
+		if (!account.number) return '****-****-0000';
+		if (account.number.includes('*')) return account.number;
+		return `****-****-${account.number.slice(-4)}`;
+	};
+
+	// Prepare account data for modals (with full account number)
+	const accountForModal = {
+		...account,
+		number: account.number, // Full number for details modal
+		type: account.type || account.account_type,
+		balance: account.balance,
+		currency: account.currency || 'USD',
+		status: account.is_active ? 'active' : 'inactive',
+		openDate: account.created_at || account.createdAt,
+		updatedAt: account.updated_at || account.updatedAt,
+		limit: account.overdraft_limit,
+		interestRate: account.interest_rate,
+		monthlyFee: account.monthly_fee,
+		minimumBalance: account.minimum_balance,
+		name: account.account_name || account.name
+	};
+
+	const typeBadge = getAccountTypeBadge(account.account_type || account.type);
+	const accountIcon = getAccountIcon(account.account_type || account.type);
 
 	return (
 		<div className="col-lg-6 col-xl-4">
@@ -61,10 +83,10 @@ const AccountCard = ({ account }) => {
 						{accountIcon}
 						<div>
 							<h5 className="fw-semibold mb-1 text-truncate" style={{maxWidth: '200px'}}>
-								{account.name || `${typeBadge.label} Account`}
+								{account.account_name || account.name || `${typeBadge.label} Account`}
 							</h5>
 							<p className="small text-muted mb-0 font-monospace">
-								{account.number?.includes('*') ? account.number : `****-****-${account.number?.slice(-4) || '0000'}`}
+								{getMaskedAccountNumber()}
 							</p>
 						</div>
 					</div>
@@ -92,15 +114,6 @@ const AccountCard = ({ account }) => {
 								</button>
 							</li>
 							<li>
-								<button
-									className="dropdown-item d-flex align-items-center"
-									onClick={handleViewStatements}
-								>
-									<FileText size={16} className="me-2" />
-									View Statements
-								</button>
-							</li>
-							<li>
 								<hr className="dropdown-divider" />
 							</li>
 							<li>
@@ -121,7 +134,7 @@ const AccountCard = ({ account }) => {
 					<span className={typeBadge.class}>
 						{typeBadge.label}
 					</span>
-					{getStatusBadge(account.status)}
+					{getStatusBadge(account.is_active)}
 				</div>
 
 				{/* Balance Section */}
@@ -143,74 +156,74 @@ const AccountCard = ({ account }) => {
 					</div>
 
 					{/* Available Balance for checking accounts with overdraft */}
-					{account.type === "checking" && account.limit > 0 && (
+					{account.account_type === "checking" && account.overdraft_limit > 0 && (
 						<div className="d-flex justify-content-between align-items-center mb-2">
 							<span className="small text-muted">
 								Available Balance
 							</span>
 							<span className="small fw-medium text-success">
-								{formatCurrency(account.balance + account.limit, account.currency)}
+								{formatCurrency(account.balance + account.overdraft_limit, account.currency)}
 							</span>
 						</div>
 					)}
 
 					{/* Overdraft Limit for checking accounts */}
-					{account.type === "checking" && account.limit > 0 && (
+					{account.account_type === "checking" && account.overdraft_limit > 0 && (
 						<div className="d-flex justify-content-between align-items-center mb-2">
 							<span className="small text-muted">
 								Overdraft Limit
 							</span>
 							<span className="small fw-medium">
-								{formatCurrency(account.limit, account.currency)}
+								{formatCurrency(account.overdraft_limit, account.currency)}
 							</span>
 						</div>
 					)}
 
 					{/* Interest Rate for savings accounts */}
-					{account.type === "savings" && account.interestRate && (
+					{account.account_type === "savings" && account.interest_rate && (
 						<div className="d-flex justify-content-between align-items-center mb-2">
 							<span className="small text-muted d-flex align-items-center">
 								<TrendingUp size={14} className="me-1" />
 								Interest Rate
 							</span>
 							<span className="small fw-medium text-success">
-								{account.interestRate.toFixed(2)}% APY
+								{account.interest_rate.toFixed(2)}% APY
 							</span>
 						</div>
 					)}
 
 					{/* Credit Limit for credit accounts */}
-					{account.type === "credit" && account.limit && (
+					{account.account_type === "credit" && account.overdraft_limit && (
 						<div className="d-flex justify-content-between align-items-center mb-2">
 							<span className="small text-muted">
 								Credit Limit
 							</span>
 							<span className="small fw-medium">
-								{formatCurrency(account.limit, account.currency)}
+								{formatCurrency(account.overdraft_limit, account.currency)}
 							</span>
 						</div>
 					)}
 
 					{/* Monthly Fee */}
-					{account.monthlyFee > 0 && (
+					{account.monthly_fee > 0 && (
 						<div className="d-flex justify-content-between align-items-center mb-2">
 							<span className="small text-muted">
 								Monthly Fee
 							</span>
 							<span className="small fw-medium text-warning">
-								{formatCurrency(account.monthlyFee, account.currency)}
+								{formatCurrency(account.monthly_fee, account.currency)}
 							</span>
 						</div>
 					)}
 
 					{/* Minimum Balance */}
-					{account.minimumBalance > 0 && (
+					{account.minimum_balance > 0 && (
 						<div className="d-flex justify-content-between align-items-center mb-2">
 							<span className="small text-muted">
 								Minimum Balance
 							</span>
 							<span className="small fw-medium">
-								{formatCurrency(account.minimumBalance, account.currency)}
+								{formatCurrency(account.minimum_balance, account.currency)}
 							</span>
 						</div>
 					)}
@@ -225,7 +238,7 @@ const AccountCard = ({ account }) => {
 								<span>Opened</span>
 							</div>
 							<div className="fw-medium">
-								{new Date(account.openDate).toLocaleDateString()}
+								{new Date(account.created_at || account.createdAt).toLocaleDateString()}
 							</div>
 						</div>
 						<div className="col-6">
@@ -250,42 +263,47 @@ const AccountCard = ({ account }) => {
 				</div>
 
 				{/* Action Buttons */}
-				<div className="d-grid gap-2 d-md-flex mt-auto">
+				<div className="d-grid gap-2 mt-auto">
 					<Button
 						variant="primary"
 						size="sm"
-						className="flex-fill d-flex align-items-center justify-content-center"
+						className="d-flex align-items-center justify-content-center"
 						onClick={handleViewDetails}
 					>
 						<Eye size={16} className="me-1" />
-						Details
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						className="flex-fill d-flex align-items-center justify-content-center"
-						onClick={handleViewStatements}
-					>
-						<FileText size={16} className="me-1" />
-						Statements
+						View Details
 					</Button>
 				</div>
 
 				{/* Balance Indicator Bar */}
-				{account.minimumBalance > 0 && (
+				{account.minimum_balance > 0 && (
 					<div className="position-absolute bottom-0 start-0 w-100" style={{height: '4px'}}>
 						<div 
 							className={`h-100 ${
-								account.balance >= account.minimumBalance 
+								account.balance >= account.minimum_balance 
 									? 'bg-success' 
 									: 'bg-warning'
 							}`}
 							style={{
-								width: `${Math.min(100, Math.max(10, (account.balance / account.minimumBalance) * 100))}%`
+								width: `${Math.min(100, Math.max(10, (account.balance / account.minimum_balance) * 100))}%`
 							}}
 						></div>
 					</div>
 				)}
+
+				{/* Modals */}
+				<AccountDetailsModal
+					account={accountForModal}
+					isOpen={showDetailsModal}
+					onClose={setShowDetailsModal}
+				/>
+
+				<AccountSettingsModal
+					account={accountForModal}
+					isOpen={showSettingsModal}
+					onClose={setShowSettingsModal}
+					onAccountDeleted={onAccountDeleted}
+				/>
 			</Card>
 		</div>
 	);

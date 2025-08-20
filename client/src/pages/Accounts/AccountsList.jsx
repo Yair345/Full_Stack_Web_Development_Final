@@ -1,6 +1,6 @@
 import AccountCard from "./AccountCard";
 
-const AccountsList = ({ accounts, loading, error }) => {
+const AccountsList = ({ accounts, loading, error, onAccountDeleted }) => {
 	if (loading) {
 		return (
 			<div className="col-12">
@@ -42,7 +42,11 @@ const AccountsList = ({ accounts, loading, error }) => {
 		<div className="col-12">
 			<div className="row g-4">
 				{accounts.map((account) => (
-					<AccountCard key={account.id} account={account} />
+					<AccountCard 
+						key={account.id} 
+						account={account} 
+						onAccountDeleted={onAccountDeleted}
+					/>
 				))}
 			</div>
 		</div>

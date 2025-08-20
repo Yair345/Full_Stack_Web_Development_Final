@@ -442,8 +442,79 @@ const updateAccount = catchAsync(async (req, res, next) => {
 });
 
 /**
- * @desc Deactivate account
+ * @desc Soft delete account (update deleted_at column)
  * @route DELETE /api/accounts/:id
+ * @access Private
+ */
+const deleteAccount = catchAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    logger.info(`Account soft delete request for account: ${id}`);
+
+    // Find account
+    const account = await Account.findOne({
+        where: {
+            id,
+            user_id: userId
+        }
+    });
+
+    if (!account) {
+        throw new AppError('Account not found', 404);
+    }
+
+    if (!account.is_active) {
+        throw new AppError('Account is already inactive', 400);
+    }
+
+    // Check if account has balance
+    if (account.balance > 0) {
+        throw new AppError('Cannot delete account with positive balance. Please transfer funds first.', 400);
+    }
+
+    // Check for pending transactions
+    const pendingTransactions = await Transaction.count({
+        where: {
+            [Op.or]: [
+                { from_account_id: id },
+                { to_account_id: id }
+            ],
+            status: 'pending'
+        }
+    });
+
+    if (pendingTransactions > 0) {
+        throw new AppError('Cannot delete account with pending transactions', 400);
+    }
+
+    // Use soft delete (paranoid: true sets deleted_at timestamp)
+    await account.destroy();
+
+    logger.info(`Account soft deleted successfully: ${id}`);
+
+    // Log account deletion audit event to MongoDB
+    await AuditService.logAccount({
+        action: 'deleted',
+        req,
+        account,
+        details: {
+            reason: 'user_requested',
+            finalBalance: account.balance,
+            pendingTransactionsChecked: true,
+            deletionType: 'soft_delete'
+        }
+    });
+
+    res.json({
+        success: true,
+        message: 'Account deleted successfully'
+    });
+});
+
+/**
+ * @desc Deactivate account
+ * @route PUT /api/accounts/:id/deactivate
  * @access Private
  */
 const deactivateAccount = catchAsync(async (req, res, next) => {
@@ -778,6 +849,7 @@ module.exports = {
     getAccount,
     createAccount,
     updateAccount,
+    deleteAccount,
     deactivateAccount,
     getBalance,
     getAccountTransactions,

@@ -4,6 +4,7 @@ const {
     getAccount,
     createAccount,
     updateAccount,
+    deleteAccount,
     deactivateAccount,
     getBalance,
     getAccountTransactions,
@@ -32,7 +33,8 @@ router.post('/', createAccountValidation, handleValidationErrors, createAccount)
 
 router.get('/:id', accountIdValidation, handleValidationErrors, getAccount);
 router.put('/:id', updateAccountValidation, handleValidationErrors, updateAccount);
-router.delete('/:id', accountIdValidation, handleValidationErrors, deactivateAccount);
+router.delete('/:id', accountIdValidation, handleValidationErrors, deleteAccount);
+router.put('/:id/deactivate', accountIdValidation, handleValidationErrors, deactivateAccount);
 
 router.get('/:id/balance', accountIdValidation, handleValidationErrors, getBalance);
 router.get('/:id/transactions', accountIdValidation, handleValidationErrors, getAccountTransactions);
