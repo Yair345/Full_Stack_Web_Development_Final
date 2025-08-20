@@ -311,4 +311,135 @@ export const stockApiUtils = {
     }
 };
 
+// Common utility functions for stock data normalization
+export const stockDataUtils = {
+    // Normalize stock data from different sources (Market, Portfolio, Watchlist)
+    normalizeStockData: (stock, source = 'market') => {
+        const normalized = {
+            // Basic stock info
+            symbol: stock.symbol || stock.stockSymbol || stock.stock_symbol || "N/A",
+            name: stock.name || stock.stockName || stock.stock_name || stock.companyName || "Unknown Company",
+            
+            // Price data
+            currentPrice: stock.price || stock.currentPrice || stock.current_price || 0,
+            
+            // Daily change data - this is the key normalization
+            dailyChange: 0,
+            dailyChangePercent: 0,
+            
+            // Additional data - try multiple field name variations
+            volume: stock.volume || stock.dailyVolume || stock.daily_volume || 0,
+            dayHigh: stock.dayHigh || stock.high || stock.dailyHigh || stock.daily_high || stock.price || stock.currentPrice || stock.current_price || 0,
+            dayLow: stock.dayLow || stock.low || stock.dailyLow || stock.daily_low || stock.price || stock.currentPrice || stock.current_price || 0,
+            
+            // Timestamps
+            addedDate: stock.addedDate || stock.createdAt || stock.created_at || new Date(),
+            lastUpdate: stock.lastPriceUpdate || stock.last_price_update || new Date()
+        };
+
+        // Normalize daily change based on source
+        switch (source) {
+            case 'market':
+                normalized.dailyChange = stock.change || stock.dailyChange || stock.daily_change || 0;
+                normalized.dailyChangePercent = stock.changePercent || stock.dailyChangePercent || stock.daily_change_percent || 0;
+                // Extract additional market data
+                normalized.volume = stock.volume || stock.dailyVolume || stock.daily_volume || 0;
+                normalized.dayHigh = stock.dayHigh || stock.high || stock.dailyHigh || stock.daily_high || normalized.currentPrice;
+                normalized.dayLow = stock.dayLow || stock.low || stock.dailyLow || stock.daily_low || normalized.currentPrice;
+                break;
+            case 'portfolio':
+                normalized.dailyChange = stock.dailyChange || stock.daily_change || stock.change || stock.priceChange || stock.price_change || 0;
+                normalized.dailyChangePercent = stock.dailyChangePercent || stock.daily_change_percent || stock.changePercent || stock.priceChangePercent || stock.price_change_percent || 0;
+                // Additional portfolio-specific data
+                normalized.quantity = stock.totalQuantity || stock.total_quantity || stock.quantity || 0;
+                normalized.averagePurchasePrice = stock.averagePurchasePrice || stock.average_purchase_price || stock.avgPrice || 0;
+                normalized.totalInvested = stock.totalInvested || stock.total_invested || 0;
+                normalized.currentValue = stock.currentValue || stock.current_value || (normalized.quantity * normalized.currentPrice) || 0;
+                normalized.totalGain = stock.unrealizedGainLoss || stock.unrealized_gain_loss || stock.totalGain || stock.gain || 0;
+                normalized.totalGainPercent = stock.unrealizedGainLossPercent || stock.unrealized_gain_loss_percent || stock.gainPercent || 0;
+                
+                // Enhanced fallback logic for daily change data
+                if (!normalized.dailyChange || normalized.dailyChange === 0) {
+                    // Try to extract from additional fields
+                    if (stock.currentPrice && stock.previousClose) {
+                        normalized.dailyChange = stock.currentPrice - stock.previousClose;
+                        normalized.dailyChangePercent = stock.previousClose > 0 ? ((normalized.dailyChange / stock.previousClose) * 100) : 0;
+                    } else if (stock.openPrice && stock.currentPrice) {
+                        // Alternative: use opening price as reference
+                        normalized.dailyChange = stock.currentPrice - stock.openPrice;
+                        normalized.dailyChangePercent = stock.openPrice > 0 ? ((normalized.dailyChange / stock.openPrice) * 100) : 0;
+                    }
+                }
+                
+                // Ensure we have the same volume and range data as market
+                normalized.volume = stock.volume || stock.dailyVolume || stock.daily_volume || 0;
+                normalized.dayHigh = stock.dayHigh || stock.high || stock.dailyHigh || stock.daily_high || normalized.currentPrice;
+                normalized.dayLow = stock.dayLow || stock.low || stock.dailyLow || stock.daily_low || normalized.currentPrice;
+                break;
+            case 'watchlist':
+                normalized.dailyChange = stock.priceChange || stock.price_change || stock.change || stock.dailyChange || stock.daily_change || 0;
+                normalized.dailyChangePercent = stock.priceChangePercent || stock.price_change_percent || stock.changePercent || stock.dailyChangePercent || stock.daily_change_percent || 0;
+                normalized.addedPrice = stock.addedPrice || stock.added_price || 0;
+                // Extract volume from server data if available
+                normalized.volume = stock.volume || stock.dailyVolume || stock.daily_volume || 0;
+                break;
+        }
+
+        return normalized;
+    },
+
+    // Check if daily change is positive
+    isDailyChangePositive: (stock) => {
+        const normalized = typeof stock.dailyChange !== 'undefined' 
+            ? stock 
+            : stockDataUtils.normalizeStockData(stock);
+        return normalized.dailyChange >= 0;
+    },
+
+    // Format price with currency
+    formatPrice: (price) => {
+        return `$${(price || 0).toFixed(2)}`;
+    },
+
+    // Format change with sign and percentage
+    formatDailyChange: (change, changePercent) => {
+        const isPositive = change >= 0;
+        const sign = isPositive ? "+" : "";
+        return `${sign}$${change.toFixed(2)} (${sign}${changePercent.toFixed(2)}%)`;
+    },
+
+    // Get appropriate CSS class for change display
+    getChangeClass: (change) => {
+        return change >= 0 ? "text-success" : "text-danger";
+    },
+
+    // Get appropriate icon component for change display
+    getChangeIcon: (change, TrendingUpIcon, TrendingDownIcon) => {
+        return change >= 0 ? TrendingUpIcon : TrendingDownIcon;
+    },
+
+    // Merge market data with portfolio/watchlist data to ensure consistency
+    mergeWithMarketData: (stock, marketData, source = 'portfolio') => {
+        const normalized = stockDataUtils.normalizeStockData(stock, source);
+        
+        // Find matching market data by symbol
+        const marketStock = Array.isArray(marketData) 
+            ? marketData.find(m => m.symbol === normalized.symbol)
+            : null;
+            
+        if (marketStock) {
+            const marketNormalized = stockDataUtils.normalizeStockData(marketStock, 'market');
+            
+            // Override daily change data with market data for consistency
+            normalized.dailyChange = marketNormalized.dailyChange;
+            normalized.dailyChangePercent = marketNormalized.dailyChangePercent;
+            normalized.volume = marketNormalized.volume;
+            normalized.dayHigh = marketNormalized.dayHigh;
+            normalized.dayLow = marketNormalized.dayLow;
+        }
+        
+        return normalized;
+    }
+};
+
 export default mockStocksData;

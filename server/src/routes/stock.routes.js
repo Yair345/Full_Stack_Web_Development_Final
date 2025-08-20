@@ -9,7 +9,8 @@ const {
     getWatchlist,
     addToWatchlist,
     removeFromWatchlist,
-    searchStocks
+    searchStocks,
+    updatePortfolioAndWatchlistPrices
 } = require('../controllers/stock.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { validateStockTransaction, validateWatchlistItem } = require('../middleware/validation.middleware');
@@ -89,5 +90,12 @@ router.post('/watchlist', validateWatchlistItem, addToWatchlist);
  * @access  Private
  */
 router.delete('/watchlist/:id', removeFromWatchlist);
+
+/**
+ * @route   POST /api/v1/stocks/update-prices
+ * @desc    Update current prices for user's portfolio and watchlist
+ * @access  Private
+ */
+router.post('/update-prices', updatePortfolioAndWatchlistPrices);
 
 module.exports = router;

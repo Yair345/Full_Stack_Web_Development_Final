@@ -76,6 +76,21 @@ const Portfolio = sequelize.define('Portfolio', {
         defaultValue: 0,
         field: 'unrealized_gain_loss_percent'
     },
+    dailyChange: {
+        type: DataTypes.DECIMAL(15, 4),
+        defaultValue: 0,
+        field: 'daily_change'
+    },
+    dailyChangePercent: {
+        type: DataTypes.DECIMAL(8, 4),
+        defaultValue: 0,
+        field: 'daily_change_percent'
+    },
+    previousClose: {
+        type: DataTypes.DECIMAL(15, 4),
+        defaultValue: 0,
+        field: 'previous_close'
+    },
     lastPriceUpdate: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
@@ -120,6 +135,15 @@ const Portfolio = sequelize.define('Portfolio', {
                 } else {
                     portfolio.unrealizedGainLossPercent = 0;
                 }
+            }
+
+            // Calculate daily price changes when current price changes
+            if (portfolio.changed('currentPrice') && parseFloat(portfolio.previousClose || portfolio.currentPrice) > 0) {
+                const currentPrice = parseFloat(portfolio.currentPrice);
+                const previousClose = parseFloat(portfolio.previousClose || portfolio.currentPrice);
+                
+                portfolio.dailyChange = currentPrice - previousClose;
+                portfolio.dailyChangePercent = (portfolio.dailyChange / previousClose) * 100;
             }
 
             // Set to inactive if quantity is 0
@@ -241,10 +265,17 @@ Portfolio.updatePrices = async function (priceUpdates) {
     const results = [];
 
     for (const update of priceUpdates) {
-        const { symbol, price } = update;
+        const { symbol, price, change, changePercent, previousClose } = update;
+
+        const updateData = {
+            currentPrice: price,
+            dailyChange: change || 0,
+            dailyChangePercent: changePercent || 0,
+            previousClose: previousClose || price
+        };
 
         const updated = await this.update(
-            { currentPrice: price },
+            updateData,
             {
                 where: {
                     stockSymbol: symbol.toUpperCase(),

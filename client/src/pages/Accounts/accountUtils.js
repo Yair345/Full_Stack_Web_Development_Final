@@ -86,6 +86,7 @@ export const transformServerAccount = (serverAccount) => {
         number: serverAccount.account_number || '****0000',
         status: serverAccount.is_active ? 'active' : 'inactive',
         openDate: serverAccount.created_at || new Date().toISOString(),
+        updatedAt: serverAccount.updated_at || serverAccount.created_at || new Date().toISOString(),
         currency: serverAccount.currency || 'USD',
         interestRate: serverAccount.interest_rate ? (parseFloat(serverAccount.interest_rate) * 100) : undefined,
         limit: serverAccount.overdraft_limit ? parseFloat(serverAccount.overdraft_limit) : undefined,

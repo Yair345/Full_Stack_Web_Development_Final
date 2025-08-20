@@ -1,7 +1,8 @@
-import { TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { TrendingUp, TrendingDown, DollarSign, RefreshCw } from "lucide-react";
 import Card from "../../components/ui/Card";
+import Button from "../../components/ui/Button";
 
-const StocksHeader = ({ totalPortfolioValue, totalGain, totalGainPercent }) => {
+const StocksHeader = ({ totalPortfolioValue, totalGain, totalGainPercent, onTestApi, onRefreshPrices }) => {
 	const isGainPositive = totalGain >= 0;
 
 	return (
@@ -19,6 +20,28 @@ const StocksHeader = ({ totalPortfolioValue, totalGain, totalGainPercent }) => {
 									Buy and sell stocks, manage your portfolio,
 									and track your investments
 								</p>
+							</div>
+							<div className="d-flex gap-2">
+								{onRefreshPrices && (
+									<Button
+										variant="light"
+										size="sm"
+										onClick={onRefreshPrices}
+										className="d-flex align-items-center gap-1"
+									>
+										<RefreshCw size={14} />
+										Refresh Prices
+									</Button>
+								)}
+								{onTestApi && (
+									<Button
+										variant="outline-light"
+										size="sm"
+										onClick={onTestApi}
+									>
+										Test API
+									</Button>
+								)}
 							</div>
 						</div>
 					</div>

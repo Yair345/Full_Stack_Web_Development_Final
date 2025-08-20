@@ -647,8 +647,40 @@ const getStockTransactions = async (req, res) => {
 const getPortfolio = async (req, res) => {
     try {
         const userId = req.user.id;
+        const { updatePrices = true } = req.query;
 
-        const portfolioSummary = await Portfolio.getPortfolioSummary(userId);
+        let portfolioSummary = await Portfolio.getPortfolioSummary(userId);
+
+        // Update current prices if requested and portfolio has holdings
+        if (updatePrices === 'true' && portfolioSummary.holdings.length > 0) {
+            try {
+                console.log('Updating portfolio prices...');
+                const symbols = portfolioSummary.holdings.map(holding => holding.stock_symbol || holding.stockSymbol);
+                
+                // Get current prices from external API
+                const batchResult = await stockService.getBatchQuotes(symbols);
+                
+                if (batchResult.results.length > 0) {
+                    // Update portfolio with current prices and daily change data
+                    const priceUpdates = batchResult.results.map(stock => ({
+                        symbol: stock.symbol,
+                        price: stock.price,
+                        change: stock.change || 0,
+                        changePercent: stock.changePercent || 0,
+                        previousClose: stock.previousClose || stock.price
+                    }));
+                    
+                    await Portfolio.updatePrices(priceUpdates);
+                    
+                    // Fetch updated portfolio data
+                    portfolioSummary = await Portfolio.getPortfolioSummary(userId);
+                    console.log(`Updated prices for ${priceUpdates.length} portfolio holdings`);
+                }
+            } catch (priceUpdateError) {
+                console.warn('Failed to update portfolio prices:', priceUpdateError.message);
+                // Continue with existing data if price update fails
+            }
+        }
 
         // Return the holdings array directly for easier client handling
         res.json({
@@ -678,13 +710,48 @@ const getPortfolio = async (req, res) => {
 const getWatchlist = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { limit = 50, offset = 0, includeInactive = false } = req.query;
+        const { limit = 50, offset = 0, includeInactive = false, updatePrices = true } = req.query;
 
-        const result = await Watchlist.getUserWatchlist(userId, {
+        let result = await Watchlist.getUserWatchlist(userId, {
             limit: parseInt(limit),
             offset: parseInt(offset),
             includeInactive: includeInactive === 'true'
         });
+
+        // Update current prices if requested and watchlist has items
+        if (updatePrices === 'true' && result.rows.length > 0) {
+            try {
+                console.log('Updating watchlist prices...');
+                const symbols = result.rows.map(item => item.stock_symbol || item.stockSymbol);
+                
+                // Get current prices from external API
+                const batchResult = await stockService.getBatchQuotes(symbols);
+                
+                if (batchResult.results.length > 0) {
+                    // Update watchlist with current prices and daily change data
+                    const priceUpdates = batchResult.results.map(stock => ({
+                        symbol: stock.symbol,
+                        price: stock.price,
+                        change: stock.change || 0,
+                        changePercent: stock.changePercent || 0,
+                        previousClose: stock.previousClose || stock.price
+                    }));
+                    
+                    await Watchlist.updatePrices(priceUpdates);
+                    
+                    // Fetch updated watchlist data
+                    result = await Watchlist.getUserWatchlist(userId, {
+                        limit: parseInt(limit),
+                        offset: parseInt(offset),
+                        includeInactive: includeInactive === 'true'
+                    });
+                    console.log(`Updated prices for ${priceUpdates.length} watchlist items`);
+                }
+            } catch (priceUpdateError) {
+                console.warn('Failed to update watchlist prices:', priceUpdateError.message);
+                // Continue with existing data if price update fails
+            }
+        }
 
         // Return the watchlist array directly for easier client handling
         res.json({
@@ -872,6 +939,95 @@ const searchStocks = async (req, res) => {
     }
 };
 
+/**
+ * Update prices for user's portfolio and watchlist
+ */
+const updatePortfolioAndWatchlistPrices = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        console.log('=== Updating Portfolio and Watchlist Prices ===');
+        
+        // Get all unique symbols from user's portfolio and watchlist
+        const [portfolioSummary, watchlistResult] = await Promise.all([
+            Portfolio.getPortfolioSummary(userId),
+            Watchlist.getUserWatchlist(userId)
+        ]);
+        
+        const portfolioSymbols = portfolioSummary.holdings.map(holding => 
+            holding.stock_symbol || holding.stockSymbol
+        );
+        const watchlistSymbols = watchlistResult.rows.map(item => 
+            item.stock_symbol || item.stockSymbol
+        );
+        
+        // Get unique symbols
+        const allSymbols = [...new Set([...portfolioSymbols, ...watchlistSymbols])];
+        
+        if (allSymbols.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No symbols to update',
+                data: {
+                    portfolioUpdated: 0,
+                    watchlistUpdated: 0,
+                    totalSymbols: 0
+                }
+            });
+        }
+        
+        console.log(`Fetching prices for ${allSymbols.length} symbols:`, allSymbols);
+        
+        // Get current prices from external API
+        const batchResult = await stockService.getBatchQuotes(allSymbols);
+        
+        if (batchResult.results.length === 0) {
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to fetch any current prices',
+                errors: batchResult.errors
+            });
+        }
+        
+        const priceUpdates = batchResult.results.map(stock => ({
+            symbol: stock.symbol,
+            price: stock.price
+        }));
+        
+        console.log(`Successfully fetched ${priceUpdates.length} prices`);
+        
+        // Update both portfolio and watchlist prices
+        const [portfolioUpdateResult, watchlistUpdateResult] = await Promise.all([
+            portfolioSymbols.length > 0 ? Portfolio.updatePrices(priceUpdates) : [],
+            watchlistSymbols.length > 0 ? Watchlist.updatePrices(priceUpdates) : []
+        ]);
+        
+        const portfolioUpdatedCount = portfolioUpdateResult.reduce((sum, result) => sum + result.updatedCount, 0);
+        const watchlistUpdatedCount = watchlistUpdateResult.reduce((sum, result) => sum + result.updatedCount, 0);
+        
+        console.log(`Price update completed: Portfolio: ${portfolioUpdatedCount}, Watchlist: ${watchlistUpdatedCount}`);
+        
+        res.json({
+            success: true,
+            message: 'Prices updated successfully',
+            data: {
+                portfolioUpdated: portfolioUpdatedCount,
+                watchlistUpdated: watchlistUpdatedCount,
+                totalSymbols: allSymbols.length,
+                successfulFetches: priceUpdates.length,
+                errors: batchResult.errors.length > 0 ? batchResult.errors : undefined
+            }
+        });
+    } catch (error) {
+        console.error('Error updating prices:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update prices',
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     getAvailableStocks,
     getStockQuote,
@@ -882,5 +1038,6 @@ module.exports = {
     getWatchlist,
     addToWatchlist,
     removeFromWatchlist,
-    searchStocks
+    searchStocks,
+    updatePortfolioAndWatchlistPrices
 };

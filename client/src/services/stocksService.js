@@ -329,11 +329,143 @@ class StocksService {
     }
 
     /**
+     * Update current prices for portfolio and watchlist
+     * @returns {Promise<Object>} Result of the price update operation
+     */
+    async updatePrices() {
+        try {
+            console.log('🔄 Updating portfolio and watchlist prices...');
+            
+            const response = await stockAPI.updatePrices();
+
+            if (response.success) {
+                console.log('✅ Prices updated successfully:', response.data);
+                return {
+                    success: true,
+                    message: response.message,
+                    data: response.data
+                };
+            } else {
+                throw new Error(response.message || "Failed to update prices");
+            }
+        } catch (error) {
+            console.error('❌ Failed to update prices:', error);
+            return {
+                success: false,
+                message: `Failed to update prices: ${error.message}`
+            };
+        }
+    }
+
+    /**
+     * Get portfolio with fresh prices
+     * @returns {Promise<Object>} Portfolio data with updated prices
+     */
+    async getPortfolioWithFreshPrices() {
+        try {
+            console.log('📊 Fetching portfolio with fresh prices...');
+            
+            const response = await stockAPI.getPortfolio(true); // Force price update
+
+            if (response.success) {
+                console.log('✅ Portfolio data fetched with fresh prices');
+                return {
+                    success: true,
+                    data: response.data || [],
+                    summary: response.summary
+                };
+            } else {
+                throw new Error(response.message || "Failed to fetch portfolio");
+            }
+        } catch (error) {
+            console.error('❌ Failed to fetch portfolio with fresh prices:', error);
+            return {
+                success: false,
+                message: `Failed to fetch portfolio: ${error.message}`,
+                data: []
+            };
+        }
+    }
+
+    /**
+     * Get watchlist with fresh prices
+     * @returns {Promise<Object>} Watchlist data with updated prices
+     */
+    async getWatchlistWithFreshPrices() {
+        try {
+            console.log('👁️ Fetching watchlist with fresh prices...');
+            
+            const response = await stockAPI.getWatchlist({ updatePrices: true });
+
+            if (response.success) {
+                console.log('✅ Watchlist data fetched with fresh prices');
+                return {
+                    success: true,
+                    data: response.data || []
+                };
+            } else {
+                throw new Error(response.message || "Failed to fetch watchlist");
+            }
+        } catch (error) {
+            console.error('❌ Failed to fetch watchlist with fresh prices:', error);
+            return {
+                success: false,
+                message: `Failed to fetch watchlist: ${error.message}`,
+                data: []
+            };
+        }
+    }
+
+    /**
+     * Test API connection with current market data
+     * @returns {Promise<Object>} Test result
+     */
+    async testApiConnection() {
+        try {
+            console.log('🧪 Testing API connection...');
+            
+            // Test with a popular stock symbol
+            const testSymbol = 'AAPL';
+            const response = await stockAPI.getStockQuote(testSymbol);
+
+            if (response.success && response.data) {
+                console.log('✅ API test successful:', response.data);
+                return {
+                    success: true,
+                    message: `API connection successful`,
+                    data: {
+                        symbol: response.data.symbol,
+                        price: response.data.price,
+                        change: response.data.change,
+                        changePercent: response.data.changePercent,
+                        source: response.data.source
+                    },
+                    status: {
+                        alphaVantageConfigured: true // Assuming if we get data, API is working
+                    }
+                };
+            } else {
+                throw new Error(response.message || "No data received from API");
+            }
+        } catch (error) {
+            console.error('❌ API test failed:', error);
+            return {
+                success: false,
+                message: `API test failed: ${error.message}`,
+                status: {
+                    alphaVantageConfigured: false
+                }
+            };
+        }
+    }
+
+    /**
      * Calculate portfolio statistics
      * @param {Array} portfolio - Current portfolio data
+     * @param {Array} marketData - Market data for current prices
      * @returns {Object} Portfolio statistics
      */
-    calculatePortfolioStats(portfolio) {
+    calculatePortfolioStats(portfolio, marketData = []) {
         // Ensure portfolio is an array
         if (!Array.isArray(portfolio) || portfolio.length === 0) {
             return {
@@ -346,14 +478,25 @@ class StocksService {
         const totalValue = portfolio.reduce((sum, stock) => {
             // Handle both snake_case and camelCase field names
             const quantity = stock.total_quantity || stock.totalQuantity || stock.quantity || 0;
-            const currentPrice = stock.current_price || stock.currentPrice || 0;
+            
+            // Get current price from market data if available, fallback to stock data
+            let currentPrice = stock.current_price || stock.currentPrice || 0;
+            if (marketData && marketData.length > 0) {
+                const marketStock = marketData.find(m => 
+                    (m.symbol || m.ticker) === (stock.symbol || stock.ticker || stock.stock_symbol)
+                );
+                if (marketStock) {
+                    currentPrice = marketStock.current_price || marketStock.currentPrice || marketStock.price || currentPrice;
+                }
+            }
+            
             return sum + (parseInt(quantity) * parseFloat(currentPrice));
         }, 0);
 
         const totalInvested = portfolio.reduce((sum, stock) => {
             // Handle both snake_case and camelCase field names
             const quantity = stock.total_quantity || stock.totalQuantity || stock.quantity || 0;
-            const avgPrice = stock.average_purchase_price || stock.averagePurchasePrice || 0;
+            const avgPrice = stock.average_purchase_price || stock.averagePurchasePrice || stock.avgPrice || 0;
             return sum + (parseInt(quantity) * parseFloat(avgPrice));
         }, 0);
 
@@ -385,6 +528,13 @@ class StocksService {
             const totalQuantity = stock.total_quantity || stock.totalQuantity || 0;
             const stockSymbol = stock.stock_symbol || stock.stockSymbol || '';
             const stockName = stock.stock_name || stock.stockName || '';
+            
+            // Include daily change data from server
+            const dailyChange = stock.daily_change || stock.dailyChange || stock.change || stock.price_change || 0;
+            const dailyChangePercent = stock.daily_change_percent || stock.dailyChangePercent || stock.changePercent || stock.price_change_percent || 0;
+            const volume = stock.volume || stock.daily_volume || stock.dailyVolume || 0;
+            const dayHigh = stock.day_high || stock.dayHigh || stock.high || stock.daily_high || currentPrice;
+            const dayLow = stock.day_low || stock.dayLow || stock.low || stock.daily_low || currentPrice;
 
             return {
                 id: stock.id,
@@ -397,6 +547,12 @@ class StocksService {
                 gainPercent: averagePurchasePrice > 0
                     ? ((parseFloat(currentPrice) - parseFloat(averagePurchasePrice)) / parseFloat(averagePurchasePrice)) * 100
                     : 0,
+                // Include daily market data
+                dailyChange: parseFloat(dailyChange),
+                dailyChangePercent: parseFloat(dailyChangePercent),
+                volume: parseInt(volume),
+                dayHigh: parseFloat(dayHigh),
+                dayLow: parseFloat(dayLow)
             };
         });
     }
@@ -414,11 +570,16 @@ class StocksService {
         return watchlist.map((stock) => {
             // Handle both snake_case (from DB) and camelCase field names
             const currentPrice = stock.current_price || stock.currentPrice || 0;
-            const priceChange = stock.price_change || stock.priceChange || 0;
-            const priceChangePercent = stock.price_change_percent || stock.priceChangePercent || 0;
+            const priceChange = stock.price_change || stock.priceChange || stock.daily_change || stock.dailyChange || stock.change || 0;
+            const priceChangePercent = stock.price_change_percent || stock.priceChangePercent || stock.daily_change_percent || stock.dailyChangePercent || stock.changePercent || 0;
             const stockSymbol = stock.stock_symbol || stock.stockSymbol || '';
             const stockName = stock.stock_name || stock.stockName || '';
             const createdAt = stock.created_at || stock.createdAt || new Date();
+            
+            // Include additional market data
+            const volume = stock.volume || stock.daily_volume || stock.dailyVolume || 0;
+            const dayHigh = stock.day_high || stock.dayHigh || stock.high || stock.daily_high || currentPrice;
+            const dayLow = stock.day_low || stock.dayLow || stock.low || stock.daily_low || currentPrice;
 
             return {
                 id: stock.id,
@@ -428,6 +589,12 @@ class StocksService {
                 change: parseFloat(priceChange),
                 changePercent: parseFloat(priceChangePercent),
                 addedDate: createdAt,
+                // Include daily market data
+                dailyChange: parseFloat(priceChange),
+                dailyChangePercent: parseFloat(priceChangePercent),
+                volume: parseInt(volume),
+                dayHigh: parseFloat(dayHigh),
+                dayLow: parseFloat(dayLow)
             };
         });
     }

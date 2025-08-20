@@ -245,16 +245,18 @@ const AccountDetailsModal = ({ account, isOpen, onClose }) => {
 													Opened Date
 												</label>
 												<div className="fw-medium">
-													{new Date(
-														account.openDate
-													).toLocaleDateString(
-														"en-US",
-														{
-															year: "numeric",
-															month: "long",
-															day: "numeric",
-														}
-													)}
+													{account.openDate || account.created_at ? 
+														new Date(
+															account.openDate || account.created_at
+														).toLocaleDateString(
+															"en-US",
+															{
+																year: "numeric",
+																month: "long",
+																day: "numeric",
+															}
+														) : "N/A"
+													}
 												</div>
 											</div>
 											<div className="col-12">
@@ -262,9 +264,9 @@ const AccountDetailsModal = ({ account, isOpen, onClose }) => {
 													Last Updated
 												</label>
 												<div className="fw-medium">
-													{account.updatedAt
+													{account.updatedAt || account.updated_at
 														? new Date(
-																account.updatedAt
+																account.updatedAt || account.updated_at
 														  ).toLocaleDateString(
 																"en-US",
 																{

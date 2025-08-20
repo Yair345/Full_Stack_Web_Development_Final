@@ -277,7 +277,10 @@ export const stockAPI = {
     },
 
     // Get user's portfolio
-    getPortfolio: () => apiRequest('/stocks/portfolio'),
+    getPortfolio: (updatePrices = true) => {
+        const params = updatePrices ? '?updatePrices=true' : '?updatePrices=false';
+        return apiRequest(`/stocks/portfolio${params}`);
+    },
 
     // Get user's watchlist
     getWatchlist: (params = {}) => {
@@ -294,6 +297,11 @@ export const stockAPI = {
     // Remove stock from watchlist
     removeFromWatchlist: (id) => apiRequest(`/stocks/watchlist/${id}`, {
         method: 'DELETE',
+    }),
+
+    // Update portfolio and watchlist prices
+    updatePrices: () => apiRequest('/stocks/update-prices', {
+        method: 'POST',
     }),
 };
 

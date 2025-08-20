@@ -51,6 +51,11 @@ const Watchlist = sequelize.define('Watchlist', {
         defaultValue: 0,
         field: 'price_change_percent'
     },
+    previousClose: {
+        type: DataTypes.DECIMAL(15, 4),
+        defaultValue: 0,
+        field: 'previous_close'
+    },
     priceAboveAlert: {
         type: DataTypes.DECIMAL(15, 4),
         allowNull: true,
@@ -110,10 +115,13 @@ const Watchlist = sequelize.define('Watchlist', {
             }
         },
         beforeSave: (watchlist) => {
-            // Calculate price changes when current price changes
-            if (watchlist.changed('currentPrice') && parseFloat(watchlist.addedPrice) > 0) {
-                watchlist.priceChange = parseFloat(watchlist.currentPrice) - parseFloat(watchlist.addedPrice);
-                watchlist.priceChangePercent = (parseFloat(watchlist.priceChange) / parseFloat(watchlist.addedPrice)) * 100;
+            // Calculate daily price changes when current price changes
+            if (watchlist.changed('currentPrice') && parseFloat(watchlist.previousClose || watchlist.currentPrice) > 0) {
+                const currentPrice = parseFloat(watchlist.currentPrice);
+                const previousClose = parseFloat(watchlist.previousClose || watchlist.currentPrice);
+                
+                watchlist.priceChange = currentPrice - previousClose;
+                watchlist.priceChangePercent = (watchlist.priceChange / previousClose) * 100;
             }
 
             // Update last price update timestamp if current price changed
@@ -238,10 +246,17 @@ Watchlist.updatePrices = async function (priceUpdates) {
     const results = [];
 
     for (const update of priceUpdates) {
-        const { symbol, price } = update;
+        const { symbol, price, change, changePercent, previousClose } = update;
+
+        const updateData = {
+            currentPrice: price,
+            priceChange: change || 0,
+            priceChangePercent: changePercent || 0,
+            previousClose: previousClose || price
+        };
 
         const updated = await this.update(
-            { currentPrice: price },
+            updateData,
             {
                 where: {
                     stockSymbol: symbol.toUpperCase(),

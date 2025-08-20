@@ -1,30 +1,26 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown, Trash2, ShoppingCart } from "lucide-react";
+import { Trash2, ShoppingCart } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
+import { StockPriceDisplay, StockInfoDisplay } from "./StockDisplayCommon";
+import { stockDataUtils } from "./stocksUtils";
+import { stocksService } from "../../services/stocksService";
 
-const WatchlistStockCard = ({ stock, onRemoveFromWatchlist, onBuyStock }) => {
+const WatchlistStockCard = ({ stock, marketData, onRemoveFromWatchlist, onBuyStock }) => {
 	const [showBuyForm, setShowBuyForm] = useState(false);
 	const [quantity, setQuantity] = useState("");
 	const [loading, setLoading] = useState(false);
 
-	// Safely handle potentially undefined values
-	const currentPrice = stock.currentPrice || 0;
-	const change = stock.change || 0;
-	const changePercent = stock.changePercent || 0;
-	const symbol = stock.symbol || "";
-	const name = stock.name || "";
-	const addedDate = stock.addedDate || new Date();
-
-	const isPositive = change >= 0;
+	// Use market data merged with watchlist data for consistency
+	const normalized = stockDataUtils.mergeWithMarketData(stock, marketData, 'watchlist');
 
 	const handleBuy = async () => {
 		if (!quantity || quantity <= 0) return;
 
 		setLoading(true);
 		try {
-			await onBuyStock(symbol, quantity, currentPrice);
+			await onBuyStock(normalized.symbol, quantity, normalized.currentPrice);
 			setShowBuyForm(false);
 			setQuantity("");
 		} catch (error) {
@@ -45,30 +41,18 @@ const WatchlistStockCard = ({ stock, onRemoveFromWatchlist, onBuyStock }) => {
 	return (
 		<Card className="h-100">
 			<div className="d-flex justify-content-between align-items-start mb-3">
-				<div>
-					<h6 className="fw-bold mb-1">{symbol}</h6>
-					<p className="text-muted small mb-1">{name}</p>
-					<p className="text-muted small mb-0">
-						Added: {formatDate(addedDate)}
-					</p>
-				</div>
-				<div className="text-end">
-					<h5 className="mb-1 fw-bold">${currentPrice.toFixed(2)}</h5>
-					<div
-						className={`small ${
-							isPositive ? "text-success" : "text-danger"
-						}`}
-					>
-						{isPositive ? (
-							<TrendingUp size={14} />
-						) : (
-							<TrendingDown size={14} />
-						)}
-						<span className="ms-1">
-							{isPositive ? "+" : ""}${change.toFixed(2)}(
-							{isPositive ? "+" : ""}
-							{changePercent.toFixed(2)}%)
-						</span>
+				<StockInfoDisplay stock={stock} source="watchlist" />
+				<StockPriceDisplay stock={stock} source="watchlist" />
+			</div>
+			<div className="mb-3">
+				<div className="row g-2 small text-muted">
+					<div className="col-6">
+						<div>High: {stockDataUtils.formatPrice(normalized.dayHigh)}</div>
+						<div>Low: {stockDataUtils.formatPrice(normalized.dayLow)}</div>
+					</div>
+					<div className="col-6">
+						<div>Volume: {normalized.volume.toLocaleString()}</div>
+						<div>Added: {formatDate(normalized.addedDate)}</div>
 					</div>
 				</div>
 			</div>
@@ -105,7 +89,7 @@ const WatchlistStockCard = ({ stock, onRemoveFromWatchlist, onBuyStock }) => {
 						/>
 						{quantity && (
 							<div className="small text-muted mt-1">
-								Total: ${(quantity * currentPrice).toFixed(2)}
+								Total: {stockDataUtils.formatPrice(quantity * normalized.currentPrice)}
 							</div>
 						)}
 					</div>
@@ -138,6 +122,7 @@ const WatchlistStockCard = ({ stock, onRemoveFromWatchlist, onBuyStock }) => {
 
 const StocksWatchlist = ({
 	watchlist,
+	marketData = [],
 	onRemoveFromWatchlist,
 	onBuyStock,
 	loading,
@@ -196,6 +181,7 @@ const StocksWatchlist = ({
 					<div key={stock.id} className="col-lg-4 col-md-6">
 						<WatchlistStockCard
 							stock={stock}
+							marketData={marketData}
 							onRemoveFromWatchlist={onRemoveFromWatchlist}
 							onBuyStock={onBuyStock}
 						/>

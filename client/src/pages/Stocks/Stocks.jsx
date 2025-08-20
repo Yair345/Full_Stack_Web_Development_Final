@@ -27,6 +27,17 @@ const Stocks = () => {
 		loadInitialData();
 	}, []);
 
+	// Auto-refresh prices when switching between tabs
+	useEffect(() => {
+		if (activeTab === "market" && availableStocks.length > 0) {
+			refreshMarketPrices();
+		} else if (activeTab === "portfolio" && portfolio.length > 0) {
+			refreshPortfolioPrices();
+		} else if (activeTab === "watchlist" && watchlist.length > 0) {
+			refreshWatchlistPrices();
+		}
+	}, [activeTab]);
+
 	const loadInitialData = async () => {
 		try {
 			setLoading(true);
@@ -48,6 +59,72 @@ const Stocks = () => {
 		} catch (error) {
 			console.error("Unexpected error:", error);
 			setError("An unexpected error occurred");
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const refreshMarketPrices = async () => {
+		try {
+			console.log('Refreshing market prices...');
+			const result = await stocksService.loadAvailableStocks();
+			if (result.success) {
+				setAvailableStocks(result.data || []);
+				console.log('Market prices refreshed successfully');
+			}
+		} catch (error) {
+			console.warn('Failed to refresh market prices:', error);
+		}
+	};
+
+	const refreshPortfolioPrices = async () => {
+		try {
+			console.log('Refreshing portfolio prices...');
+			const result = await stocksService.getPortfolioWithFreshPrices();
+			if (result.success) {
+				setPortfolio(result.data);
+				console.log('Portfolio prices refreshed successfully');
+			}
+		} catch (error) {
+			console.warn('Failed to refresh portfolio prices:', error);
+		}
+	};
+
+	const refreshWatchlistPrices = async () => {
+		try {
+			console.log('Refreshing watchlist prices...');
+			const result = await stocksService.getWatchlistWithFreshPrices();
+			if (result.success) {
+				setWatchlist(result.data);
+				console.log('Watchlist prices refreshed successfully');
+			}
+		} catch (error) {
+			console.warn('Failed to refresh watchlist prices:', error);
+		}
+	};
+
+	const handleRefreshPrices = async () => {
+		try {
+			setLoading(true);
+			const result = await stocksService.updatePrices();
+			
+			if (result.success) {
+				setSuccessMessage(`Prices updated! Market, Portfolio: ${result.data.portfolioUpdated} items, Watchlist: ${result.data.watchlistUpdated} items`);
+				
+				// Refresh current tab data
+				if (activeTab === "market") {
+					await refreshMarketPrices();
+				} else if (activeTab === "portfolio") {
+					await refreshPortfolioPrices();
+				} else if (activeTab === "watchlist") {
+					await refreshWatchlistPrices();
+				}
+			} else {
+				setErrorMessage(result.message);
+			}
+		} catch (error) {
+			console.error('Failed to refresh prices:', error);
+			setErrorMessage('Failed to refresh prices');
 		} finally {
 			setLoading(false);
 		}
@@ -186,7 +263,7 @@ const Stocks = () => {
 	};
 
 	// Calculate portfolio totals using service
-	const portfolioStats = stocksService.calculatePortfolioStats(portfolio);
+	const portfolioStats = stocksService.calculatePortfolioStats(portfolio, availableStocks);
 
 	// Transform data for components using service
 	const transformedPortfolio =
@@ -261,6 +338,7 @@ const Stocks = () => {
 				return (
 					<Portfolio
 						portfolio={transformedPortfolio}
+						marketData={availableStocks}
 						totalValue={portfolioStats.totalValue}
 						totalGain={portfolioStats.totalGain}
 						totalGainPercent={portfolioStats.totalGainPercent}
@@ -272,6 +350,7 @@ const Stocks = () => {
 				return (
 					<StocksWatchlist
 						watchlist={transformedWatchlist}
+						marketData={availableStocks}
 						onRemoveFromWatchlist={handleRemoveFromWatchlist}
 						onBuyStock={handleBuyStock}
 						loading={loading}
@@ -329,6 +408,7 @@ const Stocks = () => {
 						totalGain={portfolioStats.totalGain}
 						totalGainPercent={portfolioStats.totalGainPercent}
 						onTestApi={handleTestApi}
+						onRefreshPrices={handleRefreshPrices}
 					/>
 
 					<StocksTabs

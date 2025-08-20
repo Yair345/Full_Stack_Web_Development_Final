@@ -1,34 +1,25 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown, Eye, ShoppingCart } from "lucide-react";
+import { Eye, ShoppingCart } from "lucide-react";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
+import { StockPriceDisplay, StockInfoDisplay } from "./StockDisplayCommon";
+import { stockDataUtils } from "./stocksUtils";
 
 const StockCard = ({ stock, onBuyStock, onAddToWatchlist }) => {
 	const [showBuyForm, setShowBuyForm] = useState(false);
 	const [quantity, setQuantity] = useState("");
 	const [loading, setLoading] = useState(false);
 
-	// Safely handle stock properties with defaults
-	const stockData = {
-		symbol: stock.symbol || "N/A",
-		name: stock.name || stock.companyName || "Unknown Company",
-		price: stock.price || 0,
-		change: stock.change || 0,
-		changePercent: stock.changePercent || 0,
-		dayHigh: stock.dayHigh || stock.high || stock.price || 0,
-		dayLow: stock.dayLow || stock.low || stock.price || 0,
-		volume: stock.volume || 0,
-	};
-
-	const isPositive = stockData.change >= 0;
+	// Use normalized data for consistency
+	const normalized = stockDataUtils.normalizeStockData(stock, 'market');
 
 	const handleBuy = async () => {
 		if (!quantity || quantity <= 0) return;
 
 		setLoading(true);
 		try {
-			await onBuyStock(stockData.symbol, quantity, stockData.price);
+			await onBuyStock(normalized.symbol, quantity, normalized.currentPrice);
 			setShowBuyForm(false);
 			setQuantity("");
 		} catch (error) {
@@ -41,41 +32,17 @@ const StockCard = ({ stock, onBuyStock, onAddToWatchlist }) => {
 	return (
 		<Card className="h-100">
 			<div className="d-flex justify-content-between align-items-start mb-3">
-				<div>
-					<h6 className="fw-bold mb-1">{stockData.symbol}</h6>
-					<p className="text-muted small mb-0">{stockData.name}</p>
-				</div>
-				<div className="text-end">
-					<h5 className="mb-1 fw-bold">
-						${stockData.price.toFixed(2)}
-					</h5>
-					<div
-						className={`small ${
-							isPositive ? "text-success" : "text-danger"
-						}`}
-					>
-						{isPositive ? (
-							<TrendingUp size={14} />
-						) : (
-							<TrendingDown size={14} />
-						)}
-						<span className="ms-1">
-							{isPositive ? "+" : ""}$
-							{stockData.change.toFixed(2)} (
-							{isPositive ? "+" : ""}
-							{stockData.changePercent.toFixed(2)}%)
-						</span>
-					</div>
-				</div>
+				<StockInfoDisplay stock={stock} source="market" />
+				<StockPriceDisplay stock={stock} source="market" />
 			</div>
 
 			<div className="row g-2 mb-3 small text-muted">
 				<div className="col-6">
-					<div>High: ${stockData.dayHigh.toFixed(2)}</div>
-					<div>Low: ${stockData.dayLow.toFixed(2)}</div>
+					<div>High: {stockDataUtils.formatPrice(normalized.dayHigh)}</div>
+					<div>Low: {stockDataUtils.formatPrice(normalized.dayLow)}</div>
 				</div>
 				<div className="col-6">
-					<div>Volume: {stockData.volume.toLocaleString()}</div>
+					<div>Volume: {normalized.volume.toLocaleString()}</div>
 				</div>
 			</div>
 
@@ -93,7 +60,7 @@ const StockCard = ({ stock, onBuyStock, onAddToWatchlist }) => {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => onAddToWatchlist(stockData.symbol)}
+						onClick={() => onAddToWatchlist(normalized.symbol)}
 					>
 						<Eye size={14} className="me-1" />
 						Watch
@@ -113,7 +80,7 @@ const StockCard = ({ stock, onBuyStock, onAddToWatchlist }) => {
 						{quantity && (
 							<div className="small text-muted mt-1">
 								Total: $
-								{(quantity * stockData.price).toFixed(2)}
+								{(quantity * normalized.currentPrice).toFixed(2)}
 							</div>
 						)}
 					</div>
