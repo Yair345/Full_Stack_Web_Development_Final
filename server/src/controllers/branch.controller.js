@@ -711,7 +711,8 @@ const rejectUser = catchAsync(async (req, res, next) => {
         rejected_by: managerId,
         rejected_at: new Date(),
         rejection_reason: reason || 'No reason provided',
-        pending_branch_id: null
+        pending_branch_id: null,
+        is_active: false // Deactivate rejected users to prevent any access
     });
 
     logger.info(`User ${userId} rejected for branch ${branchId}`);

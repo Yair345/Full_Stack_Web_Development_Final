@@ -37,7 +37,7 @@ export const useAuthInitialization = () => {
             dispatch(refreshTokenStart());
 
             // Use the refresh token directly in the API call
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'}/auth/refresh`, {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1'}/auth/refresh`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ export const useAuthInitialization = () => {
     // Function to get user profile with current or refreshed token
     const getUserProfile = useCallback(async (currentToken) => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'}/auth/profile`, {
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1'}/auth/profile`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',

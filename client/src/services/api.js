@@ -76,6 +76,11 @@ export const authAPI = {
         body: formData,
         // Don't set Content-Type header, let the browser set it with the boundary for FormData
     }),
+
+    getUserFiles: (fileType) => {
+        const queryString = fileType ? `?fileType=${fileType}` : '';
+        return apiRequest(`/uploads/my-files${queryString}`);
+    },
 };
 
 // Account API calls
