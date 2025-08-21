@@ -26,10 +26,10 @@ const Accounts = () => {
 	// Listen for account creation events and force refresh
 	useEffect(() => {
 		const handleAccountCreated = async () => {
-			console.log("Account created event received, forcing refresh...");
+
 			try {
 				await refetch({ shouldRevalidate: true });
-				console.log("Auto-refresh after account creation completed");
+
 			} catch (error) {
 				console.warn(
 					"Auto-refresh after account creation failed:",
@@ -53,11 +53,11 @@ const Accounts = () => {
 		resetCreateState();
 
 		try {
-			console.log("Starting manual refresh...");
+
 
 			// Force refetch
 			const result = await refetch();
-			console.log("Refresh result:", result);
+
 
 			setLastRefresh(new Date());
 			setSuccessMessage("Accounts refreshed successfully!");
@@ -84,9 +84,9 @@ const Accounts = () => {
 
 	const handleCreateAccount = async (accountData) => {
 		try {
-			console.log("Creating account with data:", accountData);
+
 			const result = await createAccount(accountData);
-			console.log("Account creation result:", result);
+
 
 			setSuccessMessage("Account created successfully!");
 			setIsCreateModalOpen(false);
@@ -95,9 +95,6 @@ const Accounts = () => {
 			setTimeout(() => setSuccessMessage(""), 5000);
 
 			// The refresh will be handled automatically by the account-created event
-			console.log(
-				"Account creation completed, waiting for auto-refresh..."
-			);
 		} catch (error) {
 			console.error("Failed to create account:", error);
 			// Error will be displayed through createError state or modal
@@ -106,9 +103,6 @@ const Accounts = () => {
 	};
 
 	const handleAccountDeleted = async (deletedAccountId) => {
-		console.log(
-			`Account ${deletedAccountId} deleted, refreshing accounts...`
-		);
 		setSuccessMessage("Account deleted successfully!");
 
 		// Auto-hide success message after 5 seconds

@@ -70,13 +70,6 @@ const CashDepositTab = ({ branchId, onNotification }) => {
 		}
 
 		try {
-			console.log("Attempting branch deposit with:", {
-				branchId: branchId,
-				account_id: accountId,
-				amount: parseFloat(depositAmount),
-				customer: selectedCustomer?.username,
-			});
-
 			const depositData = {
 				account_id: accountId,
 				amount: parseFloat(depositAmount),
@@ -86,7 +79,7 @@ const CashDepositTab = ({ branchId, onNotification }) => {
 			};
 
 			const result = await createBranchDeposit({ branchId, depositData });
-			console.log("Branch deposit result:", result);
+
 
 			onNotification?.(
 				"success",

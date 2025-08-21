@@ -97,7 +97,7 @@ export const useStandingOrder = (standingOrderId, options = {}) => {
 export const useCreateStandingOrder = () => {
     return useMutation(standingOrderAPI.createStandingOrder, {
         onSuccess: (data) => {
-            console.log('Standing order created successfully:', data);
+
         },
         onError: (error) => {
             console.error('Standing order creation failed:', error);

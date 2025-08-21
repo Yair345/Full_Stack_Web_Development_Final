@@ -218,7 +218,7 @@ const LoanApplicationsTab = ({
 	const [statusFilter, setStatusFilter] = useState("all");
 	const [typeFilter, setTypeFilter] = useState("all");
 
-	console.log("LoanApplicationsTab - loanApplications:", loanApplications); // Debug log
+	// Debug log
 
 	const filteredApplications = filterLoanApplications(
 		loanApplications,

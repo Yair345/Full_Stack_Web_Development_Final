@@ -138,7 +138,7 @@ const Register = () => {
 			}
 
 			// Show success message (optional)
-			console.log("Registration successful:", user);
+
 		} catch (err) {
 			console.error("Registration error:", err);
 			const errorMessage =

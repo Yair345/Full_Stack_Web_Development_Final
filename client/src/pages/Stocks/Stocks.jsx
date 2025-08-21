@@ -66,11 +66,9 @@ const Stocks = () => {
 
 	const refreshMarketPrices = async () => {
 		try {
-			console.log('Refreshing market prices...');
 			const result = await stocksService.loadAvailableStocks();
 			if (result.success) {
 				setAvailableStocks(result.data || []);
-				console.log('Market prices refreshed successfully');
 			}
 		} catch (error) {
 			console.warn('Failed to refresh market prices:', error);
@@ -79,11 +77,9 @@ const Stocks = () => {
 
 	const refreshPortfolioPrices = async () => {
 		try {
-			console.log('Refreshing portfolio prices...');
 			const result = await stocksService.getPortfolioWithFreshPrices();
 			if (result.success) {
 				setPortfolio(result.data);
-				console.log('Portfolio prices refreshed successfully');
 			}
 		} catch (error) {
 			console.warn('Failed to refresh portfolio prices:', error);
@@ -92,11 +88,9 @@ const Stocks = () => {
 
 	const refreshWatchlistPrices = async () => {
 		try {
-			console.log('Refreshing watchlist prices...');
 			const result = await stocksService.getWatchlistWithFreshPrices();
 			if (result.success) {
 				setWatchlist(result.data);
-				console.log('Watchlist prices refreshed successfully');
 			}
 		} catch (error) {
 			console.warn('Failed to refresh watchlist prices:', error);

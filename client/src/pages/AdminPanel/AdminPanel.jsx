@@ -88,19 +88,19 @@ const AdminPanel = () => {
 	};
 
 	const handleGenerateReport = () => {
-		console.log("Generating admin report...");
+
 		alert(
 			"Report generation started! You will receive an email when it's ready."
 		);
 	};
 
 	const handleSystemSettings = () => {
-		console.log("Opening system settings...");
+
 		alert("System settings will be implemented soon!");
 	};
 
 	const handleAddUser = () => {
-		console.log("Adding new user...");
+
 		alert("Add user functionality will be implemented soon!");
 	};
 
@@ -204,7 +204,7 @@ const AdminPanel = () => {
 	};
 
 	const handleExportLog = () => {
-		console.log("Exporting activity log...");
+
 		alert("Activity log export started!");
 	};
 

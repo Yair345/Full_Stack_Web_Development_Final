@@ -28,16 +28,13 @@ export const useAuthInitialization = () => {
 
     // Function to attempt token refresh
     const attemptTokenRefresh = useCallback(async () => {
-        console.log('attemptTokenRefresh called with refreshToken:', !!refreshToken);
         if (!refreshToken) {
-            console.log('No refresh token, logging out');
             dispatch(logout());
             return false;
         }
 
         try {
             dispatch(refreshTokenStart());
-            console.log('Making refresh token request...');
 
             // Use the refresh token directly in the API call
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1'}/auth/refresh`, {
@@ -57,17 +54,11 @@ export const useAuthInitialization = () => {
             }
 
             const data = await response.json();
-            console.log('Token refresh response:', data);
 
             // Extract tokens from the nested response structure
             const tokens = data.data?.tokens || data.tokens || data;
             const newAccessToken = tokens.accessToken || tokens.token || data.accessToken || data.token;
             const newRefreshToken = tokens.refreshToken || refreshToken;
-
-            console.log('Extracted tokens:', {
-                accessToken: !!newAccessToken,
-                refreshToken: !!newRefreshToken
-            });
 
             dispatch(refreshTokenSuccess({
                 token: newAccessToken,
@@ -85,7 +76,6 @@ export const useAuthInitialization = () => {
 
     // Function to get user profile with current or refreshed token
     const getUserProfile = useCallback(async (currentToken) => {
-        console.log('getUserProfile called with token:', !!currentToken);
         try {
             const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api/v1'}/auth/profile`, {
                 method: 'GET',
@@ -102,9 +92,7 @@ export const useAuthInitialization = () => {
             }
 
             const userData = await response.json();
-            console.log('Profile response:', userData);
             const user = userData.data?.user || userData.user || userData.data || userData;
-            console.log('Extracted user:', user);
 
             // Transform server field names to match client expectations
             const transformedUser = {
@@ -113,7 +101,6 @@ export const useAuthInitialization = () => {
                 lastName: user.last_name || user.lastName
             };
 
-            console.log('Setting user:', transformedUser);
             dispatch(setUser(transformedUser));
         } catch (error) {
             console.error('Failed to get user profile:', error);
@@ -125,59 +112,43 @@ export const useAuthInitialization = () => {
     // Initialize user on app start
     useEffect(() => {
         const initializeUser = async () => {
-            console.log('initializeUser called', {
-                attempted: initializationAttempted.current,
-                initialized: isInitialized,
-                hasToken: !!token,
-                hasUser: !!user
-            });
-
             // Prevent multiple initialization attempts
             if (initializationAttempted.current || isInitialized) return;
             initializationAttempted.current = true;
 
             // Start initialization process
             dispatch(initializationStart());
-            console.log('Starting initialization...');
 
             // If no token, mark as initialized and return
             if (!token) {
-                console.log('No token found, completing initialization');
                 dispatch(initializationComplete());
                 return;
             }
 
             // If we have a token and user, we're already initialized
             if (token && user) {
-                console.log('Already have token and user, completing initialization');
                 dispatch(initializationComplete());
                 return;
             }
 
             // Always fetch user profile if we have a token but no user
             if (token && !user) {
-                console.log('Have token but no user, fetching profile...');
                 try {
                     // Check if current token is expired
                     if (isTokenExpired(token)) {
-                        console.log('Token is expired, attempting refresh...');
                         const newToken = await attemptTokenRefresh();
                         if (newToken) {
-                            console.log('Token refreshed, fetching profile with new token...');
                             await getUserProfile(newToken);
                         }
                     } else {
-                        console.log('Token is valid, fetching profile...');
                         await getUserProfile(token);
                     }
                 } catch (error) {
                     console.error('Initialization error:', error);
                 } finally {
-                    console.log('Completing initialization');
                     dispatch(initializationComplete());
                 }
             } else {
-                console.log('Unexpected state, completing initialization');
                 dispatch(initializationComplete());
             }
         };

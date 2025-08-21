@@ -15,11 +15,8 @@ const WaitingPage = () => {
 	const navigate = useNavigate();
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
-	console.log("WaitingPage - user data:", user);
-
 	useEffect(() => {
 		if (!user) {
-			console.log("No user found, redirecting to login");
 			navigate("/login");
 			return;
 		}
@@ -29,7 +26,6 @@ const WaitingPage = () => {
 			user &&
 			(user.approval_status === "rejected" || user.is_active === false)
 		) {
-			console.log("User is rejected, redirecting to rejected page");
 			navigate("/rejected");
 			return;
 		}
@@ -40,7 +36,6 @@ const WaitingPage = () => {
 			(user.approval_status === "approved" ||
 				(!user.isBlocked && !user.approval_status))
 		) {
-			console.log("User is approved, redirecting to dashboard");
 			navigate("/dashboard");
 		}
 	}, [user, navigate]);
@@ -64,7 +59,6 @@ const WaitingPage = () => {
 	};
 
 	const handleFileUploaded = (file) => {
-		console.log("File uploaded:", file);
 		// Handle successful file upload if needed
 	};
 

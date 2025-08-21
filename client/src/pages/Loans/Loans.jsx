@@ -82,7 +82,7 @@ const Loans = () => {
 	const handleViewDetails = async (loanId) => {
 		try {
 			const loanDetails = await getLoanById(loanId);
-			console.log("Loan details:", loanDetails);
+
 			// You can implement a modal or navigate to a details page here
 			alert("Loan details feature will be implemented soon!");
 		} catch (err) {

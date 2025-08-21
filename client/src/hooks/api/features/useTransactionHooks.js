@@ -45,17 +45,17 @@ export const useTransactions = (filters = {}, options = {}) => {
 
             // If we don't have accounts data yet, return raw transaction data without transformation
             if (!accountsResponse?.data?.accounts) {
-                console.log('Accounts data not available yet, returning raw transactions');
+
                 return transactions;
             }
 
             // Extract user account IDs from the correct path
             const userAccountIds = accountsResponse.data.accounts.map(acc => acc.id);
-            console.log('User account IDs:', userAccountIds);
+
 
             // Transform server transactions to client format
             const transformed = transformServerTransactions(transactions, userAccountIds);
-            console.log('Transformed transactions:', transformed.length);
+
             return transformed;
         } catch (error) {
             console.error('Error in transformedTransactions:', error);

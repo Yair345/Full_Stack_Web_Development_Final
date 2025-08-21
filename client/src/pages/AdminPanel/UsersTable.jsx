@@ -29,7 +29,7 @@ const UserActionButtons = ({
 			if (onViewUser) {
 				onViewUser(user);
 			} else {
-				console.log("Viewing user details for:", user);
+
 				alert(
 					`Viewing details for user: ${user.username} (${user.email})`
 				);
@@ -42,7 +42,7 @@ const UserActionButtons = ({
 			if (onEditUser) {
 				onEditUser(user);
 			} else {
-				console.log("Editing user:", user);
+
 				alert(`Edit user functionality for: ${user.username}`);
 			}
 			return;

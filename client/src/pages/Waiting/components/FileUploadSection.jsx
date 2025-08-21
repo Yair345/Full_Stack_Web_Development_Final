@@ -60,7 +60,6 @@ const FileUploadSection = ({ onFileUploaded }) => {
 
 			if (response.ok) {
 				const result = await response.json();
-				console.log("Upload successful:", result);
 
 				const newFile = {
 					id: Date.now(),

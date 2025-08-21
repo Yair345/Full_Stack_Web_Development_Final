@@ -78,8 +78,6 @@ class StocksService {
                 pricePerShare: parseFloat(price),
             };
 
-            console.log('🔄 Processing stock purchase...', orderData);
-
             const response = await stockAPI.buyStock(orderData);
 
             if (response.success) {
@@ -89,13 +87,6 @@ class StocksService {
                 // Extract bank transaction details for UI feedback
                 const bankTransaction = response.data?.bankTransaction;
                 const totalCost = (parseInt(quantity) * parseFloat(price)) + 2.99; // Including fees
-
-                console.log('✅ Stock purchase successful!', {
-                    stockSymbol,
-                    quantity,
-                    totalCost,
-                    bankTransaction: bankTransaction
-                });
 
                 return {
                     success: true,
@@ -139,8 +130,6 @@ class StocksService {
      */
     async sellStock(stockId, quantity, portfolio) {
         try {
-            console.log("sellStock called with:", { stockId, quantity, portfolio: portfolio?.length });
-
             // Ensure portfolio is an array
             if (!Array.isArray(portfolio)) {
                 throw new Error("Portfolio data not available");
@@ -153,13 +142,9 @@ class StocksService {
                 throw new Error("Stock not found in portfolio");
             }
 
-            console.log("Found stock:", stock);
-
             // Handle both transformed and raw database field names
             const stockSymbol = stock.symbol || stock.stockSymbol || stock.stock_symbol || '';
             const currentPrice = stock.currentPrice || stock.current_price || 0;
-
-            console.log("Extracted data:", { stockSymbol, currentPrice });
 
             // Validate required fields
             if (!stockSymbol) {
@@ -176,8 +161,6 @@ class StocksService {
                 pricePerShare: parseFloat(currentPrice),
             };
 
-            console.log("🔄 Processing stock sale...", orderData);
-
             const response = await stockAPI.sellStock(orderData);
 
             if (response.success) {
@@ -188,14 +171,6 @@ class StocksService {
                 const bankTransaction = response.data?.bankTransaction;
                 const totalValue = parseInt(quantity) * parseFloat(currentPrice);
                 const netAmount = totalValue - 2.99; // After fees
-
-                console.log('✅ Stock sale successful!', {
-                    stockSymbol,
-                    quantity,
-                    totalValue,
-                    netAmount,
-                    bankTransaction: bankTransaction
-                });
 
                 return {
                     success: true,
@@ -249,8 +224,6 @@ class StocksService {
                 throw new Error("Stock not found");
             }
 
-            console.log(`🔄 Adding ${stockSymbol} to watchlist...`);
-
             const watchlistData = {
                 stockSymbol: stockSymbol.toUpperCase(),
                 // Server will get the stock name and current price from external APIs
@@ -262,8 +235,6 @@ class StocksService {
             if (response.success) {
                 // Reload watchlist to get updated list
                 const watchlistResponse = await stockAPI.getWatchlist();
-
-                console.log(`✅ ${stockSymbol} successfully added to watchlist!`);
 
                 return {
                     success: true,
@@ -301,8 +272,6 @@ class StocksService {
      */
     async removeFromWatchlist(watchlistId) {
         try {
-            console.log(`Removing watchlist item ${watchlistId}`);
-
             const response = await stockAPI.removeFromWatchlist(watchlistId);
 
             if (response.success) {
@@ -334,12 +303,9 @@ class StocksService {
      */
     async updatePrices() {
         try {
-            console.log('🔄 Updating portfolio and watchlist prices...');
-            
             const response = await stockAPI.updatePrices();
 
             if (response.success) {
-                console.log('✅ Prices updated successfully:', response.data);
                 return {
                     success: true,
                     message: response.message,
@@ -363,12 +329,9 @@ class StocksService {
      */
     async getPortfolioWithFreshPrices() {
         try {
-            console.log('📊 Fetching portfolio with fresh prices...');
-            
             const response = await stockAPI.getPortfolio(true); // Force price update
 
             if (response.success) {
-                console.log('✅ Portfolio data fetched with fresh prices');
                 return {
                     success: true,
                     data: response.data || [],
@@ -393,12 +356,9 @@ class StocksService {
      */
     async getWatchlistWithFreshPrices() {
         try {
-            console.log('👁️ Fetching watchlist with fresh prices...');
-            
             const response = await stockAPI.getWatchlist({ updatePrices: true });
 
             if (response.success) {
-                console.log('✅ Watchlist data fetched with fresh prices');
                 return {
                     success: true,
                     data: response.data || []
@@ -422,14 +382,11 @@ class StocksService {
      */
     async testApiConnection() {
         try {
-            console.log('🧪 Testing API connection...');
-            
             // Test with a popular stock symbol
             const testSymbol = 'AAPL';
             const response = await stockAPI.getStockQuote(testSymbol);
 
             if (response.success && response.data) {
-                console.log('✅ API test successful:', response.data);
                 return {
                     success: true,
                     message: `API connection successful`,

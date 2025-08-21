@@ -224,7 +224,7 @@ const Profile = () => {
 
 	const handleDownloadStatement = () => {
 		// In a real app, this would trigger a download of the user's statement
-		console.log("Downloading statement...");
+
 		alert("Statement download started!");
 	};
 

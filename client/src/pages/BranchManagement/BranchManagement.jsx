@@ -80,7 +80,7 @@ const BranchManagement = () => {
 	};
 
 	const handleCustomerAction = async (action, customerId) => {
-		console.log(`${action} customer:`, customerId);
+
 
 		if (action === "View") {
 			try {
@@ -156,7 +156,7 @@ Status: ${customer.is_active ? "Active" : "Inactive"}
 	};
 
 	const handleLoanAction = async (action, applicationId) => {
-		console.log(`${action} loan application:`, applicationId);
+
 
 		try {
 			if (action === "Approve") {

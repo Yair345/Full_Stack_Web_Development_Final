@@ -50,7 +50,7 @@ const CustomerActionButtons = ({ customer, onCustomerAction }) => {
 
 const CustomersTable = ({ customers, onCustomerAction }) => {
 	// Debug: Log customers to see their structure
-	console.log("CustomersTable received customers:", customers);
+
 
 	return (
 		<div className="table-responsive">
